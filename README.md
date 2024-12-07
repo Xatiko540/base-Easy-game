@@ -10,6 +10,8 @@ the logic of a binary matrix with 1 million participants and 1 billion cells </h
 
 https://github.com/user-attachments/assets/58c1ac8d-a3e3-452c-8c0c-01509652a688
 
+https://github.com/user-attachments/assets/3de84796-1989-427a-940f-5a065092dabf
+
 ![image](https://github.com/user-attachments/assets/9827c830-0ba7-4259-9f9c-03e4612fdc90)
 
 ![image](https://github.com/user-attachments/assets/b22ca094-b357-4c67-8106-12e77d26ca82)
@@ -17,6 +19,9 @@ https://github.com/user-attachments/assets/58c1ac8d-a3e3-452c-8c0c-01509652a688
 ![image](https://github.com/user-attachments/assets/460be616-79b3-4d29-9181-e152b386c298)
 
 ![WhatsApp Image 2024-11-30 at 07 06 56](https://github.com/user-attachments/assets/eb0bae6e-7d97-43dc-b8cb-7c6c11633b31)
+
+
+
 
 
 
