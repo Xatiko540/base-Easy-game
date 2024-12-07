@@ -54,3 +54,94 @@ https://github.com/user-attachments/assets/58c1ac8d-a3e3-452c-8c0c-01509652a688
 - [] Notification system for participants, tracking referrals and reward status in real-time.
 - [] Freezing levels after two cycles if the next higher level is not activated, with a mechanism to unfreeze permanently upon final level activation.
 - [] Visualization of participant positions in the matrix, showing live slot allocation and progression.
+
+
+
+
+
+
+
+### The final logic of the binary matrix with 1 million participants and 1 billion cells
+
+
+
+Binary Matrix Structure
+Total cell size: 1,000,000,000 (1 billion).
+Number of participants: 1,000,000 (1 million).
+How it works:
+Each level contains 2^n cells, where n is the level number (starting with n = 0).
+Participants are added from left to right, filling the top rows before moving to the bottom.
+
+
+Calculating Filled Levels
+Formula for calculating the number of participants needed to fill the first n levels:
+
+\text{Participants} = \sum_{k=0}^{n} 2^k = 2^{n+1} - 1
+
+Result for n = 19 :
+2^{20} - 1 = 1,048,575 .
+Since we only have 1,000,000 participants, only the first 19 levels are completely filled.
+Remaining participants on level 20:
+1,000,000 - 524,287 = 475,713 .
+Available 2^{20} = 1,048,576 cells on level 20.
+Filling: \frac{475,713}{1,048,576} \approx 45.36\% .
+
+Recycles (Recycle)
+Recycle conditions:
+A recycle occurs when two cells under the player are filled.
+The player moves to the next available level, starting with the left cell.
+Number of recycles:
+At the n -th level: R_n = \frac{2^n}{2} = 2^{n-1} .
+For the first 19 levels (full filling):
+
+R_{\text{19 levels}} = \sum_{n=1}^{19} 2^{n-1} = 524,287 \, \text{recycles}.
+
+At the 20th level:
+475,713 / 2 = 237,856 \, \text{recycles} .
+At the 21st level:
+237,856 / 2 = 118,928 \, \text{recycles} .
+Total recycles:
+\text{Total} = 524,287 + 237,856 + 118,928 + \dots , decreasing as you go down.
+
+Final distribution of participants
+Full occupancy:
+Levels 1–19: fully occupied.
+Partial occupancy:
+Level 20: 45.36\% .
+Level 21: \frac{237,856}{2,097,152} \approx 11.34\% .
+Level 22: the process continues with decreasing density.
+Recycle dynamics:
+Recycles ensure the redistribution of participants across the lower levels while there are free spaces.
+Occupancy density:
+With 1 million participants:
+
+\frac{1,000,000}{1,000,000,000} \times 100\% = 0.1\%.
+
+Most of the matrix remains unoccupied, creating space for future participants.
+
+
+Basic principles of the system
+Room for growth:
+The binary matrix allows for a virtually unlimited number of participants.
+The system remains active even with a significant increase in participants.
+Recycles and movement:
+Recycles support the movement of participants down the matrix, ensuring uniform filling of new cells.
+Level dynamics:
+Participants fill the upper levels sequentially.
+Upon reaching level 19, the matrix continues to partially fill the lower levels.
+
+
+Example of participant movement
+Levels 1–19:
+Participants 1–524,287 completely fill these levels.
+Level 20:
+Participants 524,288–1,000,000 occupy 45.36\% of available cells.
+First wave of recycles: 237,856 participants are redistributed downwards.
+Level 21:
+118,928 participants occupy 11.34\% of cells.
+Redistribution continues.
+
+
+
+
+
