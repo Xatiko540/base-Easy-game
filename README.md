@@ -31,6 +31,9 @@ https://github.com/user-attachments/assets/8003673a-a62f-4aed-9cfc-9b151a3e6e56
 
 
 ### Features that have been implemented and tested
+
+[Jump to assets](https://github.com/Xatiko540/base-Easy-game/tree/master/assets)
+
 - [x] Private key of wallet is used to fetch public key and eth in wallet.
 - [x] Multiple Account can be saved for future use.
 - [x] Light mode and Dark mode theme.
