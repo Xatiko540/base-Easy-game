@@ -1,5 +1,9 @@
 <h1 align="center">Flutter Advance base Easy game</h1>
 
+<h2 align="center">This is a scientific experiment to predict lottery winnings based on the structure of a binary matrix
+
+the logic of a binary matrix with 1 million participants and 1 billion cells </h2>
+
 <p align="center">
   <a href="https://github.com/Mufaddal5253110/lottery-dapp/stargazers">
     <img src="https://img.shields.io/github/stars/Mufaddal5253110/lottery-dapp.svg?style=for-the-badge">
