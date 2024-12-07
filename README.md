@@ -114,6 +114,10 @@ At the 21st level:
 Total recycles:
 \text{Total} = 524,287 + 237,856 + 118,928 + \dots , decreasing as you go down.
 
+
+![Image 2024-12-07 at 19 42 40](https://github.com/user-attachments/assets/3011a9d1-ef32-4494-bdb5-cd8d8e2e003b)
+
+
 Final distribution of participants
 Full occupancy:
 Levels 1–19: fully occupied.
