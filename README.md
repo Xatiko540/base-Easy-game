@@ -13,7 +13,7 @@ https://github.com/user-attachments/assets/58c1ac8d-a3e3-452c-8c0c-01509652a688
 
 https://github.com/user-attachments/assets/8003673a-a62f-4aed-9cfc-9b151a3e6e56
 
-![Image](https://github.com/user-attachments/assets/bb027b41-2408-446a-9ab2-4d19c6e93fd5)
+![Image 2024-11-30 at 02 35 22](https://github.com/user-attachments/assets/bc83c84e-a136-404f-bb50-e7e1b12886ce)
 
 ![image](https://github.com/user-attachments/assets/9827c830-0ba7-4259-9f9c-03e4612fdc90)
 
