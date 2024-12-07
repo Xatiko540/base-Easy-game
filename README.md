@@ -69,7 +69,7 @@ https://github.com/user-attachments/assets/8003673a-a62f-4aed-9cfc-9b151a3e6e56
 
 
 
-
+[Go to project screens](https://www.figma.com)
 
 
 ### The final logic of the binary matrix with 1 million participants and 1 billion cells
