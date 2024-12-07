@@ -22,7 +22,7 @@ https://github.com/user-attachments/assets/58c1ac8d-a3e3-452c-8c0c-01509652a688
 
 
 
-### Features
+### Features that have been implemented and tested
 - [x] Private key of wallet is used to fetch public key and eth in wallet.
 - [x] Multiple Account can be saved for future use.
 - [x] Light mode and Dark mode theme.
@@ -33,3 +33,24 @@ https://github.com/user-attachments/assets/58c1ac8d-a3e3-452c-8c0c-01509652a688
 - [x] Maximum entries is also set by the creator of the lottery.
 - [x] Winner is chosen by random inside the contract, triggered by lottery creator.
 - [x] Total ether collected is paid to the winner automatically upon winner selection.
+
+
+
+### Features to be implemented
+
+
+- [] Binary matrix system for 17 levels, filling slots sequentially (left-to-right) across multiple lines.
+- [] Dynamic slot allocation with priority for unoccupied cells in the uppermost rows.
+- [] Full cycle logic: movement of participants to the next available line after slot completion.
+- [] Infinite matrix scalability for participants with binary growth structure (1 → 2 → 4 → 8).
+- [] ETH-based entry for each level with pre-defined costs, increasing with level hierarchy.
+- [] 	Reward distribution system:
+	•	80% base reward to a random higher participant in the same level.
+	•	20% referral rewards:
+	•	First-line referral: 9.5% (with 0.5% going to a special operational wallet).
+	•	Second-line referral: 6%.
+	•	Third-line referral: 4%.
+- [] Smart contract automation for reward distribution and participant tracking, ensuring transparency and accuracy.
+- [] Notification system for participants, tracking referrals and reward status in real-time.
+- [] Freezing levels after two cycles if the next higher level is not activated, with a mechanism to unfreeze permanently upon final level activation.
+- [] Visualization of participant positions in the matrix, showing live slot allocation and progression.
