@@ -10,7 +10,7 @@ void main() async {
   await GetStorage.init();
   runApp(
     GetMaterialApp(
-      title: "Lottery Dapp",
+      title: "Easy game",
       initialRoute: AppPages.INITIAL,
       getPages: AppPages.routes,
       defaultTransition: Transition.fadeIn,
