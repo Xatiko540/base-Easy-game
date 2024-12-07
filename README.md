@@ -4,7 +4,7 @@
 
 the logic of a binary matrix with 1 million participants and 1 billion cells </h2>
 
-
+<h3 align="center">Implementation of the project as a proof of the theory of large numbers and the percentage of winnings, describing the real numbers of winnings </h3>
 
 ## Projects that inspired this project
 
@@ -147,6 +147,13 @@ First wave of recycles: 237,856 participants are redistributed downwards.
 Level 21:
 118,928 participants occupy 11.34\% of cells.
 Redistribution continues.
+
+
+Potential improvements
+Add a forecasting algorithm to distribute participants across levels in real time.
+Visualize the movement of participants through a matrix for easy monitoring.
+Develop a notification system for participants at each recycle or new level filling.
+
 
 
 
