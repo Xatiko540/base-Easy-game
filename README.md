@@ -8,13 +8,8 @@
 
 ## Overview
 
-<p align="center">
-  <a href="https://youtu.be/glz8rfMI4cw">
-![image](https://github.com/user-attachments/assets/b5dd2f60-ab9a-4f71-bcec-c38b24f863b7)
+![image](https://github.com/user-attachments/assets/b22ca094-b357-4c67-8106-12e77d26ca82)
 
-
-  </a>
-</p>
 
 
 ![image](https://github.com/user-attachments/assets/460be616-79b3-4d29-9181-e152b386c298)
