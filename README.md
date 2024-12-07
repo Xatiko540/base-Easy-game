@@ -4,11 +4,7 @@
 
 the logic of a binary matrix with 1 million participants and 1 billion cells </h2>
 
-<p align="center">
-  <a href="https://github.com/Mufaddal5253110/lottery-dapp/stargazers">
-    <img src="https://img.shields.io/github/stars/Mufaddal5253110/lottery-dapp.svg?style=for-the-badge">
-  </a>
-</p>
+
 
 ## Projects that inspired this project
 
