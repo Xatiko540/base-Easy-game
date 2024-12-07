@@ -4,7 +4,7 @@
 
 the logic of a binary matrix with 1 million participants and 1 billion cells </h2>
 
-<h3 align="center">Implementation of the project as a proof of the theory of large numbers and the percentage of winnings, describing the real numbers of winnings </h3>
+<h3 align="center">Implementation of the project as a proof of the theory of large numbers and winning percentages, describing the real numbers of winnings, as well as all processes of interaction with the blockchain and distribution of payments through baes </h3>
 
 ## Projects that inspired this project
 
