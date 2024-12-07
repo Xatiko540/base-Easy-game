@@ -39,17 +39,17 @@ https://github.com/user-attachments/assets/58c1ac8d-a3e3-452c-8c0c-01509652a688
 ### Features to be implemented
 
 
-- [] Binary matrix system for 17 levels, filling slots sequentially (left-to-right) across multiple lines.
-- [] Dynamic slot allocation with priority for unoccupied cells in the uppermost rows.
-- [] Full cycle logic: movement of participants to the next available line after slot completion.
+- [0] Binary matrix system for 17 levels, filling slots sequentially (left-to-right) across multiple lines.
+- [0] Dynamic slot allocation with priority for unoccupied cells in the uppermost rows.
+- [0] Full cycle logic: movement of participants to the next available line after slot completion.
 - [] Infinite matrix scalability for participants with binary growth structure (1 → 2 → 4 → 8).
 - [] ETH-based entry for each level with pre-defined costs, increasing with level hierarchy.
-- [] 	Reward distribution system:
-	•	80% base reward to a random higher participant in the same level.
-	•	20% referral rewards:
-	•	First-line referral: 9.5% (with 0.5% going to a special operational wallet).
-	•	Second-line referral: 6%.
-	•	Third-line referral: 4%.
+- [] Reward distribution system:
+- [] 80% base reward to a random higher participant in the same level.
+- [] 20% referral rewards:
+- [] First-line referral: 9.5% (with 0.5% going to a special operational wallet).
+- [] Second-line referral: 6%.
+- [] Third-line referral: 4%.
 - [] Smart contract automation for reward distribution and participant tracking, ensuring transparency and accuracy.
 - [] Notification system for participants, tracking referrals and reward status in real-time.
 - [] Freezing levels after two cycles if the next higher level is not activated, with a mechanism to unfreeze permanently upon final level activation.
