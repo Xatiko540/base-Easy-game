@@ -7,12 +7,22 @@
 </p>
 
 ## Overview
-DEMO : https://youtu.be/glz8rfMI4cw
+
 <p align="center">
   <a href="https://youtu.be/glz8rfMI4cw">
     <img src="https://user-images.githubusercontent.com/60619133/187675253-72304866-d306-451f-b1f7-b574bd83d402.png", width="780px">
   </a>
 </p>
+
+
+![image](https://github.com/user-attachments/assets/460be616-79b3-4d29-9181-e152b386c298)
+
+
+
+![WhatsApp Image 2024-11-30 at 07 06 56](https://github.com/user-attachments/assets/eb0bae6e-7d97-43dc-b8cb-7c6c11633b31)
+
+
+
 
 
 ### Features
@@ -27,6 +37,4 @@ DEMO : https://youtu.be/glz8rfMI4cw
 - [x] Winner is chosen by random inside the contract, triggered by lottery creator.
 - [x] Total ether collected is paid to the winner automatically upon winner selection.
 
-## Contributing
 
-If you want to take the time to make this project better, please read the Todo first and try to complete them. Then, you can open a new [issue](https://github.com/Mufaddal5253110/lottery-dapp/issues/new/choose), of a [pull request](https://github.com/Mufaddal5253110/lottery-dapp/compare).
