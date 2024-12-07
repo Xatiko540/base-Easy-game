@@ -1,4 +1,4 @@
-<h1 align="center">Flutter Advance base DAPP</h1>
+<h1 align="center">Flutter Advance base Easy game</h1>
 
 <p align="center">
   <a href="https://github.com/Mufaddal5253110/lottery-dapp/stargazers">
