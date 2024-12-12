@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
 import 'package:lottery_advance/app/modules/home/views/profilescreen.dart';
 import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
 
@@ -107,7 +106,7 @@ class LevelsScreen extends StatelessWidget {
           double width = constraints.maxWidth;
 
           int crossAxisCount = width < 480
-              ? 1
+              ? 2
               : width < 800
               ? 2
               : width < 1200
