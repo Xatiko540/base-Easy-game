@@ -291,10 +291,10 @@ class LevelCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Text(
-                        "Partner bonus",
-                        style: TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
+                      // Text(
+                      //   "Partner bonus",
+                      //   style: TextStyle(color: Colors.grey, fontSize: 12),
+                      // ),
                     ],
                   ),
                   Column(
@@ -308,10 +308,10 @@ class LevelCard extends StatelessWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      Text(
-                        "Level profits",
-                        style: TextStyle(color: Colors.grey, fontSize: 12),
-                      ),
+                      // Text(
+                      //   "Level profits",
+                      //   style: TextStyle(color: Colors.grey, fontSize: 12),
+                      // ),
                     ],
                   ),
                 ],
