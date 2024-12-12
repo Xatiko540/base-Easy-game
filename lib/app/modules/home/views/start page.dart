@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
 
-class SmartGamesScreen extends StatelessWidget {
+import 'levels.dart';
+
+class ExpressGameScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -10,7 +14,7 @@ class SmartGamesScreen extends StatelessWidget {
         title: Row(
           children: [
             // Image.asset(
-            //   'assets/logo.png', // Логотип
+            //   'assets/express_logo.png', // Логотип
             //   height: 30,
             // ),
             SizedBox(width: 10),
@@ -19,11 +23,15 @@ class SmartGamesScreen extends StatelessWidget {
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
             Spacer(),
-            CircleAvatar(
-              backgroundColor: Colors.grey[800],
+            Container(
+              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.grey[800],
+                borderRadius: BorderRadius.circular(8),
+              ),
               child: Text(
-                "0x47...CB",
-                style: TextStyle(fontSize: 10, color: Colors.white),
+                "0xC5...48",
+                style: TextStyle(color: Colors.white, fontSize: 14),
               ),
             ),
             SizedBox(width: 10),
@@ -42,11 +50,16 @@ class SmartGamesScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     CircleAvatar(
-                      backgroundColor: Colors.grey[700],
                       radius: 30,
+                      backgroundColor: Colors.grey[700],
                       child: Icon(Icons.person, color: Colors.white, size: 30),
                     ),
-                    SizedBox(height: 10),
+                    SizedBox(height: 8),
+                    Text(
+                      "0xC5...48",
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
+                    SizedBox(height: 4),
                     Text(
                       "Binance Smart Chain BEP-20",
                       style: TextStyle(color: Colors.grey, fontSize: 14),
@@ -57,122 +70,187 @@ class SmartGamesScreen extends StatelessWidget {
               ListTile(
                 leading: Icon(Icons.home, color: Colors.white),
                 title: Text("Home", style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Get.to(() => LevelsScreen());
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.account_balance_wallet, color: Colors.white),
+                title: Text("Wallet", style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Get.to(() => WalletScreen());
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.settings, color: Colors.white),
+                title: Text("Settings", style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  Get.to(() => SettingsScreen());
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.logout, color: Colors.white),
+                title: Text("Logout", style: TextStyle(color: Colors.white)),
+                onTap: () {
+                  // Add logout logic here
+                },
               ),
             ],
           ),
         ),
       ),
       body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                "Smart Games",
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(height: 10),
-              Text(
-                "Special games with unique logic and mechanics fully based on smart contracts",
-                style: TextStyle(fontSize: 14, color: Colors.grey),
-              ),
-              SizedBox(height: 16),
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [Colors.teal, Colors.blue],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          "Express Game",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        Text(
-                          "3.5868 BNB",
-                          style: TextStyle(color: Colors.white, fontSize: 16),
-                        ),
-                      ],
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Stack(
+              children: [
+                Container(
+                  height: 200,
+                  width: double.infinity,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [Color(0xFF10CFCF), Color(0xFF047CF9)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
                     ),
-                    SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        ...List.generate(
-                          12,
-                              (index) => Container(
-                            width: 20,
-                            height: 20,
-                            margin: EdgeInsets.symmetric(horizontal: 4),
-                            decoration: BoxDecoration(
-                              color: index == 2 || index == 3
-                                  ? Colors.purple
-                                  : Colors.grey[800],
-                              borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Row(
+                        children: [
+                          // Image.asset(
+                          //   'assets/people_icon.png', // Первая иконка
+                          //   height: 50,
+                          // ),
+                          SizedBox(width: 10),
+                          Icon(Icons.add, size: 40, color: Colors.white),
+                          SizedBox(width: 10),
+                          // Image.asset(
+                          //   'assets/controller_icon.png', // Вторая иконка
+                          //   height: 50,
+                          // ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Express Game",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      onPressed: () {},
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purpleAccent,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      icon: Icon(Icons.arrow_forward, color: Colors.white),
-                      label: Text(
-                        "To Program View",
-                        style: TextStyle(fontSize: 16),
+                          SizedBox(height: 8),
+                          Text(
+                            "Join Forsage BUSD and Activate Express in one transaction with BNB",
+                            style: TextStyle(
+                              color: Colors.grey[300],
+                              fontSize: 14,
+                            ),
+                          ),
+                          SizedBox(height: 16),
+                          ElevatedButton(
+                            onPressed: () {
+
+                              Get.to(() => RegistrationScreen());
+
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.purple,
+                              minimumSize: Size(double.infinity, 50),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(30),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "Fast Registration",
+                                  style: TextStyle(fontSize: 16),
+                                ),
+                                SizedBox(width: 10),
+                                Icon(Icons.send, color: Colors.white),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
+              ],
+            ),
+            SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  Icon(Icons.timer, color: Colors.grey),
+                  SizedBox(width: 8),
+                  Text(
+                    "Level 2 available in: 01d 00h 55m 55s",
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                ],
               ),
-              SizedBox(height: 20),
-              Text(
-                "About Express Game",
+            ),
+            SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                "Preview Mode",
                 style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
                   color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
-              SizedBox(height: 10),
-              Text(
-                "First ever smart contract game with passive yields in BNB directly to your own wallet. Rewards distributed as follows:",
-                style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                "Look up any Express game member account in preview mode. Enter ID or BNB address to preview.",
+                style: TextStyle(color: Colors.grey[400], fontSize: 14),
               ),
-              SizedBox(height: 10),
-              Text(
-                "- 74% of level value for each of your level cycle\n"
-                    "- 13%-8%-5% of level value from partners",
-                style: TextStyle(color: Colors.grey[400], fontSize: 12),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
+      ),
+
+    );
+  }
+}
+
+// Заглушки для других экранов
+class WalletScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Text("Wallet Screen", style: TextStyle(color: Colors.white)),
+      ),
+    );
+  }
+}
+
+class SettingsScreen extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Center(
+        child: Text("Settings Screen", style: TextStyle(color: Colors.white)),
       ),
     );
   }
