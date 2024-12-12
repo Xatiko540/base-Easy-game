@@ -41,8 +41,11 @@ class ContractLinking extends GetxController
         final String _rpcUrl = "https://eth-goerli.g.alchemy.com/v2/$Alchemy_Goerli_KEY";
         final String _wsUrl = "wss://eth-goerli.g.alchemy.com/v2/$Alchemy_Goerli_KEY";s
 */
-  final String _rpcUrl = "http://192.168.40.193:7545";
-  final String _wsUrl = "ws://192.168.40.193:7545/";
+  // final String _rpcUrl = "http://192.168.40.193:7545";
+  // final String _wsUrl = "ws://192.168.40.193:7545/";
+
+  final String _rpcUrl = "http://127.0.0.1:8545";
+  final String _wsUrl = "ws://127.0.0.1:8545/";
 
   late Web3Client _web3client;
 
@@ -284,7 +287,7 @@ class ContractLinking extends GetxController
         function: createLottery,
         parameters: [name],
       ),
-      chainId: 3,
+      chainId: 1337,
       // fetchChainIdFromNetworkId: true,
     );
     isLoading.value = false;
@@ -350,7 +353,7 @@ class ContractLinking extends GetxController
           EthereumAddress.fromHex(address),
         ],
       ),
-      chainId: 3,
+      chainId: 1337,
       // fetchChainIdFromNetworkId: true,
     );
     // lottries.value =
@@ -371,7 +374,7 @@ class ContractLinking extends GetxController
           BigInt.from(ethRequired),
         ],
       ),
-      chainId: 3,
+      chainId: 1337,
       // fetchChainIdFromNetworkId: true,
     );
     await reloadContractOnActivate();
@@ -529,7 +532,7 @@ class ContractLinking extends GetxController
           parameters: [name.value],
           value: EtherAmount.inWei(BigInt.from(amountInWei)),
         ),
-        chainId: 3,
+        chainId: 1337,
         // fetchChainIdFromNetworkId: true,
       );
       message.value = "You've been entered, updating values may take sometime";
@@ -557,7 +560,7 @@ class ContractLinking extends GetxController
           function: declareWinner,
           parameters: [],
         ),
-        chainId: 3,
+        chainId: 1337,
         // fetchChainIdFromNetworkId: true,
       );
       await reloadContractOnDecalreWinner();

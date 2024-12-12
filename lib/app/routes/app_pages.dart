@@ -2,6 +2,7 @@
 
 import 'package:get/get.dart';
 
+import '../modules/home/views/home_view.dart';
 import '../modules/home/views/levels.dart';
 
 
@@ -16,8 +17,8 @@ class AppPages {
   static final routes = [
     GetPage(
       name: _Paths.HOME,
-      // page: () => HomeView(),
-      page: () => LevelsScreen(),
+      page: () => HomeView(),
+      // page: () => LevelsScreen(),
 
     ),
 
