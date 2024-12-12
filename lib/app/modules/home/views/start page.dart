@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class ProfileScreen extends StatelessWidget {
+class SmartGamesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -9,32 +9,32 @@ class ProfileScreen extends StatelessWidget {
         backgroundColor: Colors.black,
         title: Row(
           children: [
+            // Image.asset(
+            //   'assets/logo.png', // Логотип
+            //   height: 30,
+            // ),
             SizedBox(width: 10),
             Text(
-              "Easy Play Game",
+              "express.game",
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
+            Spacer(),
+            CircleAvatar(
+              backgroundColor: Colors.grey[800],
+              child: Text(
+                "0x47...CB",
+                style: TextStyle(fontSize: 10, color: Colors.white),
+              ),
+            ),
+            SizedBox(width: 10),
           ],
         ),
-        actions: [
-          Container(
-            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.grey[800],
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              "0x87...d973",
-              style: TextStyle(color: Colors.white, fontSize: 14),
-            ),
-          ),
-          SizedBox(width: 10),
-        ],
       ),
       drawer: Drawer(
         child: Container(
           color: Colors.black,
           child: ListView(
+            padding: EdgeInsets.zero,
             children: [
               DrawerHeader(
                 decoration: BoxDecoration(color: Colors.grey[900]),
@@ -42,16 +42,11 @@ class ProfileScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     CircleAvatar(
-                      radius: 30,
                       backgroundColor: Colors.grey[700],
+                      radius: 30,
                       child: Icon(Icons.person, color: Colors.white, size: 30),
                     ),
-                    SizedBox(height: 8),
-                    Text(
-                      "0x87...d973",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    SizedBox(height: 4),
+                    SizedBox(height: 10),
                     Text(
                       "Binance Smart Chain BEP-20",
                       style: TextStyle(color: Colors.grey, fontSize: 14),
@@ -62,219 +57,122 @@ class ProfileScreen extends StatelessWidget {
               ListTile(
                 leading: Icon(Icons.home, color: Colors.white),
                 title: Text("Home", style: TextStyle(color: Colors.white)),
-                onTap: () {},
-              ),
-              ListTile(
-                leading: Icon(Icons.account_balance_wallet, color: Colors.white),
-                title: Text("Wallet", style: TextStyle(color: Colors.white)),
-                onTap: () {},
-              ),
-              ListTile(
-                leading: Icon(Icons.settings, color: Colors.white),
-                title: Text("Settings", style: TextStyle(color: Colors.white)),
-                onTap: () {},
-              ),
-              ListTile(
-                leading: Icon(Icons.logout, color: Colors.white),
-                title: Text("Logout", style: TextStyle(color: Colors.white)),
-                onTap: () {},
               ),
             ],
           ),
         ),
       ),
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: Colors.grey[700],
-                  child: Icon(Icons.person, color: Colors.white, size: 30),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Smart Games",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
-                SizedBox(width: 16),
-                Column(
+              ),
+              SizedBox(height: 10),
+              Text(
+                "Special games with unique logic and mechanics fully based on smart contracts",
+                style: TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+              SizedBox(height: 16),
+              Container(
+                padding: EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.teal, Colors.blue],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      "ID 338313",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          "Express Game",
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        Text(
+                          "3.5868 BNB",
+                          style: TextStyle(color: Colors.white, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        ...List.generate(
+                          12,
+                              (index) => Container(
+                            width: 20,
+                            height: 20,
+                            margin: EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              color: index == 2 || index == 3
+                                  ? Colors.purple
+                                  : Colors.grey[800],
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    SizedBox(height: 16),
+                    ElevatedButton.icon(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.purpleAccent,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
                       ),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      "0x87Ef...d973",
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      "invited 04.04.2022 by ID 306985",
-                      style: TextStyle(color: Colors.grey, fontSize: 12),
+                      icon: Icon(Icons.arrow_forward, color: Colors.white),
+                      label: Text(
+                        "To Program View",
+                        style: TextStyle(fontSize: 16),
+                      ),
                     ),
                   ],
                 ),
-                Spacer(),
-                Icon(Icons.settings, color: Colors.white),
-              ],
-            ),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "My personal link",
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    "express.game/dpofec",
-                    style: TextStyle(color: Colors.blue, fontSize: 16),
-                  ),
-                  SizedBox(height: 16),
-                  Row(
-                    children: [
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                        ),
-                        child: Text("Copy"),
-                      ),
-                      SizedBox(width: 16),
-                      ElevatedButton(
-                        onPressed: () {},
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.blue,
-                        ),
-                        child: Text("Share"),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: 16),
-            Text(
-              "Smart Games",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 8),
-            Text(
-              "Special games with unique logic and mechanics fully based on smart contracts",
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-            SizedBox(height: 16),
-            Container(
-              padding: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    Color(0xFF1A1F2E),
-                    Color(0xFF0F131A),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+              SizedBox(height: 20),
+              Text(
+                "About Express Game",
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
                 ),
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.purpleAccent.withOpacity(0.5),
-                    blurRadius: 10,
-                    offset: Offset(0, 4),
-                  ),
-                ],
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Express Game",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Text(
-                        "0 BNB",
-                        style: TextStyle(color: Colors.white, fontSize: 18),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  Row(
-                    children: List.generate(
-                      12,
-                          (index) => Container(
-                        width: 20,
-                        height: 20,
-                        margin: EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: index == 6 ? Colors.blue : Colors.grey[800],
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  ElevatedButton(
-                    onPressed: () {},
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.purpleAccent,
-                      minimumSize: Size(double.infinity, 50),
-                    ),
-                    child: Text(
-                      "To Program View",
-                      style: TextStyle(fontSize: 16),
-                    ),
-                  ),
-                ],
+              SizedBox(height: 10),
+              Text(
+                "First ever smart contract game with passive yields in BNB directly to your own wallet. Rewards distributed as follows:",
+                style: TextStyle(color: Colors.grey, fontSize: 14),
               ),
-            ),
-          ],
+              SizedBox(height: 10),
+              Text(
+                "- 74% of level value for each of your level cycle\n"
+                    "- 13%-8%-5% of level value from partners",
+                style: TextStyle(color: Colors.grey[400], fontSize: 12),
+              ),
+            ],
+          ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.black,
-        unselectedItemColor: Colors.grey,
-        selectedItemColor: Colors.white,
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.wallet_giftcard),
-            label: 'Wallet',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
-        onTap: (index) {
-          // Реализуйте навигацию на основе index
-        },
       ),
     );
   }

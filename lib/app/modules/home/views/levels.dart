@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
 import 'package:lottery_advance/app/modules/home/views/profilescreen.dart';
+import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
 
 import '../../lottery/lotteries_view.dart';
 
@@ -400,9 +401,21 @@ class ActivateCard extends StatelessWidget {
                       ),
                     ),
                     child: Center(
-                      child: Text(
-                        "Activate",
-                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      child: ElevatedButton(
+                        onPressed: () {
+                          Get.to(() => RegistrationScreen());
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.purpleAccent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8), // Закругленные углы
+                          ),
+                          padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8), // Внутренние отступы
+                        ),
+                        child: Text(
+                          "Activate",
+                          style: TextStyle(color: Colors.white, fontSize: 14),
+                        ),
                       ),
                     ),
                   ),

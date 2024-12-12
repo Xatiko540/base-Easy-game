@@ -231,23 +231,48 @@ class ProfileScreen extends StatelessWidget {
                     ],
                   ),
                   SizedBox(height: 16),
-                  Row(
-                    children: List.generate(
-                      12,
-                          (index) => Container(
-                        width: 20,
-                        height: 20,
-                        margin: EdgeInsets.symmetric(horizontal: 4),
-                        decoration: BoxDecoration(
-                          color: index == 6 ? Colors.blue : Colors.grey[800],
-                          borderRadius: BorderRadius.circular(4),
+                  Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(
+                          12,
+                              (index) => Container(
+                            width: 20,
+                            height: 20,
+                            margin: EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              color: index == 6 ? Colors.blue : Colors.grey[800],
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                      SizedBox(height: 8), // Отступ между рядами
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: List.generate(
+                          12,
+                              (index) => Container(
+                            width: 20,
+                            height: 20,
+                            margin: EdgeInsets.symmetric(horizontal: 4),
+                            decoration: BoxDecoration(
+                              color: index == 4 ? Colors.green : Colors.grey[800],
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                   SizedBox(height: 16),
                   ElevatedButton(
-                    onPressed: () {},
+                    onPressed: () {
+
+                      Get.to(() => LevelsScreen());
+
+                    },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.purpleAccent,
                       minimumSize: Size(double.infinity, 50),
@@ -260,31 +285,30 @@ class ProfileScreen extends StatelessWidget {
                 ],
               ),
             ),
+            SizedBox(height: 20),
+            Text(
+              "About Express Game",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.white,
+              ),
+            ),
+            SizedBox(height: 10),
+            Text(
+              "First ever smart contract game with passive yields in BNB directly to your own wallet. Rewards distributed as follows:",
+              style: TextStyle(color: Colors.grey, fontSize: 14),
+            ),
+            SizedBox(height: 10),
+            Text(
+              "- 74% of level value for each of your level cycle\n"
+                  "- 13%-8%-5% of level value from partners",
+              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+            ),
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        backgroundColor: Colors.black,
-        unselectedItemColor: Colors.grey,
-        selectedItemColor: Colors.white,
-        items: [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.wallet_giftcard),
-            label: 'Wallet',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings),
-            label: 'Settings',
-          ),
-        ],
-        onTap: (index) {
-          // Реализуйте навигацию на основе index
-        },
-      ),
+
     );
   }
 }
