@@ -118,6 +118,10 @@ Total recycles:
 ![Image 2024-12-07 at 19 42 40](https://github.com/user-attachments/assets/3011a9d1-ef32-4494-bdb5-cd8d8e2e003b)
 
 
+![image](https://github.com/user-attachments/assets/1c74fee2-625a-4ca2-b0e1-5c33d119be3e)
+
+
+
 Final distribution of participants
 Full occupancy:
 Levels 1–19: fully occupied.
