@@ -25,12 +25,17 @@ contract LotteryGenerator {
     }
 
     function deleteLottery(address lotteryAddress) public {
-        require(msg.sender == lotteryStructs[lotteryAddress].manager);
+        require(msg.sender == lotteryStructs[lotteryAddress].manager, "Only manager can delete the lottery");
         uint indexToDelete = lotteryStructs[lotteryAddress].index;
+
+        // Перемещаем последний элемент на место удаляемого
         address lastAddress = lotteries[lotteries.length - 1];
         lotteries[indexToDelete] = lastAddress;
-        delete lotteries[indexToDelete];
-        // lotteries.length--;
+        lotteryStructs[lastAddress].index = indexToDelete;
+
+        // Удаляем последний элемент
+        lotteries.pop();
+        delete lotteryStructs[lotteryAddress];
     }
 
     // Events

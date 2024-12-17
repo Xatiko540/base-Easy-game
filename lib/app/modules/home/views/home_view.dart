@@ -18,6 +18,8 @@ import 'package:url_launcher/url_launcher.dart';
 class HomeView extends StatelessWidget {
   final contractLink = Get.put(ContractLinking(), permanent: true);
   final avatarSize = 100.0;
+  final FocusNode keyFocusNode = FocusNode(); // Управление фокусом
+
   // var contractLink;
 
   Widget _avatarPreview() {

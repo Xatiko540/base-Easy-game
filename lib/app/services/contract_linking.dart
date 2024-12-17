@@ -17,6 +17,7 @@ import 'package:multiavatar/multiavatar.dart';
 import 'package:web3dart/crypto.dart';
 import 'package:web3dart/web3dart.dart';
 import 'package:web_socket_channel/io.dart';
+import 'package:web_socket_channel/web_socket_channel.dart';
 
 class ContractLinking extends GetxController
     with GetSingleTickerProviderStateMixin {
@@ -44,8 +45,8 @@ class ContractLinking extends GetxController
   // final String _rpcUrl = "http://192.168.40.193:7545";
   // final String _wsUrl = "ws://192.168.40.193:7545/";
 
-  final String _rpcUrl = "http://127.0.0.1:8545";
-  final String _wsUrl = "ws://127.0.0.1:8545/";
+  final String _rpcUrl = "https://2b20-45-237-50-45.ngrok-free.app";
+  final String _wsUrl = "wss://2b20-45-237-50-45.ngrok-free.app/";
 
   late Web3Client _web3client;
 
@@ -110,7 +111,7 @@ class ContractLinking extends GetxController
       _rpcUrl,
       Client(),
       socketConnector: () {
-        return IOWebSocketChannel.connect(_wsUrl).cast<String>();
+        return WebSocketChannel.connect(Uri.parse(_wsUrl)).cast<String>();
       },
     );
     // await getAbi();
@@ -149,8 +150,15 @@ class ContractLinking extends GetxController
 
     // _contractAddressLottery =
     //     EthereumAddress.fromHex(jsonAbi["networks"]["5777"]["address"]);
+    // _contractAddressLotteryGenerator =
+    //     EthereumAddress.fromHex(jsonAbi2["networks"]["1337"]["address"]);
+    // Получаем networkId динамически из "networks"
+    var networkId = jsonAbi2["networks"].keys.first; // Получает первый ключ
+
+    // Получаем адрес контракта по динамическому networkId
     _contractAddressLotteryGenerator =
-        EthereumAddress.fromHex(jsonAbi2["networks"]["5777"]["address"]);
+        EthereumAddress.fromHex(jsonAbi2["networks"][networkId]["address"]);
+
     if (kDebugMode) {
       // print("Contract Address Lottery : ${_contractAddressLottery}");
       print(
@@ -389,22 +397,26 @@ class ContractLinking extends GetxController
         function: getLotteries,
         params: [],
       );
-      if (res.first != null) {
-        lottries.value =
-            (res.first as List<dynamic>).map((e) => e.toString()).toList();
+
+      // Проверяем, что res.first действительно является List<dynamic>
+      if (res.isNotEmpty && res.first is List<dynamic>) {
+        lottries.value = (res.first as List<dynamic>)
+            .map((e) => e.toString())
+            .toList();
         if (kDebugMode) {
-          print("Lotteries : $lottries");
+          print("Lotteries: $lottries");
         }
+      } else {
+        throw Exception("Unexpected data format: $res");
       }
     } catch (error, trace) {
       if (kDebugMode) {
         print("Error on getLotteriesList: $error");
         print("Trace on getLotteriesList: $trace");
       }
+    } finally {
+      isLoading.value = false;
     }
-
-    // update();
-    isLoading.value = false;
   }
 
   Future<void> getManager() async {
@@ -469,17 +481,38 @@ class ContractLinking extends GetxController
   // }
 
   Future<void> initWallet() async {
-    if (keyController.text.length == 64 || privateKey.value.length == 64) {
-      // if (privateKey!.length == 64) {
-      // isLoading.value = true;
-      walletService = WalletService(privateKey.value);
-      final address = await walletService.credentials?.extractAddress();
-      userAddress.value = '$address';
-      final balance = await _web3client.getBalance(address!);
-      userBalance.value = '${balance.getValueInUnit(EtherUnit.ether)} ETH';
-      // isLoading.value = false;
-    } else {
-      Get.rawSnackbar(message: 'Enter a valid Key');
+    isLoading.value = true; // Отображаем индикатор загрузки
+    try {
+      // Проверяем длину ключа
+      if (keyController.text.length == 64 || privateKey.value.length == 64) {
+        // Создаем экземпляр WalletService с приватным ключом
+        walletService = WalletService(privateKey.value);
+
+        // Извлекаем адрес из приватного ключа
+        final address = await walletService.credentials?.extractAddress();
+        if (address == null) {
+          throw Exception('Unable to extract address from private key.');
+        }
+
+        // Сохраняем адрес в наблюдаемую переменную
+        userAddress.value = '$address';
+
+        // Проверяем баланс аккаунта
+        final balance = await _web3client.getBalance(address);
+        userBalance.value = '${balance.getValueInUnit(EtherUnit.ether)} ETH';
+
+        // Уведомляем пользователя о успешной настройке кошелька
+        Get.rawSnackbar(message: 'Wallet initialized successfully');
+      } else {
+        // Если длина ключа не соответствует, уведомляем пользователя
+        Get.rawSnackbar(message: 'Invalid private key length. It must be 64 characters.');
+      }
+    } catch (e) {
+      // Обработка ошибок
+      Get.rawSnackbar(message: 'Error initializing wallet: $e');
+      print('Error initializing wallet: $e');
+    } finally {
+      isLoading.value = false; // Скрываем индикатор загрузки
     }
   }
 
