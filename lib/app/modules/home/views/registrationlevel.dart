@@ -1,26 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/views/profilescreen.dart';
 
+import 'PartnerBonusScreen.dart';
 import 'levels.dart';
 
 class RegistrationScreen extends StatelessWidget {
+  const RegistrationScreen(LevelStatus level1, {Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(
+          color: Colors.white, // Set the Drawer icon color to white
+        ),
         title: Row(
           children: [
             Text(
-              "express.game",
+              "Easy Game",
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
             Spacer(),
-            Text(
-              "Binance Smart Chain BEP-20",
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
+            // Text(
+            //   "Binance Smart Chain BEP-20",
+            //   style: TextStyle(color: Colors.grey, fontSize: 12),
+            // ),
           ],
         ),
         actions: [
@@ -32,65 +39,121 @@ class RegistrationScreen extends StatelessWidget {
         ],
       ),
       drawer: Drawer(
-        child: Container(
-          color: Colors.black,
-          child: ListView(
-            children: [
-              DrawerHeader(
-                decoration: BoxDecoration(color: Colors.grey[900]),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: Colors.grey[700],
-                      child: Icon(Icons.person, color: Colors.white, size: 30),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      "0x87...d973",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      "Binance Smart Chain BEP-20",
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                  ],
+        backgroundColor: Color(0xFF1A1F2E), // Background color for the drawer
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header Section
+            // DrawerHeader(
+            //   decoration: BoxDecoration(color: Colors.black),
+            //   child: Column(
+            //     crossAxisAlignment: CrossAxisAlignment.start,
+            //     children: [
+            //       // CircleAvatar(
+            //       //   radius: 30,
+            //       //   backgroundColor: Colors.grey, // Placeholder for avatar
+            //       // ),
+            //       // SizedBox(height: 8),
+            //       // Text(
+            //       //   "0x47...CB",
+            //       //   style: TextStyle(color: Colors.white, fontSize: 16),
+            //       // ),
+            //       // SizedBox(height: 4),
+            //       // Text(
+            //       //   "Binance Smart Chain BEP-20",
+            //       //   style: TextStyle(color: Colors.grey, fontSize: 14),
+            //       // ),
+            //     ],
+            //   ),
+            // ),
+
+            // Top Section Menu Items
+
+            SizedBox(height: 42),
+
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
+                children: [
+                  ListTile(
+                    leading: Icon(Icons.dashboard, color: Colors.white),
+                    title: Text("Панель приборов", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Dashboard
+                      Get.to(() => const ProfileScreen());
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.bar_chart, color: Colors.white),
+                    title: Text("Статистика", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Statistics
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.people, color: Colors.white),
+                    title: Text("Партнерский бонус", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Partner Bonus
+                      Get.to(() =>  PartnerBonusScreen());
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.info_outline, color: Colors.white),
+                    title: Text("Информация", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Information
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.telegram, color: Colors.white),
+                    title: Text("Telegram-боты", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Telegram Bots
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.campaign, color: Colors.white),
+                    title: Text("Промо", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Promo
+                    },
+                  ),
+                ],
+              ),
+            ),
+
+            // Bottom Section Menu Items
+            Column(
+              children: [
+                Divider(color: Colors.grey),
+                ListTile(
+                  leading: Icon(Icons.notifications, color: Colors.white),
+                  title: Text("Бот-уведомитель", style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    // Navigate to Bot Notifier
+                  },
                 ),
-              ),
-              ListTile(
-                leading: Icon(Icons.home, color: Colors.white),
-                title: Text("Home", style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Get.to(() => LevelsScreen());// Closes the drawer
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.account_balance_wallet, color: Colors.white),
-                title: Text("Wallet", style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.settings, color: Colors.white),
-                title: Text("Settings", style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.logout, color: Colors.white),
-                title: Text("Logout", style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Navigator.pop(context);
-                },
-              ),
-            ],
-          ),
+                ListTile(
+                  leading: Icon(Icons.settings, color: Colors.white),
+                  title: Text("Настройки", style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    // Navigate to Settings
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.logout, color: Colors.white),
+                  title: Text("Выход", style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    // Handle Logout
+                  },
+                ),
+              ],
+            ),
+          ],
         ),
       ),
+
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -220,7 +283,11 @@ class RegistrationScreen extends StatelessWidget {
             ),
             SizedBox(height: 8),
             ElevatedButton(
-              onPressed: () {},
+              onPressed: () {
+
+
+
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
                 padding: EdgeInsets.symmetric(vertical: 12),

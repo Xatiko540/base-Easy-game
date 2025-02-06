@@ -1,25 +1,39 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_web3/ethereum.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/views/profilescreen.dart';
 import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
 
+import 'PartnerBonusScreen.dart';
+import 'home_view.dart';
 import 'levels.dart';
 
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+
 class ExpressGameScreen extends StatelessWidget {
+    ExpressGameScreen({Key? key, this.walletAddress}) : super(key: key);
+
+  final String? walletAddress;
+
+   final WalletConnectService _walletService = WalletConnectService();
+
   @override
   Widget build(BuildContext context) {
+
     return Scaffold(
+
       backgroundColor: Colors.black,
+
       appBar: AppBar(
         backgroundColor: Colors.black,
+        iconTheme: const IconThemeData(
+          color: Colors.white, // Set the Drawer icon color to white
+        ),
         title: Row(
           children: [
-            // Image.asset(
-            //   'assets/express_logo.png', // Логотип
-            //   height: 30,
-            // ),
-            SizedBox(width: 10),
             Text(
-              "express.game",
+              "Easy game",
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
             Spacer(),
@@ -30,208 +44,345 @@ class ExpressGameScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Text(
-                "0xC5...48",
+                walletAddress == null
+                    ? "Not logged in" // Текст до логина
+                    : walletAddress!, // Адрес кошелька после логина
                 style: TextStyle(color: Colors.white, fontSize: 14),
               ),
             ),
-            SizedBox(width: 10),
           ],
         ),
       ),
+
       drawer: Drawer(
-        child: Container(
-          color: Colors.black,
-          child: ListView(
-            padding: EdgeInsets.zero,
-            children: [
-              DrawerHeader(
-                decoration: BoxDecoration(color: Colors.grey[900]),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    CircleAvatar(
-                      radius: 30,
-                      backgroundColor: Colors.grey[700],
-                      child: Icon(Icons.person, color: Colors.white, size: 30),
-                    ),
-                    SizedBox(height: 8),
-                    Text(
-                      "0xC5...48",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                    SizedBox(height: 4),
-                    Text(
-                      "Binance Smart Chain BEP-20",
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-              ListTile(
-                leading: Icon(Icons.home, color: Colors.white),
-                title: Text("Home", style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Get.to(() => LevelsScreen());
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.account_balance_wallet, color: Colors.white),
-                title: Text("Wallet", style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Get.to(() => WalletScreen());
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.settings, color: Colors.white),
-                title: Text("Settings", style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  Get.to(() => SettingsScreen());
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.logout, color: Colors.white),
-                title: Text("Logout", style: TextStyle(color: Colors.white)),
-                onTap: () {
-                  // Add logout logic here
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-      body: SingleChildScrollView(
+        backgroundColor: Color(0xFF1A1F2E), // Background color for the drawer
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Stack(
-              children: [
-                Container(
-                  height: 200,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Color(0xFF10CFCF), Color(0xFF047CF9)],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                ),
-                Column(
-                  children: [
-                    Padding(
-                      padding: const EdgeInsets.all(16),
-                      child: Row(
-                        children: [
-                          // Image.asset(
-                          //   'assets/people_icon.png', // Первая иконка
-                          //   height: 50,
-                          // ),
-                          SizedBox(width: 10),
-                          Icon(Icons.add, size: 40, color: Colors.white),
-                          SizedBox(width: 10),
-                          // Image.asset(
-                          //   'assets/controller_icon.png', // Вторая иконка
-                          //   height: 50,
-                          // ),
-                        ],
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            "Express Game",
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Text(
-                            "Join Forsage BUSD and Activate Express in one transaction with BNB",
-                            style: TextStyle(
-                              color: Colors.grey[300],
-                              fontSize: 14,
-                            ),
-                          ),
-                          SizedBox(height: 16),
-                          ElevatedButton(
-                            onPressed: () {
+            // Header Section
+            // DrawerHeader(
+            //   decoration: BoxDecoration(color: Colors.black),
+            //   child: Column(
+            //     crossAxisAlignment: CrossAxisAlignment.start,
+            //     children: [
+            //       // CircleAvatar(
+            //       //   radius: 30,
+            //       //   backgroundColor: Colors.grey, // Placeholder for avatar
+            //       // ),
+            //       // SizedBox(height: 8),
+            //       // Text(
+            //       //   "0x47...CB",
+            //       //   style: TextStyle(color: Colors.white, fontSize: 16),
+            //       // ),
+            //       // SizedBox(height: 4),
+            //       // Text(
+            //       //   "Binance Smart Chain BEP-20",
+            //       //   style: TextStyle(color: Colors.grey, fontSize: 14),
+            //       // ),
+            //     ],
+            //   ),
+            // ),
 
-                              Get.to(() => RegistrationScreen());
+            // Top Section Menu Items
 
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.purple,
-                              minimumSize: Size(double.infinity, 50),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  "Fast Registration",
-                                  style: TextStyle(fontSize: 16),
-                                ),
-                                SizedBox(width: 10),
-                                Icon(Icons.send, color: Colors.white),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Row(
+            SizedBox(height: 42),
+
+            Expanded(
+              child: ListView(
+                padding: EdgeInsets.zero,
                 children: [
-                  Icon(Icons.timer, color: Colors.grey),
-                  SizedBox(width: 8),
-                  Text(
-                    "Level 2 available in: 01d 00h 55m 55s",
-                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ListTile(
+                    leading: Icon(Icons.dashboard, color: Colors.white),
+                    title: Text("Панель приборов", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Dashboard
+                      Get.to(() => const ProfileScreen());
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.bar_chart, color: Colors.white),
+                    title: Text("Статистика", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Statistics
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.people, color: Colors.white),
+                    title: Text("Партнерский бонус", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Partner Bonus
+                      Get.to(() =>  PartnerBonusScreen());
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.info_outline, color: Colors.white),
+                    title: Text("Информация", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Information
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.telegram, color: Colors.white),
+                    title: Text("Telegram-боты", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Telegram Bots
+                    },
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.campaign, color: Colors.white),
+                    title: Text("Промо", style: TextStyle(color: Colors.white)),
+                    onTap: () {
+                      // Navigate to Promo
+                    },
                   ),
                 ],
               ),
             ),
-            SizedBox(height: 16),
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                "Preview Mode",
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
+
+            // Bottom Section Menu Items
+            Column(
+              children: [
+                Divider(color: Colors.grey),
+                ListTile(
+                  leading: Icon(Icons.notifications, color: Colors.white),
+                  title: Text("Бот-уведомитель", style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    // Navigate to Bot Notifier
+                  },
                 ),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Text(
-                "Look up any Express game member account in preview mode. Enter ID or BNB address to preview.",
-                style: TextStyle(color: Colors.grey[400], fontSize: 14),
-              ),
+                ListTile(
+                  leading: Icon(Icons.settings, color: Colors.white),
+                  title: Text("Настройки", style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    // Navigate to Settings
+                  },
+                ),
+                ListTile(
+                  leading: Icon(Icons.logout, color: Colors.white),
+                  title: Text("Выход", style: TextStyle(color: Colors.white)),
+                  onTap: () {
+                    // Handle Logout
+                  },
+                ),
+              ],
             ),
           ],
+        ),
+      ),
+
+      body: SingleChildScrollView(
+        child: Padding(
+          padding:  EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width * 0.10), // Боковые отступы
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: 20), // Отступ сверху
+              Container(
+                decoration: BoxDecoration(
+                  color: Color(0xFF10CFCF), // Цвет фона
+                  borderRadius: BorderRadius.circular(16), // Закругление углов
+                ),
+                padding: EdgeInsets.all(16), // Отступ внутри контейнера
+                child: _headerSection(),
+              ),
+              SizedBox(height: 16),
+              _timerSection(),
+              SizedBox(height: 16),
+              _previewModeSection(),
+              SizedBox(height: 30),
+
+            ],
+          ),
         ),
       ),
 
     );
   }
+
+
+
+  Widget _drawerTile(IconData icon, String title, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: Colors.white),
+      title: Text(title, style: TextStyle(color: Colors.white)),
+      onTap: onTap,
+    );
+  }
+
+  Widget _headerSection() {
+    return Stack(
+      children: [
+        Container(
+          height: 200,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [Color(0xFF10CFCF), Color(0xFF10CFCF)],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 32),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Easy game",
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              SizedBox(height: 8),
+              Text(
+                "Join Forsage BUSD and Activate Express in one transaction with BNB",
+                style: TextStyle(
+                  color: Colors.grey[300],
+                  fontSize: 14,
+                ),
+              ),
+              SizedBox(height: 16),
+              Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Color(0xFF8A00D4), // Фиолетовый
+                      Color(0xFF0078FF), // Синий
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: ElevatedButton(
+                  onPressed: () async {
+                    if (_walletService.isConnected) {
+                      // Если кошелек подключен, переходим на другую страницу
+                      Get.to(() => LevelsScreen());
+                    } else {
+                      // Если кошелек не подключен, пробуем подключить
+                      try {
+                        await _walletService.connectWallet();
+                        if (_walletService.isConnected) {
+                          // После успешного подключения переходим на другую страницу
+                          Get.to(() => LevelsScreen());
+                        }
+                      } catch (e) {
+                        // Если произошла ошибка при подключении, показываем сообщение
+                        Get.snackbar('Ошибка', 'Не удалось подключить кошелек');
+                      }
+                    }
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.transparent, // Прозрачный фон для градиента
+                    shadowColor: Colors.transparent,
+                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                  ),
+                  child: Text(
+                    "Вход в свой аккаунт",
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+    Widget _timerSection() {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Color(0xFF6A1B9A), // Цвет фона для таймера
+            borderRadius: BorderRadius.circular(16), // Закругление углов
+          ),
+          padding:  EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center, // Центрирование контента
+            children: [
+              Icon(Icons.timer, color: Colors.white, size: 16), // Иконка таймера
+              SizedBox(width: 8),
+              Text(
+                "Уровень 3 доступно в: 00 Д 07 Ч 32 М 54 С", // Текст таймера
+                style: TextStyle(color: Colors.white, fontSize: 14),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+  Widget _previewModeSection() {
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Preview Mode",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            "Look up any Express game member account in preview mode. Enter ID or BNB address to preview.",
+            style: TextStyle(color: Colors.grey[400], fontSize: 14),
+          ),
+          SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  style: TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    filled: true,
+                    fillColor: Colors.grey[800],
+                    hintText: "Enter ID or Wallet",
+                    hintStyle: TextStyle(color: Colors.grey),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30),
+                      borderSide: BorderSide.none,
+                    ),
+                  ),
+                ),
+              ),
+              SizedBox(width: 8),
+              ElevatedButton(
+                onPressed: () {
+                  // Логика поиска
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.teal,
+                  padding: EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: Text("Search"),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
 }
 
-// Заглушки для других экранов
+
+
 class WalletScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -253,5 +404,43 @@ class SettingsScreen extends StatelessWidget {
         child: Text("Settings Screen", style: TextStyle(color: Colors.white)),
       ),
     );
+  }
+}
+
+class WalletConnectService extends GetxController {
+  final RxString _currentAddress = ''.obs;
+  final RxBool _isConnected = false.obs;
+
+  // Доступ к данным
+  String get currentAddress => _currentAddress.value;
+  bool get isConnected => _isConnected.value;
+
+  // Проверка наличия кошелька
+  bool get isWalletAvailable => ethereum != null;
+
+  // Подключение кошелька
+  Future<void> connectWallet() async {
+    if (isWalletAvailable) {
+      try {
+        final accounts = await ethereum!.requestAccount();
+        _currentAddress.value = accounts.first;
+        _isConnected.value = true;
+        print('Кошелек подключен: ${_currentAddress.value}');
+      } catch (e) {
+        _isConnected.value = false;
+        print('Ошибка подключения: $e');
+        rethrow;
+      }
+    } else {
+      print('MetaMask или другой Web3-кошелек не установлен');
+      throw Exception('Wallet not available');
+    }
+  }
+
+  // Отключение кошелька
+  void disconnectWallet() {
+    _currentAddress.value = '';
+    _isConnected.value = false;
+    print('Кошелек отключен');
   }
 }

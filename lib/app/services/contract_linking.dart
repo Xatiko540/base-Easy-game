@@ -45,8 +45,8 @@ class ContractLinking extends GetxController
   // final String _rpcUrl = "http://192.168.40.193:7545";
   // final String _wsUrl = "ws://192.168.40.193:7545/";
 
-  final String _rpcUrl = "https://2b20-45-237-50-45.ngrok-free.app";
-  final String _wsUrl = "wss://2b20-45-237-50-45.ngrok-free.app/";
+  final String _rpcUrl = "http://127.0.0.1:8545";
+  final String _wsUrl = "ws://127.0.0.1:8545";
 
   late Web3Client _web3client;
 

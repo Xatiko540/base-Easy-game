@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_shimmer/flutter_shimmer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_web3/ethereum.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:get/get.dart';
@@ -15,10 +16,14 @@ import 'package:lottery_advance/utils/remove_scroll_glow.dart';
 import 'package:lottery_advance/utils/theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'levels.dart';
+
 class HomeView extends StatelessWidget {
   final contractLink = Get.put(ContractLinking(), permanent: true);
   final avatarSize = 100.0;
   final FocusNode keyFocusNode = FocusNode(); // Управление фокусом
+
+  final WalletConnectService _walletService = WalletConnectService();
 
   // var contractLink;
 
@@ -46,201 +51,239 @@ class HomeView extends StatelessWidget {
   }
 
   HomeView({Key? key}) : super(key: key);
+
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select or Add Account', style: bodySemiBoldBig),
+        title: const Text('Подключение через Wallet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         centerTitle: true,
+        // backgroundColor: Colors.blue,
         backgroundColor: primaryColor,
-        leading: IconButton(
-          icon: const Icon(FontAwesomeIcons.github),
-          onPressed: () async {
-            const url = 'https://github.com/Xatiko540/base-Easy-game';
-            await canLaunchUrl(Uri.parse(url))
-                ? await launchUrl(Uri.parse(url))
-                : throw 'Could not launch $url';
-          },
-        ),
+        // leading: IconButton(
+        //   icon: const Icon(FontAwesomeIcons.github),
+        //   onPressed: () async {
+        //     const url = 'https://github.com/Xatiko540/base-Easy-game';
+        //     await canLaunchUrl(Uri.parse(url))
+        //         ? await launchUrl(Uri.parse(url))
+        //         : throw 'Could not launch $url';
+        //   },
+        // ),
         actions: [
-          IconButton(
-              onPressed: () {
-                Get.bottomSheet(
-                  Container(
-                    decoration: BoxDecoration(
-                      color: Get.theme.scaffoldBackgroundColor,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(16),
-                        topRight: Radius.circular(16),
-                      ),
-                    ),
-                    child: Obx(
-                      () => ScrollConfiguration(
-                        behavior: RemoveScrollGlow(),
-                        child: ListView(
-                          children: [
-                            ListTile(
-                              title: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(FontAwesomeIcons.user)
-                                      .paddingOnly(right: 16),
-                                  const Text(
-                                    'Accounts',
-                                    style: bodySemiBoldBig,
-                                  ),
-                                ],
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                      onPressed: () {
-                                        Get.changeThemeMode(
-                                            Get.theme.brightness ==
-                                                    Brightness.dark
-                                                ? ThemeMode.light
-                                                : ThemeMode.dark);
-                                        Get.back();
-                                      },
-                                      icon: Icon(Get.theme.brightness ==
-                                              Brightness.dark
-                                          ? Icons.light_mode
-                                          : Icons.dark_mode)),
-                                  IconButton(
-                                      onPressed: Get.back,
-                                      icon: const Icon(Icons.clear)),
-                                ],
-                              ),
-                            ),
-                            if (contractLink.users.isEmpty)
-                              Column(
-                                children: [
-                                  FutureBuilder<DrawableRoot?>(
-                                    future: SvgWrapper(accountsSvgCode)
-                                        .generateLogo(),
-                                    builder: (ctx, snapshot) {
-                                      if (!snapshot.hasData) {
-                                        return const SizedBox(
-                                          width: 50,
-                                          height: 50,
-                                          child: CircularProgressIndicator
-                                              .adaptive(),
-                                        );
-                                      }
-                                      return Row(
-                                        children: [
-                                          SizedBox(
-                                            height: avatarSize * 2,
-                                            width: Get.width,
-                                            child: CustomPaint(
-                                              painter: MyPainter(
-                                                  snapshot.data!,
-                                                  Size(
-                                                    Get.width,
-                                                    avatarSize * 2,
-                                                  )),
-                                              child: Container(),
-                                            ),
-                                          ),
-                                        ],
-                                      ).paddingOnly(top: 32);
-                                    },
-                                  ),
-                                  const ListTile(
-                                    title: Text(
-                                      'Your saved Accounts will appear here',
-                                      textAlign: TextAlign.center,
-                                      style: bodySemiBold,
-                                    ),
-                                  ).paddingOnly(top: 8),
-                                ],
-                              ),
-                            ...contractLink.users.map(
-                              (u) => FutureBuilder<DrawableRoot?>(
-                                  future: SvgWrapper(u.avatar).generateLogo(),
-                                  builder: (ctx, snapshot) {
-                                    if (!snapshot.hasData) {
-                                      return const SizedBox(
-                                        width: 50,
-                                        height: 50,
-                                        child: CircularProgressIndicator
-                                            .adaptive(),
-                                      );
-                                    }
-                                    return Card(
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(8)),
-                                      elevation: 2,
-                                      child: Dismissible(
-                                        key: UniqueKey(),
-                                        direction: DismissDirection.endToStart,
-                                        onDismissed: (direction) =>
-                                            contractLink.removeAccount(u),
-                                        background: Container(
-                                          padding: const EdgeInsets.only(
-                                              right: 20.0),
-                                          alignment: Alignment.centerRight,
-                                          decoration: BoxDecoration(
-                                              color: Colors.redAccent,
-                                              borderRadius:
-                                                  BorderRadius.circular(8)),
-                                          child: const Icon(
-                                            Icons.delete,
-                                            size: 32.0,
-                                            color: Colors.white,
-                                          ),
-                                        ),
-                                        child: ListTile(
-                                          onTap: () {
-                                            contractLink.selectAccount(u);
-                                            Get.back();
-                                          },
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8)),
-                                          isThreeLine: true,
-                                          trailing: const Icon(
-                                                  Icons.arrow_forward_ios)
-                                              .paddingSymmetric(vertical: 16),
-                                          leading: Container(
-                                            height: avatarSize / 2,
-                                            width: avatarSize / 2,
-                                            decoration: const BoxDecoration(
-                                              color: Colors.white,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Material(
-                                              elevation: 8,
-                                              shape: const CircleBorder(),
-                                              child: CustomPaint(
-                                                painter: MyPainter(
-                                                    snapshot.data!,
-                                                    Size(avatarSize / 2,
-                                                        avatarSize / 2)),
-                                                child: Container(),
-                                              ),
-                                            ),
-                                          ),
-                                          title: Text(
-                                            u.name,
-                                            style: bodySemiBold,
-                                          ),
-                                          subtitle: Text(u.address),
-                                        ),
-                                      ),
-                                    ).paddingAll(8);
-                                  }),
-                            )
-                          ],
+          // IconButton(
+          //     onPressed: () {
+          //       Get.bottomSheet(
+          //         Container(
+          //           decoration: BoxDecoration(
+          //             color: Get.theme.scaffoldBackgroundColor,
+          //             borderRadius: const BorderRadius.only(
+          //               topLeft: Radius.circular(16),
+          //               topRight: Radius.circular(16),
+          //             ),
+          //           ),
+          //           child: Obx(
+          //             () => ScrollConfiguration(
+          //               behavior: RemoveScrollGlow(),
+          //               child: ListView(
+          //                 children: [
+          //                   ListTile(
+          //                     title: Row(
+          //                       mainAxisSize: MainAxisSize.min,
+          //                       children: [
+          //                         const Icon(FontAwesomeIcons.user)
+          //                             .paddingOnly(right: 16),
+          //                         const Text(
+          //                           'Accounts',
+          //                           style: bodySemiBoldBig,
+          //                         ),
+          //                       ],
+          //                     ),
+          //                     trailing: Row(
+          //                       mainAxisSize: MainAxisSize.min,
+          //                       children: [
+          //                         IconButton(
+          //                             onPressed: () {
+          //                               Get.changeThemeMode(
+          //                                   Get.theme.brightness ==
+          //                                           Brightness.dark
+          //                                       ? ThemeMode.light
+          //                                       : ThemeMode.dark);
+          //                               Get.back();
+          //                             },
+          //                             icon: Icon(Get.theme.brightness ==
+          //                                     Brightness.dark
+          //                                 ? Icons.light_mode
+          //                                 : Icons.dark_mode)),
+          //                         IconButton(
+          //                             onPressed: Get.back,
+          //                             icon: const Icon(Icons.clear)),
+          //                       ],
+          //                     ),
+          //                   ),
+          //                   if (contractLink.users.isEmpty)
+          //                     Column(
+          //                       children: [
+          //                         FutureBuilder<DrawableRoot?>(
+          //                           future: SvgWrapper(accountsSvgCode)
+          //                               .generateLogo(),
+          //                           builder: (ctx, snapshot) {
+          //                             if (!snapshot.hasData) {
+          //                               return const SizedBox(
+          //                                 width: 50,
+          //                                 height: 50,
+          //                                 child: CircularProgressIndicator
+          //                                     .adaptive(),
+          //                               );
+          //                             }
+          //                             return Row(
+          //                               children: [
+          //                                 SizedBox(
+          //                                   height: avatarSize * 2,
+          //                                   width: Get.width,
+          //                                   child: CustomPaint(
+          //                                     painter: MyPainter(
+          //                                         snapshot.data!,
+          //                                         Size(
+          //                                           Get.width,
+          //                                           avatarSize * 2,
+          //                                         )),
+          //                                     child: Container(),
+          //                                   ),
+          //                                 ),
+          //                               ],
+          //                             ).paddingOnly(top: 32);
+          //                           },
+          //                         ),
+          //                         const ListTile(
+          //                           title: Text(
+          //                             'Your saved Accounts will appear here',
+          //                             textAlign: TextAlign.center,
+          //                             style: bodySemiBold,
+          //                           ),
+          //                         ).paddingOnly(top: 8),
+          //                       ],
+          //                     ),
+          //                   ...contractLink.users.map(
+          //                     (u) => FutureBuilder<DrawableRoot?>(
+          //                         future: SvgWrapper(u.avatar).generateLogo(),
+          //                         builder: (ctx, snapshot) {
+          //                           if (!snapshot.hasData) {
+          //                             return const SizedBox(
+          //                               width: 50,
+          //                               height: 50,
+          //                               child: CircularProgressIndicator
+          //                                   .adaptive(),
+          //                             );
+          //                           }
+          //                           return Card(
+          //                             shape: RoundedRectangleBorder(
+          //                                 borderRadius:
+          //                                     BorderRadius.circular(8)),
+          //                             elevation: 2,
+          //                             child: Dismissible(
+          //                               key: UniqueKey(),
+          //                               direction: DismissDirection.endToStart,
+          //                               onDismissed: (direction) =>
+          //                                   contractLink.removeAccount(u),
+          //                               background: Container(
+          //                                 padding: const EdgeInsets.only(
+          //                                     right: 20.0),
+          //                                 alignment: Alignment.centerRight,
+          //                                 decoration: BoxDecoration(
+          //                                     color: Colors.redAccent,
+          //                                     borderRadius:
+          //                                         BorderRadius.circular(8)),
+          //                                 child: const Icon(
+          //                                   Icons.delete,
+          //                                   size: 32.0,
+          //                                   color: Colors.white,
+          //                                 ),
+          //                               ),
+          //                               child: ListTile(
+          //                                 onTap: () {
+          //                                   contractLink.selectAccount(u);
+          //                                   Get.back();
+          //                                 },
+          //                                 shape: RoundedRectangleBorder(
+          //                                     borderRadius:
+          //                                         BorderRadius.circular(8)),
+          //                                 isThreeLine: true,
+          //                                 trailing: const Icon(
+          //                                         Icons.arrow_forward_ios)
+          //                                     .paddingSymmetric(vertical: 16),
+          //                                 leading: Container(
+          //                                   height: avatarSize / 2,
+          //                                   width: avatarSize / 2,
+          //                                   decoration: const BoxDecoration(
+          //                                     color: Colors.white,
+          //                                     shape: BoxShape.circle,
+          //                                   ),
+          //                                   child: Material(
+          //                                     elevation: 8,
+          //                                     shape: const CircleBorder(),
+          //                                     child: CustomPaint(
+          //                                       painter: MyPainter(
+          //                                           snapshot.data!,
+          //                                           Size(avatarSize / 2,
+          //                                               avatarSize / 2)),
+          //                                       child: Container(),
+          //                                     ),
+          //                                   ),
+          //                                 ),
+          //                                 title: Text(
+          //                                   u.name,
+          //                                   style: bodySemiBold,
+          //                                 ),
+          //                                 subtitle: Text(u.address),
+          //                               ),
+          //                             ),
+          //                           ).paddingAll(8);
+          //                         }),
+          //                   )
+          //                 ],
+          //               ),
+          //             ),
+          //           ),
+          //         ),
+          //       );
+          //     },
+          //     icon: const Icon(FontAwesomeIcons.user)),
+
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Obx(() {
+                  if (_walletService.isConnected) {
+                    return Column(
+                      children: [
+                        Text('Адрес кошелька: ${_walletService.currentAddress}', textAlign: TextAlign.center),
+                        const SizedBox(height: 20),
+                        ElevatedButton(
+                          onPressed: _walletService.disconnectWallet,
+                          child: const Text('Отключить кошелек'),
                         ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-              icon: const Icon(FontAwesomeIcons.user))
+                      ],
+                    );
+                  } else {
+                    return ElevatedButton(
+                      onPressed: () async {
+                        try {
+                          await _walletService.connectWallet();
+                        } catch (e) {
+                          Get.snackbar('Ошибка', 'Не удалось подключить кошелек');
+                        }
+                      },
+                      child: const Text('Подключить кошелек'),
+                    );
+                  }
+                }),
+              ],
+            ),
+          ),
+
+
         ],
       ),
       body: Center(
@@ -477,7 +520,8 @@ class HomeView extends StatelessWidget {
                         contractLink.userAddress.value.isNotEmpty &&
                         !contractLink.isLoading.value)
                     ? MaterialButton(
-                        onPressed: () => Get.to(() => LotteriesView()),
+                        // onPressed: () => Get.to(() => LotteriesView()),
+                        onPressed: () => Get.to(() => LevelsScreen()),
                         color: Colors.green,
                         textColor: Colors.white,
                         shape: RoundedRectangleBorder(
@@ -502,3 +546,43 @@ class HomeView extends StatelessWidget {
     );
   }
 }
+
+
+class WalletConnectService extends GetxController {
+  final RxString _currentAddress = ''.obs;
+  final RxBool _isConnected = false.obs;
+
+  // Доступ к данным
+  String get currentAddress => _currentAddress.value;
+  bool get isConnected => _isConnected.value;
+
+  // Проверка наличия кошелька
+  bool get isWalletAvailable => ethereum != null;
+
+  // Подключение кошелька
+  Future<void> connectWallet() async {
+    if (isWalletAvailable) {
+      try {
+        final accounts = await ethereum!.requestAccount();
+        _currentAddress.value = accounts.first;
+        _isConnected.value = true;
+        print('Кошелек подключен: ${_currentAddress.value}');
+      } catch (e) {
+        _isConnected.value = false;
+        print('Ошибка подключения: $e');
+        rethrow;
+      }
+    } else {
+      print('MetaMask или другой Web3-кошелек не установлен');
+      throw Exception('Wallet not available');
+    }
+  }
+
+  // Отключение кошелька
+  void disconnectWallet() {
+    _currentAddress.value = '';
+    _isConnected.value = false;
+    print('Кошелек отключен');
+  }
+}
+
