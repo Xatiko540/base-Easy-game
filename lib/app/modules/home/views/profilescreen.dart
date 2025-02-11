@@ -20,7 +20,7 @@ class ProfileScreen extends StatelessWidget {
   void copyToClipboard(BuildContext context) {
     Clipboard.setData(ClipboardData(text: referralLink));
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text("Ссылка скопирована в буфер обмена!")),
+      SnackBar(content: Text("Link copied to clipboard!")),
     );
   }
 
@@ -34,7 +34,7 @@ class ProfileScreen extends StatelessWidget {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Не удалось открыть ссылку!")),
+        SnackBar(content: Text("Failed to open link!")),
       );
     }
   }
@@ -92,7 +92,7 @@ class ProfileScreen extends StatelessWidget {
                     Icon(Icons.monetization_on, color: Colors.yellow, size: 16),
                     SizedBox(width: 4),
                     Text(
-                      "0.265 BNB",
+                      "0.265 ETH(base)",
                       style: TextStyle(color: Colors.white, fontSize: 14),
                     ),
                   ],
@@ -188,7 +188,7 @@ class ProfileScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.dashboard, color: Colors.white),
-                    title: Text("Панель приборов", style: TextStyle(color: Colors.white)),
+                    title: Text("Instrument panel", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Dashboard
                       Get.to(() => const ProfileScreen());
@@ -196,14 +196,14 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   ListTile(
                     leading: Icon(Icons.bar_chart, color: Colors.white),
-                    title: Text("Статистика", style: TextStyle(color: Colors.white)),
+                    title: Text("Statistics", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Statistics
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.people, color: Colors.white),
-                    title: Text("Партнерский бонус", style: TextStyle(color: Colors.white)),
+                    title: Text("Affiliate bonus", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Partner Bonus
                       Get.to(() =>  PartnerBonusScreen());
@@ -211,21 +211,21 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Colors.white),
-                    title: Text("Информация", style: TextStyle(color: Colors.white)),
+                    title: Text("Information", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Information
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.telegram, color: Colors.white),
-                    title: Text("Telegram-боты", style: TextStyle(color: Colors.white)),
+                    title: Text("Telegram bots", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Telegram Bots
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.campaign, color: Colors.white),
-                    title: Text("Промо", style: TextStyle(color: Colors.white)),
+                    title: Text("Promo", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Promo
                     },
@@ -240,21 +240,21 @@ class ProfileScreen extends StatelessWidget {
                 Divider(color: Colors.grey),
                 ListTile(
                   leading: Icon(Icons.notifications, color: Colors.white),
-                  title: Text("Бот-уведомитель", style: TextStyle(color: Colors.white)),
+                  title: Text("Notifier Bot", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Bot Notifier
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.settings, color: Colors.white),
-                  title: Text("Настройки", style: TextStyle(color: Colors.white)),
+                  title: Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Settings
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.logout, color: Colors.white),
-                  title: Text("Выход", style: TextStyle(color: Colors.white)),
+                  title: Text("Exit", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Handle Logout
                   },
@@ -312,11 +312,11 @@ class ProfileScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            "Моя личная ссылка",
+                            "My personal link",
                             style: TextStyle(color: Colors.white, fontSize: 16),
                           ),
                           Tooltip(
-                            message: "Подробнее",
+                            message: "Read more",
                             child: Icon(Icons.info_outline, color: Colors.grey),
                           ),
                         ],
@@ -363,7 +363,7 @@ class ProfileScreen extends StatelessWidget {
             ),
             SizedBox(height: 8),
             Text(
-              "Специальные игры с уникальной логикой и механикой, полностью основанные на смарт-контрактах.",
+              "Special games with unique logic and mechanics, based entirely on smart contracts.",
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
             SizedBox(height: 16),
@@ -459,7 +459,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         Spacer(),
                         Text(
-                          "${(index + 1) * 20} BUSD",
+                          "${(index + 1) * 20} ETH(base)",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 16,
@@ -476,7 +476,7 @@ class ProfileScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: Text("Upgrade ${(index + 1) * 10} BUSD",
+                          child: Text("Upgrade ${(index + 1) * 10} ETH(base)",
 
                               style: TextStyle(fontSize: 16, color: Colors.white),
 
@@ -523,7 +523,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        "0.192 BNB",
+                        "0.192 ETH(base)",
                         style: TextStyle(color: Colors.white, fontSize: 18),
                       ),
                     ],
@@ -601,7 +601,7 @@ class ProfileScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Text(
-                            "В программный вид",
+                            "Into the program view",
                             style: TextStyle(fontSize: 16, color: Colors.white),
                           ),
                           SizedBox(width: 8),
@@ -621,7 +621,7 @@ class ProfileScreen extends StatelessWidget {
             children: [
               // Заголовок и описание
               Text(
-                "0 Express Game",
+                "0 Easy Game ",
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.bold,
@@ -630,13 +630,14 @@ class ProfileScreen extends StatelessWidget {
               ),
               SizedBox(height: 8),
               Text(
-                "Первая в мире игра со смарт-контрактами с пассивным доходом в BNB прямо на ваш кошелек. Все игроки случайным образом размещаются на 16 уровнях с неограниченным количеством циклов. Награды распределяются следующим образом:",
+                "The world's first smart contract game with passive income in BNB directly to your wallet."
+                    " All players are randomly placed on 16 levels with unlimited cycles. Rewards are distributed as follows:",
                 style: TextStyle(color: Colors.grey[400], fontSize: 14),
               ),
               SizedBox(height: 8),
               Text(
-                "- 74% от стоимости уровня за каждый цикл вашего уровня\n"
-                    "- 13%-8%-5% от стоимости уровня от партнеров до 3 в глубину всякий раз, когда они зарабатывают",
+                "- 74% of the level cost for each cycle of your level\n"
+                    "- 13%-8%-5% of the level value from partners up to 3 deep whenever they earn",
                 style: TextStyle(color: Colors.grey[500], fontSize: 12),
               ),
               SizedBox(height: 16),
@@ -655,7 +656,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       child: Center(
                         child: Text(
-                          "Express Smart Game\n[VIDEO PLACEHOLDER]",
+                          "Easy Game \n[VIDEO PLACEHOLDER]",
                           textAlign: TextAlign.center,
                           style: TextStyle(color: Colors.white, fontSize: 14),
                         ),
@@ -678,7 +679,7 @@ class ProfileScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "Express Game презентации",
+                                "Easy Game  presentations",
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.white,
@@ -686,9 +687,9 @@ class ProfileScreen extends StatelessWidget {
                                 ),
                               ),
                               SizedBox(height: 8),
-                              _presentationRow("английский", Icons.flag),
-                              _presentationRow("хинди", Icons.language),
-                              _presentationRow("русский", Icons.flag_circle),
+                              _presentationRow("English", Icons.flag),
+                              _presentationRow("Hindi", Icons.language),
+                              // _presentationRow("русский", Icons.flag_circle),
                             ],
                           ),
                         ),
@@ -702,7 +703,7 @@ class ProfileScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(8),
                             ),
                           ),
-                          child: Text("Узнать больше о Express"),
+                          child: Text("Find out more about Express"),
                         ),
                       ],
                     ),
@@ -721,7 +722,7 @@ class ProfileScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Smart Games Contracts",
+                      "Easy Game  Contracts",
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.white,
@@ -743,9 +744,9 @@ class ProfileScreen extends StatelessWidget {
                       ],
                     ),
                     Divider(color: Colors.grey[600]),
-                    _infoRow("Всего участников", "2 280"),
-                    _infoRow("Сделки совершены", "9 937"),
-                    _infoRow("Оборот, BNB", "11 785.48"),
+                    _infoRow("Total participants", "2 280"),
+                    _infoRow("The deals are done", "9 937"),
+                    _infoRow("Turnover, ETH(base)", "11 785.48"),
                   ],
                 ),
               ),
@@ -766,7 +767,7 @@ class ProfileScreen extends StatelessWidget {
               Row(
                 children: [
                   Text(
-                    "Express Game недавняя активность",
+                    "Easy Game  recent activity",
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.bold,
@@ -807,15 +808,15 @@ class ProfileScreen extends StatelessWidget {
                                     SizedBox(width: 4),
                                     Text(
                                       index % 2 == 0
-                                          ? "активирован"
-                                          : "+ партнерский бонус 0.${(index + 1) * 7} BNB",
+                                          ? "activated"
+                                          : "+ affiliate bonus 0.${(index + 1) * 7} ETH(base)",
                                       style: TextStyle(
                                           color: Colors.white, fontSize: 14),
                                     ),
                                   ],
                                 ),
                                 Text(
-                                  "${index % 2 == 0 ? "6 уровень" : "4 уровень"} в Express",
+                                  "${index % 2 == 0 ? "6 level" : "4 level"}  Express",
                                   style: TextStyle(color: Colors.grey, fontSize: 12),
                                 ),
                               ],
@@ -826,7 +827,7 @@ class ProfileScreen extends StatelessWidget {
                         Row(
                           children: [
                             Text(
-                              "1 минута",
+                              "1 minute",
                               style: TextStyle(color: Colors.grey, fontSize: 12),
                             ),
                             SizedBox(width: 8),
@@ -851,7 +852,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    "Узнать больше",
+                    "Find out more",
                     style: TextStyle(color: Colors.white, fontSize: 14),
                   ),
                 ),
@@ -951,11 +952,11 @@ class ReferralLinkWidget extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                "Моя личная ссылка",
+                "My personal link",
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
               Tooltip(
-                message: "Подробнее",
+                message: "Read more",
                 child: Icon(Icons.info_outline, color: Colors.grey),
               ),
             ],

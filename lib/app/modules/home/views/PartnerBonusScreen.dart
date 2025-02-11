@@ -71,7 +71,7 @@ class PartnerBonusScreen extends StatelessWidget {
                     Icon(Icons.monetization_on, color: Colors.yellow, size: 16),
                     SizedBox(width: 4),
                     Text(
-                      "0.265 BNB",
+                      "0.265 ETH(base)",
                       style: TextStyle(color: Colors.white, fontSize: 14),
                     ),
                   ],
@@ -164,7 +164,7 @@ class PartnerBonusScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.dashboard, color: Colors.white),
-                    title: Text("Панель приборов", style: TextStyle(color: Colors.white)),
+                    title: Text("Instrument panel", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Dashboard
                       Get.to(() => const ProfileScreen());
@@ -172,14 +172,14 @@ class PartnerBonusScreen extends StatelessWidget {
                   ),
                   ListTile(
                     leading: Icon(Icons.bar_chart, color: Colors.white),
-                    title: Text("Статистика", style: TextStyle(color: Colors.white)),
+                    title: Text("Statistics", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Statistics
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.people, color: Colors.white),
-                    title: Text("Партнерский бонус", style: TextStyle(color: Colors.white)),
+                    title: Text("Affiliate bonus", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Partner Bonus
                       Get.to(() =>  PartnerBonusScreen());
@@ -187,21 +187,21 @@ class PartnerBonusScreen extends StatelessWidget {
                   ),
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Colors.white),
-                    title: Text("Информация", style: TextStyle(color: Colors.white)),
+                    title: Text("Information", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Information
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.telegram, color: Colors.white),
-                    title: Text("Telegram-боты", style: TextStyle(color: Colors.white)),
+                    title: Text("Telegram bots", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Telegram Bots
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.campaign, color: Colors.white),
-                    title: Text("Промо", style: TextStyle(color: Colors.white)),
+                    title: Text("Promo", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Promo
                     },
@@ -216,21 +216,21 @@ class PartnerBonusScreen extends StatelessWidget {
                 Divider(color: Colors.grey),
                 ListTile(
                   leading: Icon(Icons.notifications, color: Colors.white),
-                  title: Text("Бот-уведомитель", style: TextStyle(color: Colors.white)),
+                  title: Text("Notifier Bot", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Bot Notifier
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.settings, color: Colors.white),
-                  title: Text("Настройки", style: TextStyle(color: Colors.white)),
+                  title: Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Settings
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.logout, color: Colors.white),
-                  title: Text("Выход", style: TextStyle(color: Colors.white)),
+                  title: Text("Exit", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Handle Logout
                   },
@@ -324,7 +324,7 @@ class PartnerBonusScreen extends StatelessWidget {
                           style: TextStyle(color: Colors.white),
                         )),
                         DataCell(Text(
-                          "0.0442 BNB",
+                          "0.0442 ETH(base)",
                           style: TextStyle(color: Colors.white),
                         )),
                       ],

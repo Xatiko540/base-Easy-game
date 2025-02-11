@@ -93,7 +93,7 @@ class ExpressGameScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.dashboard, color: Colors.white),
-                    title: Text("Панель приборов", style: TextStyle(color: Colors.white)),
+                    title: Text("Instrument panel", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Dashboard
                       Get.to(() => const ProfileScreen());
@@ -101,14 +101,14 @@ class ExpressGameScreen extends StatelessWidget {
                   ),
                   ListTile(
                     leading: Icon(Icons.bar_chart, color: Colors.white),
-                    title: Text("Статистика", style: TextStyle(color: Colors.white)),
+                    title: Text("Statistics", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Statistics
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.people, color: Colors.white),
-                    title: Text("Партнерский бонус", style: TextStyle(color: Colors.white)),
+                    title: Text("Affiliate bonus", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Partner Bonus
                       Get.to(() =>  PartnerBonusScreen());
@@ -116,21 +116,21 @@ class ExpressGameScreen extends StatelessWidget {
                   ),
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Colors.white),
-                    title: Text("Информация", style: TextStyle(color: Colors.white)),
+                    title: Text("Information", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Information
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.telegram, color: Colors.white),
-                    title: Text("Telegram-боты", style: TextStyle(color: Colors.white)),
+                    title: Text("Telegram bots", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Telegram Bots
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.campaign, color: Colors.white),
-                    title: Text("Промо", style: TextStyle(color: Colors.white)),
+                    title: Text("Promo", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Promo
                     },
@@ -145,21 +145,21 @@ class ExpressGameScreen extends StatelessWidget {
                 Divider(color: Colors.grey),
                 ListTile(
                   leading: Icon(Icons.notifications, color: Colors.white),
-                  title: Text("Бот-уведомитель", style: TextStyle(color: Colors.white)),
+                  title: Text("Notifier Bot", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Bot Notifier
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.settings, color: Colors.white),
-                  title: Text("Настройки", style: TextStyle(color: Colors.white)),
+                  title: Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Settings
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.logout, color: Colors.white),
-                  title: Text("Выход", style: TextStyle(color: Colors.white)),
+                  title: Text("Exit", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Handle Logout
                   },
@@ -239,7 +239,7 @@ class ExpressGameScreen extends StatelessWidget {
               ),
               SizedBox(height: 8),
               Text(
-                "Join Forsage BUSD and Activate Express in one transaction with BNB",
+                "Join Forsage ETH(base) and Activate Express in one transaction with ETH(base)",
                 style: TextStyle(
                   color: Colors.grey[300],
                   fontSize: 14,
@@ -273,7 +273,7 @@ class ExpressGameScreen extends StatelessWidget {
                         }
                       } catch (e) {
                         // Если произошла ошибка при подключении, показываем сообщение
-                        Get.snackbar('Ошибка', 'Не удалось подключить кошелек');
+                        Get.snackbar('Error', 'Failed to connect wallet');
                       }
                     }
                   },
@@ -286,7 +286,7 @@ class ExpressGameScreen extends StatelessWidget {
                     ),
                   ),
                   child: Text(
-                    "Вход в свой аккаунт",
+                    "Login to your account",
                     style: TextStyle(fontSize: 16, color: Colors.white),
                   ),
                 ),
@@ -313,7 +313,7 @@ class ExpressGameScreen extends StatelessWidget {
               Icon(Icons.timer, color: Colors.white, size: 16), // Иконка таймера
               SizedBox(width: 8),
               Text(
-                "Уровень 3 доступно в: 00 Д 07 Ч 32 М 54 С", // Текст таймера
+                "Level 3 available at: 00 D 07 H 32 M 54 S", // Текст таймера
                 style: TextStyle(color: Colors.white, fontSize: 14),
               ),
             ],
@@ -338,7 +338,7 @@ class ExpressGameScreen extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            "Look up any Express game member account in preview mode. Enter ID or BNB address to preview.",
+            "Look up any Express game member account in preview mode. Enter ID or ETH(base) address to preview.",
             style: TextStyle(color: Colors.grey[400], fontSize: 14),
           ),
           SizedBox(height: 16),
@@ -425,14 +425,14 @@ class WalletConnectService extends GetxController {
         final accounts = await ethereum!.requestAccount();
         _currentAddress.value = accounts.first;
         _isConnected.value = true;
-        print('Кошелек подключен: ${_currentAddress.value}');
+        print('Wallet connected: ${_currentAddress.value}');
       } catch (e) {
         _isConnected.value = false;
-        print('Ошибка подключения: $e');
+        print('Connection error: $e');
         rethrow;
       }
     } else {
-      print('MetaMask или другой Web3-кошелек не установлен');
+      print('MetaMask or other Web3 wallet is not installed');
       throw Exception('Wallet not available');
     }
   }
@@ -441,6 +441,6 @@ class WalletConnectService extends GetxController {
   void disconnectWallet() {
     _currentAddress.value = '';
     _isConnected.value = false;
-    print('Кошелек отключен');
+    print('Wallet is disabled');
   }
 }

@@ -4,6 +4,8 @@ class ActivateExpressGameScreen extends StatelessWidget {
   final int level = 6;
   final double totalAmount = 0.28;
 
+  const ActivateExpressGameScreen({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     double horizontalPadding = MediaQuery.of(context).size.width * 0.10;
@@ -17,7 +19,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
         ),
         elevation: 0,
         title: Text(
-          "Активировать Express Game",
+          "Activate Easy Game",
           style: TextStyle(color: Colors.white, fontSize: 18),
         ),
         leading: BackButton(color: Colors.white),
@@ -50,7 +52,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                   children: [
                     SizedBox(height: 50), // Adjust for the overlapping card
                     Text(
-                      "Уровень $level",
+                      "Level 4",
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -59,15 +61,15 @@ class ActivateExpressGameScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      "Награда за уровень 74%",
+                      "Reward per level 74%",
                       style: TextStyle(color: Colors.grey, fontSize: 14),
                     ),
                     SizedBox(height: 16),
-                    _buildRewardRow("Прямые партнеры", "13%", "0.0364 BNB"),
+                    _buildRewardRow("Direct partners", "13%", "0.0364 base"),
                     SizedBox(height: 8),
-                    _buildRewardRow("Партнеры 2-й линии", "8%", "0.0224 BNB"),
+                    _buildRewardRow("2nd Line Partners", "8%", "0.0224 base"),
                     SizedBox(height: 8),
-                    _buildRewardRow("Партнеры 3-й линии", "5%", "0.014 BNB"),
+                    _buildRewardRow("3rd Line Partners", "5%", "0.014 base"),
                     SizedBox(height: 8),
                     Divider(color: Colors.grey),
                     SizedBox(height: 16),
@@ -76,7 +78,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                         Icon(Icons.check_circle, color: Colors.green, size: 20),
                         SizedBox(width: 8),
                         Text(
-                          "Проверка сети (Smart Chain)",
+                          "Network check(Smart Chain)",
                           style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                       ],
@@ -87,7 +89,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                         Icon(Icons.cancel, color: Colors.red, size: 20),
                         SizedBox(width: 8),
                         Text(
-                          "Проверка баланса (мин. 0.285 BNB)",
+                          "Balance Check (min. 0.285 base)",
                           style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                       ],
@@ -143,7 +145,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            "Уровень $level",
+                            "Level 4",
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -156,7 +158,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                                   color: Colors.yellow, size: 16),
                               SizedBox(width: 4),
                               Text(
-                                "$totalAmount BNB",
+                                "0.03 base",
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
@@ -191,19 +193,19 @@ class ActivateExpressGameScreen extends StatelessWidget {
                       ),
                       SizedBox(height: 8),
                       Text(
-                        "3.64 BNB",
+                        "3.64 base",
                         style: TextStyle(color: Colors.white, fontSize: 12),
                       ),
                       Text(
-                        "Партнерский бонус",
+                        "Affiliate Bonus",
                         style: TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                       Text(
-                        "20.72 BNB",
+                        "20.72 base",
                         style: TextStyle(color: Colors.white, fontSize: 12),
                       ),
                       Text(
-                        "Уровень прибыли",
+                        "Profit Level",
                         style: TextStyle(color: Colors.grey, fontSize: 12),
                       ),
                     ],

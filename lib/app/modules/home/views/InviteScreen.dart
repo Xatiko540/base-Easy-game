@@ -17,7 +17,7 @@ class InviteScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "Express Smart Game",
+                    "Easy Game",
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 20,
@@ -34,7 +34,7 @@ class InviteScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: Text("Подключить кошелек"),
+                    child: Text("Connect wallet"),
                   ),
                 ],
               ),
@@ -56,7 +56,7 @@ class InviteScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    "приглашает вас в Express Game",
+                    "invites you to Express Game",
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.white,
@@ -81,7 +81,7 @@ class InviteScreen extends StatelessWidget {
                 padding: EdgeInsets.symmetric(horizontal: 50, vertical: 16),
               ),
               child: Text(
-                "Играть сейчас",
+                "Play now",
                 style: TextStyle(color: Colors.white, fontSize: 16),
               ),
             ),
@@ -102,7 +102,7 @@ class InviteScreen extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      "Как начать в Express Game",
+                      "How to start in Easy Game",
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 18,
@@ -111,10 +111,10 @@ class InviteScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 16),
                     Text(
-                      "1. Перейдите по реферальной ссылке партнера.\n"
-                          "2. Подключите кошелек Metamask и нажмите 'Играть сейчас'.\n"
-                          "3. Проверьте ID пригласителя, выберите уровень и купите его.\n"
-                          "4. Войдите в свой аккаунт и начните игру.",
+                      "1. Follow the partner's referral link.\n"
+                          "2. Connect your Metamask wallet and click 'Play Now'.\n"
+                          "3. Check the inviter ID, select the level and purchase it.\n"
+                          "4. Log in to your account and start the game.",
                       style: TextStyle(color: Colors.grey, fontSize: 14),
                     ),
                     Spacer(),
@@ -133,7 +133,7 @@ class InviteScreen extends StatelessWidget {
                             padding: EdgeInsets.symmetric(
                                 horizontal: 20, vertical: 12),
                           ),
-                          child: Text("Поддержка"),
+                          child: Text("Support"),
                         ),
                         IconButton(
                           onPressed: () {

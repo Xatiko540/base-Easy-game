@@ -57,7 +57,7 @@ class HomeView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Подключение через Wallet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        title: const Text('Connection via Wallet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         centerTitle: true,
         // backgroundColor: Colors.blue,
         backgroundColor: primaryColor,
@@ -258,11 +258,11 @@ class HomeView extends StatelessWidget {
                   if (_walletService.isConnected) {
                     return Column(
                       children: [
-                        Text('Адрес кошелька: ${_walletService.currentAddress}', textAlign: TextAlign.center),
+                        Text('Wallet address: ${_walletService.currentAddress}', textAlign: TextAlign.center),
                         const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: _walletService.disconnectWallet,
-                          child: const Text('Отключить кошелек'),
+                          child: const Text('Disable wallet'),
                         ),
                       ],
                     );
@@ -272,10 +272,10 @@ class HomeView extends StatelessWidget {
                         try {
                           await _walletService.connectWallet();
                         } catch (e) {
-                          Get.snackbar('Ошибка', 'Не удалось подключить кошелек');
+                          Get.snackbar('Error', 'Failed to connect wallet');
                         }
                       },
-                      child: const Text('Подключить кошелек'),
+                      child: const Text('Connect wallet'),
                     );
                   }
                 }),
@@ -566,14 +566,14 @@ class WalletConnectService extends GetxController {
         final accounts = await ethereum!.requestAccount();
         _currentAddress.value = accounts.first;
         _isConnected.value = true;
-        print('Кошелек подключен: ${_currentAddress.value}');
+        print('Wallet connected: ${_currentAddress.value}');
       } catch (e) {
         _isConnected.value = false;
-        print('Ошибка подключения: $e');
+        print('Connection error: $e');
         rethrow;
       }
     } else {
-      print('MetaMask или другой Web3-кошелек не установлен');
+      print('MetaMask or other Web3 wallet is not installed');
       throw Exception('Wallet not available');
     }
   }
@@ -582,7 +582,7 @@ class WalletConnectService extends GetxController {
   void disconnectWallet() {
     _currentAddress.value = '';
     _isConnected.value = false;
-    print('Кошелек отключен');
+    print('Wallet is disabled');
   }
 }
 

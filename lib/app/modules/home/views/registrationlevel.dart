@@ -77,7 +77,7 @@ class RegistrationScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.dashboard, color: Colors.white),
-                    title: Text("Панель приборов", style: TextStyle(color: Colors.white)),
+                    title: Text("Dashboard", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Dashboard
                       Get.to(() => const ProfileScreen());
@@ -85,14 +85,14 @@ class RegistrationScreen extends StatelessWidget {
                   ),
                   ListTile(
                     leading: Icon(Icons.bar_chart, color: Colors.white),
-                    title: Text("Статистика", style: TextStyle(color: Colors.white)),
+                    title: Text("Statistics", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Statistics
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.people, color: Colors.white),
-                    title: Text("Партнерский бонус", style: TextStyle(color: Colors.white)),
+                    title: Text("Affiliate Bonus", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Partner Bonus
                       Get.to(() =>  PartnerBonusScreen());
@@ -100,21 +100,21 @@ class RegistrationScreen extends StatelessWidget {
                   ),
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Colors.white),
-                    title: Text("Информация", style: TextStyle(color: Colors.white)),
+                    title: Text("Information", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Information
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.telegram, color: Colors.white),
-                    title: Text("Telegram-боты", style: TextStyle(color: Colors.white)),
+                    title: Text("Telegram Bots", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Telegram Bots
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.campaign, color: Colors.white),
-                    title: Text("Промо", style: TextStyle(color: Colors.white)),
+                    title: Text("Promo", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Promo
                     },
@@ -129,21 +129,21 @@ class RegistrationScreen extends StatelessWidget {
                 Divider(color: Colors.grey),
                 ListTile(
                   leading: Icon(Icons.notifications, color: Colors.white),
-                  title: Text("Бот-уведомитель", style: TextStyle(color: Colors.white)),
+                  title: Text("Notifier Bot", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Bot Notifier
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.settings, color: Colors.white),
-                  title: Text("Настройки", style: TextStyle(color: Colors.white)),
+                  title: Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Settings
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.logout, color: Colors.white),
-                  title: Text("Выход", style: TextStyle(color: Colors.white)),
+                  title: Text("Exit", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Handle Logout
                   },
@@ -160,7 +160,7 @@ class RegistrationScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "Fast Registration\nin Express Game",
+              "Fast Registration\nin Easy Game ",
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 24,
@@ -169,7 +169,7 @@ class RegistrationScreen extends StatelessWidget {
             ),
             SizedBox(height: 8),
             Text(
-              "Activate Express Game in one transaction with BNB",
+              "Activate Easy Game in one transaction with ETH(base)",
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
             SizedBox(height: 16),
@@ -188,7 +188,7 @@ class RegistrationScreen extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      "0x47F77fe423981863c1bbd3DD57216f97c49346CB",
+                      "0x47",
                       style: TextStyle(color: Colors.white, fontSize: 14),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -220,19 +220,19 @@ class RegistrationScreen extends StatelessWidget {
               child: DropdownButton<String>(
                 isExpanded: true,
                 dropdownColor: Colors.grey[900],
-                value: "Level 3 (0.1 BNB)",
+                value: "Level 3 (0.1 ETH(base))",
                 items: [
                   DropdownMenuItem(
-                    value: "Level 3 (0.1 BNB)",
+                    value: "Level 3 (0.1 ETH(base))",
                     child: Text(
-                      "Level 3 (0.1 BNB)",
+                      "Level 3 (0.1 ETH(base))",
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
                   DropdownMenuItem(
-                    value: "Level 4 (0.2 BNB)",
+                    value: "Level 4 (0.2 ETH(base))",
                     child: Text(
-                      "Level 4 (0.2 BNB)",
+                      "Level 4 (0.2 ETH(base))",
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
@@ -267,7 +267,7 @@ class RegistrationScreen extends StatelessWidget {
                     onPressed: () {},
                     icon: Icon(Icons.warning, color: Colors.red),
                     label: Text(
-                      "0.1 BNB to open this level",
+                      "0.1 ETH(base) to open this level",
                       style: TextStyle(color: Colors.red, fontSize: 14),
                     ),
                     style: OutlinedButton.styleFrom(
@@ -297,7 +297,7 @@ class RegistrationScreen extends StatelessWidget {
                 ),
               ),
               child: Text(
-                "Check again (0.12729 BNB)",
+                "Check again (0.12729 ETH(base))",
                 style: TextStyle(fontSize: 16, color: Colors.white),
               ),
             ),

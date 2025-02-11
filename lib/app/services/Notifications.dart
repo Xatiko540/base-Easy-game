@@ -5,26 +5,26 @@ class NotificationsBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final notifications = [
       {
-        "title": "+ 0.1036 BNB получено!",
-        "subtitle": "Express game, level 4 от ID 310375",
-        "description": "Поздравляем!",
-        "time": "1 минута",
+        "title": "+ 0.1036 base received!",
+        "subtitle": "Easy Game , level 4 от ID 310375",
+        "description": "Congratulations!",
+        "time": "1 minute",
         "icon": Icons.card_giftcard,
         "iconColor": Colors.greenAccent,
       },
       {
-        "title": "+ 0.0182 Партнерский бонус BNB получен!",
-        "subtitle": "Express game, level 4 от ID 310112",
-        "description": "Поздравляем!",
-        "time": "около 1 часа",
+        "title": "+ 0.0182 Affiliate base bonus received!",
+        "subtitle": "Easy Game, level 4 от ID 310112",
+        "description": "Congratulations!",
+        "time": "about 1 hour",
         "icon": Icons.people,
         "iconColor": Colors.green,
       },
       {
-        "title": "Присоединился новый партнер",
-        "subtitle": "ID 310112 присоединился к вашей команде!",
+        "title": "New partner joins",
+        "subtitle": "ID 310112 has joined your team!",
         "description": "",
-        "time": "около 1 часа",
+        "time": "about 1 hour",
         "icon": Icons.person_add,
         "iconColor": Colors.blueAccent,
       },
@@ -38,7 +38,7 @@ class NotificationsBottomSheet extends StatelessWidget {
         children: [
           // Header
           Text(
-            "Уведомления",
+            "Notifications",
             style: TextStyle(
               color: Colors.white,
               fontSize: 18,

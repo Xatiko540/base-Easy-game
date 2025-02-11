@@ -26,47 +26,61 @@ class _LevelsScreenState extends State<LevelsScreen> {
 
    String? walletAddress;
 
+  LevelStatus getStatus(int level) {
+    if (level <= 3) return LevelStatus.active;
+    if (level <= 6) return LevelStatus.waiting;
+    return LevelStatus.locked;
+  }
+
   void initializeLevels() {
+    // Базовые стоимости уровней и дни разблокировки
+    Map<int, double> baseValues = {
+      1: 0.01, 2: 0.015, 3: 0.02, 4: 0.03, 5: 0.04, 6: 0.06, 7: 0.09, 8: 0.13,
+      9: 0.2, 10: 0.3, 11: 0.4, 12: 0.6, 13: 0.9, 14: 1.3, 15: 2.0, 16: 3.0, 17: 4.0
+    };
+
+    Map<int, int> unlockHours = {
+      1: 0, 2: 0, 3: 0, 4: 12, 5: 12, 6: 12, 7: 24, 8: 24,
+      9: 36, 10: 36, 11: 48, 12: 48, 13: 60, 14: 72, 15: 84, 16: 96, 17: 108
+    };
+
+    DateTime now = DateTime.now();
+
     for (int i = 1; i <= 17; i++) {
       levels.add(Level(
         levelNumber: i,
-        status: i <= 3
-            ? LevelStatus.active // First 3 levels are active
-            : i <= 6
-            ? LevelStatus.waiting // Next 3 levels with activation button
-            : LevelStatus.locked, // Remaining levels are locked
-        coin: 0.1 * i,
-        partnerBonus: 0.05 * i,
-        levelProfit: 0.4 * i,
-        fillPercent: i <= 3 ? 50 : 0, // Active levels start at 50% progress
-        isVisible: i <= 6, // First 6 levels are visible
-        unlockTime: i > 6
-            ? DateTime.now().add(Duration(minutes: 5 * i)) // Different wait times
-            : null, // No unlock time for levels 1-6
+        status: getStatus(i),
+        coin: baseValues[i]!,
+        partnerBonus: baseValues[i]! * 0.5,
+        levelProfit: baseValues[i]! * 4,
+        fillPercent: i <= 3 ? 50 : 0,
+        isVisible: i <= 6,
+        unlockTime: i > 3 ? now.add(Duration(hours: unlockHours[i]!)) : null,
       ));
     }
+
     setState(() {});
     startLiveTimer();
   }
 
   void startLiveTimer() {
-    Timer.periodic(const Duration(seconds: 1), (timer) {
+    liveTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       bool allLevelsUnlocked = true;
 
-      for (var level in levels) {
-        if (level.status == LevelStatus.locked && level.unlockTime != null) {
-          final remainingTime = level.unlockTime!.difference(DateTime.now());
-          if (remainingTime.isNegative) {
-            setState(() {
+      setState(() {
+        for (var level in levels) {
+          if (level.status == LevelStatus.locked && level.unlockTime != null) {
+            final remainingTime = level.unlockTime!.difference(DateTime.now());
+            if (remainingTime.isNegative) {
               level.status = LevelStatus.waiting;
               level.isVisible = true;
-            });
-            print('Level ${level.levelNumber} is now waiting for activation.');
-          } else {
-            allLevelsUnlocked = false;
+              print('Level ${level.levelNumber} is now waiting for activation.');
+            } else {
+              allLevelsUnlocked = false;
+            }
           }
         }
-      }
+      });
 
       if (allLevelsUnlocked) {
         timer.cancel();
@@ -131,16 +145,16 @@ class _LevelsScreenState extends State<LevelsScreen> {
   void updateLevels() {
     setState(() {
       for (var level in levels) {
-        if (level.isVisible) {
+        if (level.isVisible && level.status == LevelStatus.active) {
           level.fillPercent += 5;
           if (level.fillPercent > 100) {
             level.fillPercent = 100;
+            completeLevel(level);
           }
-          print('Updated visible level: ${level.toString()}');
+          print('Updated visible level: ${level.levelNumber} -> ${level.fillPercent}%');
         } else {
-          final previousLevelIndex = level.levelNumber - 2;
-          if (previousLevelIndex >= 0 &&
-              levels[previousLevelIndex].fillPercent == 100) {
+          int prevIndex = level.levelNumber - 2;
+          if (prevIndex >= 0 && levels[prevIndex].fillPercent == 100) {
             level.isVisible = true;
             print('Level ${level.levelNumber} is now visible.');
           }
@@ -321,7 +335,7 @@ class _LevelsScreenState extends State<LevelsScreen> {
                 children: [
                   ListTile(
                     leading: Icon(Icons.dashboard, color: Colors.white),
-                    title: Text("Панель приборов", style: TextStyle(color: Colors.white)),
+                    title: Text("Instrument panel", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Dashboard
                       Get.to(() => const ProfileScreen());
@@ -329,14 +343,14 @@ class _LevelsScreenState extends State<LevelsScreen> {
                   ),
                   ListTile(
                     leading: Icon(Icons.bar_chart, color: Colors.white),
-                    title: Text("Статистика", style: TextStyle(color: Colors.white)),
+                    title: Text("Statistics", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Statistics
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.people, color: Colors.white),
-                    title: Text("Партнерский бонус", style: TextStyle(color: Colors.white)),
+                    title: Text("Affiliate bonus", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Partner Bonus
                       Get.to(() =>  PartnerBonusScreen());
@@ -344,21 +358,21 @@ class _LevelsScreenState extends State<LevelsScreen> {
                   ),
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Colors.white),
-                    title: Text("Информация", style: TextStyle(color: Colors.white)),
+                    title: Text("Information", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Information
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.telegram, color: Colors.white),
-                    title: Text("Telegram-боты", style: TextStyle(color: Colors.white)),
+                    title: Text("Telegram bots", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Telegram Bots
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.campaign, color: Colors.white),
-                    title: Text("Промо", style: TextStyle(color: Colors.white)),
+                    title: Text("Promo", style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Promo
                     },
@@ -373,21 +387,21 @@ class _LevelsScreenState extends State<LevelsScreen> {
                 Divider(color: Colors.grey),
                 ListTile(
                   leading: Icon(Icons.notifications, color: Colors.white),
-                  title: Text("Бот-уведомитель", style: TextStyle(color: Colors.white)),
+                  title: Text("Notifier Bot", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Bot Notifier
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.settings, color: Colors.white),
-                  title: Text("Настройки", style: TextStyle(color: Colors.white)),
+                  title: Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Settings
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.logout, color: Colors.white),
-                  title: Text("Выход", style: TextStyle(color: Colors.white)),
+                  title: Text("Exit", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Handle Logout
                   },
@@ -446,7 +460,7 @@ class _LevelsScreenState extends State<LevelsScreen> {
                       ),
                       // Right Side: Amount
                       Text(
-                        "0.192 BNB",
+                        "0.192 ETH(base)",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
@@ -654,7 +668,7 @@ class LevelCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          partnerBonus.toStringAsFixed(4) + " BNB",
+                          partnerBonus.toStringAsFixed(4) + " ETH(base)",
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -667,7 +681,7 @@ class LevelCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          levelProfit.toStringAsFixed(4) + " BNB",
+                          levelProfit.toStringAsFixed(4) + " base",
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -834,7 +848,7 @@ class ActivateCardState extends State<ActivateCard> {
                             ),
                           ),
                           child: Text(
-                            "Активировать",
+                            "Activate",
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -954,7 +968,7 @@ class BottomTableSection extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            "All prices in BNB",
+            "All prices in ETH(base)",
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey,
@@ -1000,7 +1014,7 @@ class BottomTableSection extends StatelessWidget {
                 ),
                 DataColumn(
                   label: Text(
-                    "BNB",
+                    "ETH(base)",
                     style: TextStyle(color: Colors.white),
                   ),
                 ),
@@ -1083,7 +1097,7 @@ class ActivateCardDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "ID 308435 / Express Game / Level $level",
+              "ID 308435 / Easy Game / Level $level",
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
             SizedBox(height: 16),
@@ -1186,7 +1200,7 @@ class ActivateCardDetailScreen extends StatelessWidget {
                           ),
                           SizedBox(width: 8),
                           Text(
-                            "0.14 BNB",
+                            "0.03 ETH(base)",
                             style: TextStyle(color: Colors.white, fontSize: 16),
                           ),
                         ],
@@ -1398,7 +1412,7 @@ class ActivateCardDetailScreen extends StatelessWidget {
                   ),
                   DataColumn(
                     label: Text(
-                      "BNB",
+                      "ETH(base)",
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
@@ -1412,7 +1426,7 @@ class ActivateCardDetailScreen extends StatelessWidget {
                       DataCell(Text("ID $index", style: TextStyle(color: Colors.white))),
                       DataCell(Text("$level", style: TextStyle(color: Colors.white))),
                       DataCell(Text("0xB...9F", style: TextStyle(color: Colors.white))),
-                      DataCell(Text("0.10 BNB", style: TextStyle(color: Colors.white))),
+                      DataCell(Text("0.10 base", style: TextStyle(color: Colors.white))),
                     ],
                   ),
                 ),
@@ -1449,7 +1463,7 @@ class LevelDetailScreen extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              "ID 308435 / Express Game / Level $level",
+              "ID 308435 / Easy Game / Level $level",
               style: TextStyle(color: Colors.grey, fontSize: 14),
             ),
             SizedBox(height: 16),
@@ -1551,7 +1565,7 @@ class LevelDetailScreen extends StatelessWidget {
                           ),
                           SizedBox(width: 8),
                           Text(
-                            "0.14 BNB",
+                            "0.02 ETH(base)",
                             style: TextStyle(color: Colors.white, fontSize: 16),
                           ),
                         ],
@@ -1630,21 +1644,21 @@ class LevelDetailScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text("Missed profit", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                          Text("0 BNB", style: TextStyle(color: Colors.white, fontSize: 14)),
+                          Text("0 ETH(base)", style: TextStyle(color: Colors.white, fontSize: 14)),
                         ],
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text("Total level profit", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                          Text("0.1036 BNB", style: TextStyle(color: Colors.white, fontSize: 14)),
+                          Text("0.1036 ETH(base)", style: TextStyle(color: Colors.white, fontSize: 14)),
                         ],
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text("Total partner bonus", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                          Text("0.0364 BNB", style: TextStyle(color: Colors.white, fontSize: 14)),
+                          Text("0.0364 ETH(base)", style: TextStyle(color: Colors.white, fontSize: 14)),
                         ],
                       ),
                     ],
@@ -1685,7 +1699,7 @@ class LevelDetailScreen extends StatelessWidget {
                     label: Text("Wallet", style: TextStyle(color: Colors.white)),
                   ),
                   DataColumn(
-                    label: Text("BNB", style: TextStyle(color: Colors.white)),
+                    label: Text("ETH(base)", style: TextStyle(color: Colors.white)),
                   ),
                 ],
                 rows: List<DataRow>.generate(
@@ -1759,10 +1773,13 @@ class Level {
     if (unlockTime == null) return '';
     final duration = unlockTime!.difference(DateTime.now());
     if (duration.isNegative) return 'Available now';
-    final days = duration.inDays;
-    final hours = duration.inHours % 24;
-    final minutes = duration.inMinutes % 60;
-    final seconds = duration.inSeconds % 60;
-    return '${days}d ${hours}h ${minutes}m ${seconds}s';
+
+    if (duration.inHours < 1) {
+      return '${duration.inMinutes}m ${duration.inSeconds % 60}s';
+    } else if (duration.inDays < 1) {
+      return '${duration.inHours}h ${duration.inMinutes % 60}m';
+    } else {
+      return '${duration.inDays}d ${duration.inHours % 24}h ${duration.inMinutes % 60}m';
+    }
   }
 }
