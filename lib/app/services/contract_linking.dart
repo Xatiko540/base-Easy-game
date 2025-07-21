@@ -33,7 +33,7 @@ class ContractLinking extends GetxController
       For mobile both pc and mobile running on same internet
         final String _rpcUrl = "http://192.168.40.193:7545";
         final String _wsUrl = "ws://192.168.40.193:7545/";
-      
+
       For Infura Ropsten
         final String _rpcUrl = "https://ropsten.infura.io/v3/$INFURA_API_KEY";
         final String _wsUrl = "wss://ropsten.infura.io/ws/v3/$INFURA_API_KEY";
@@ -171,7 +171,7 @@ class ContractLinking extends GetxController
     // isLoading.value =true;
     _credentials = EthPrivateKey.fromHex(privateKey.value);
     if (kDebugMode) {
-      print("Credentials: ${await _credentials.extractAddress()}");
+      // print("Credentials: ${await _credentials.extractAddress()}");
     }
     // isLoading.value =false;
   }

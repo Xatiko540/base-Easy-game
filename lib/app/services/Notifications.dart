@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 class NotificationsBottomSheet extends StatelessWidget {
+  const NotificationsBottomSheet({Key? key}) : super(key: key);
+
   @override
   Widget build(BuildContext context) {
     final notifications = [
