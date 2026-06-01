@@ -141,41 +141,62 @@ https://github.com/user-attachments/assets/8003673a-a62f-4aed-9cfc-9b151a3e6e56
 
 
 
-### Features that have been implemented and tested
+### Implemented and tested
 
 [Jump to assets](https://github.com/Xatiko540/base-Easy-game/tree/master/assets)
 
-- [x] Private key of wallet is used to fetch public key and eth in wallet.
-- [x] Multiple Account can be saved for future use.
-- [x] Light mode and Dark mode theme.
-- [x] Dashboard with the list of public lotteries created by community.
-- [x] Lotteries can only be activated by the creator of the lottery.
-- [x] Lottery can only be deleted by the creator of the lottery.
-- [x] Anyone can participate into lottery by spending eth limit set by the creator.
-- [x] Maximum entries is also set by the creator of the lottery.
-- [x] Winner is chosen by random inside the contract, triggered by lottery creator.
-- [x] Total ether collected is paid to the winner automatically upon winner selection.
+#### Easy Game
 
+- [x] Wallet login through an injected Web3 wallet such as MetaMask.
+- [x] Shared wallet state across login, levels, profile, registration, and payment screens.
+- [x] 17-level Easy Game contract with predefined level prices.
+- [x] ETH-based level activation through `EasyGame.activateLevel(level, inviter)`.
+- [x] Exact payment amount is read from `levelPrices(level)` in wei before sending the transaction.
+- [x] Previous-level requirement: level `N` requires level `N - 1`.
+- [x] Duplicate level activation is rejected.
+- [x] Binary matrix placement for each level.
+- [x] Matrix slots are filled left-to-right through the first available parent node.
+- [x] Dynamic placement prioritizes the uppermost open parent in the current level matrix.
+- [x] Recycle is triggered when both child slots under a parent are filled.
+- [x] Recycled players receive a new position in the same level matrix.
+- [x] Freeze is triggered after two cycles if the next level is not active.
+- [x] Frozen players stop receiving new recycle positions.
+- [x] Matrix reward is routed to treasury when the matrix parent is frozen.
+- [x] Activating the next level unfreezes the previous frozen level.
+- [x] Payment distribution: 80% matrix reward, 9.5% direct referral, 0.5% operator wallet, 6% second-line referral, 4% third-line referral.
+- [x] Missing referral lines are routed to treasury.
+- [x] `TREASURY_ADDRESS` and `OPERATOR_WALLET` are supported by the deploy script.
+- [x] Contract events are emitted for level activation, placement, rewards, referrals, recycle, freeze, and unfreeze.
+- [x] Contract view functions expose player level state, player position, matrix node data, and level matrix stats.
+- [x] Flutter can read on-chain level status and show active, waiting, locked, and frozen states.
+- [x] Registration screen lets the user enter an upline/referral address.
+- [x] Contract tests cover activation, placement, payment distribution, recycle, freeze, frozen reward routing, and unfreeze.
+- [x] Web build succeeds with the current Flutter package versions.
 
+#### Legacy lottery module
 
-### Features to be implemented
+- [x] Dashboard and controller code for community lottery contracts remains in the project.
+- [x] Lotteries can be created through `LotteryGenerator`.
+- [x] Lottery deletion is restricted to the lottery creator.
+- [x] Lottery activation is restricted to the lottery creator.
+- [x] Lottery participation uses the ETH limit configured by the creator.
+- [x] Maximum entries per player are configured by the lottery creator.
+- [x] Winner selection and prize transfer are implemented in the legacy `Lottery` contract.
 
+### Not implemented yet
 
-- [ ]  Binary matrix system for 17 levels, filling slots sequentially (left-to-right) across multiple lines.
-- [ ]  Dynamic slot allocation with priority for unoccupied cells in the uppermost rows.
-- [ ] Full cycle logic: movement of participants to the next available line after slot completion.
-- [ ]  Infinite matrix scalability for participants with binary growth structure (1 → 2 → 4 → 8).
-- [ ]  ETH-based entry for each level with pre-defined costs, increasing with level hierarchy.
-- [ ]  Reward distribution system:
-- [ ] 80% base reward to a random higher participant in the same level.
-- [ ]  20% referral rewards:
-- [ ]  First-line referral: 9.5% (with 0.5% going to a special operational wallet).
-- [ ] Second-line referral: 6%.
-- [ ]  Third-line referral: 4%.
-- [ ]  Smart contract automation for reward distribution and participant tracking, ensuring transparency and accuracy.
-- [ ]  Notification system for participants, tracking referrals and reward status in real-time.
-- [ ]  Freezing levels after two cycles if the next higher level is not activated, with a mechanism to unfreeze permanently upon final level activation.
-- [ ]  Visualization of participant positions in the matrix, showing live slot allocation and progression.
+- [ ] Production-grade random winner selection for Easy Game matrix rewards. Current implementation uses the matrix parent/upline, not random selection.
+- [ ] Full live matrix visualization in Flutter with all matrix nodes, child slots, and recycle movement.
+- [ ] Real-time event listener in Flutter for `MatrixPlaced`, `MatrixRewardPaid`, `ReferralPaid`, `Recycled`, `LevelFrozen`, and `LevelUnfrozen`.
+- [ ] Notification system for participants, referrals, rewards, freeze, and recycle status.
+- [ ] Referral links / invite URL parsing that automatically fills the upline address.
+- [ ] User ID system connected to wallet addresses and matrix positions.
+- [ ] Persistent local user profile data for Easy Game beyond the connected wallet.
+- [ ] Infinite or billion-cell scalability proof on-chain. The matrix grows dynamically, but very large matrices need gas/indexing strategy and off-chain indexing.
+- [ ] Dedicated subgraph/indexer or backend for historical matrix and reward analytics.
+- [ ] Production security review for reentrancy, payout policy, gas griefing, and treasury/operator management.
+- [ ] Cleanup of legacy lottery/private-key wallet flows that are no longer part of the main Easy Game path.
+- [ ] Flutter analyzer cleanup for existing lints, deprecated APIs, file naming, unused imports, and production `print` calls.
 
 
 
@@ -280,7 +301,6 @@ Develop a notification system for participants at each recycle or new level fill
 
 
 [License](https://github.com/Xatiko540/base-Easy-game/blob/master/LICENSE)
-
 
 
 
