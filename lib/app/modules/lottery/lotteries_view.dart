@@ -29,7 +29,7 @@ class LotteriesView extends StatelessWidget {
         actions: [
           Row(
             children: [
-              const Icon(
+              const FaIcon(
                 FontAwesomeIcons.ethereum,
                 color: Colors.white,
                 size: 22,
@@ -55,29 +55,28 @@ class LotteriesView extends StatelessWidget {
                 () => contractLink.isLoading.value
                     ? const Center(child: CircularProgressIndicator())
                     : ListView.builder(
-                        itemCount: contractLink.lottries.value.length,
+                        itemCount: contractLink.lottries.length,
                         itemBuilder: ((context, index) {
-                          if (contractLink.lottries.value[index] ==
-                              defaultHex) {
+                          if (contractLink.lottries[index] == defaultHex) {
                             return const SizedBox.shrink();
                           }
                           return ListTile(
                             key: UniqueKey(),
-                            leading: const Icon(
-                              FontAwesomeIcons.ticketAlt,
+                            leading: const FaIcon(
+                              FontAwesomeIcons.ticketSimple,
                               color: primaryColor,
                             ),
                             title: Text(
-                              contractLink.lottries.value[index],
+                              contractLink.lottries[index],
                               style: bodySemiBold,
                             ),
-                            trailing: const Icon(
-                              FontAwesomeIcons.arrowAltCircleRight,
+                            trailing: const FaIcon(
+                              FontAwesomeIcons.circleRight,
                               color: primaryColor,
                             ),
                             onTap: () async {
                               lotteryDetail(
-                                  contractLink.lottries.value[index], context);
+                                  contractLink.lottries[index], context);
                             },
                           ).paddingAll(8.0).marginSymmetric(vertical: 10);
                         }),
@@ -102,8 +101,8 @@ class LotteriesView extends StatelessWidget {
                   decoration: borderedInputDecoration(
                     fillColor: primaryColor,
                     hint: 'Diwali lottery',
-                    icon: const Icon(
-                      FontAwesomeIcons.ticketAlt,
+                    icon: const FaIcon(
+                      FontAwesomeIcons.ticketSimple,
                       color: primaryColor,
                     ),
                     suffixIcon: IconButton(

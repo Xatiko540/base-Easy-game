@@ -28,19 +28,20 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   avatar_glow: ^3.0.1
-  cupertino_icons: ^1.0.8
+  cupertino_icons: ^1.0.9
   flutter:
     sdk: flutter
   flutter_shimmer: ^2.1.2
-  flutter_svg: ^1.0.0
-  font_awesome_flutter: ^10.8.0
-  get: ^4.7.2
+  flutter_svg: ^2.3.0
+  font_awesome_flutter: ^11.0.0
+  get: ^4.7.3
   get_storage: ^2.1.1
-  google_fonts: ^6.2.1
-  http: ^1.4.0
+  google_fonts: ^8.1.0
+  http: ^1.6.0
   multiavatar: ^0.1.5
-  url_launcher: ^6.3.1
-  web3dart: ^2.7.3
+  url_launcher: ^6.3.2
+  wallet: ^0.0.18
+  web3dart: ^3.0.2
   flutter_web3: ^2.1.9
   web_socket_channel: ^3.0.3
 

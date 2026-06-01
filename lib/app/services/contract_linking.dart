@@ -5,18 +5,15 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart';
 import 'package:lottery_advance/app/models/user.dart';
-import 'package:lottery_advance/app/modules/home/views/svg_wrapper.dart';
 import 'package:lottery_advance/app/services/wallet_service.dart';
 import 'package:lottery_advance/utils/constants.dart';
 // import 'package:lottery_advance/utils/secret.dart';
 import 'package:multiavatar/multiavatar.dart';
-import 'package:web3dart/crypto.dart';
+import 'package:wallet/wallet.dart';
 import 'package:web3dart/web3dart.dart';
-import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 
 class ContractLinking extends GetxController
@@ -101,12 +98,11 @@ class ContractLinking extends GetxController
   final users = <User>[].obs;
   late WalletService walletService;
   String? svgCode;
-  DrawableRoot? svgRoot;
   final keyController = TextEditingController();
   final nameController = TextEditingController();
   late AnimationController animationController;
 
-  setup() async {
+  Future<void> setup() async {
     _web3client = Web3Client(
       _rpcUrl,
       Client(),
@@ -400,9 +396,8 @@ class ContractLinking extends GetxController
 
       // Проверяем, что res.first действительно является List<dynamic>
       if (res.isNotEmpty && res.first is List<dynamic>) {
-        lottries.value = (res.first as List<dynamic>)
-            .map((e) => e.toString())
-            .toList();
+        lottries.value =
+            (res.first as List<dynamic>).map((e) => e.toString()).toList();
         if (kDebugMode) {
           print("Lotteries: $lottries");
         }
@@ -489,7 +484,7 @@ class ContractLinking extends GetxController
         walletService = WalletService(privateKey.value);
 
         // Извлекаем адрес из приватного ключа
-        final address = await walletService.credentials?.extractAddress();
+        final address = walletService.credentials?.address;
         if (address == null) {
           throw Exception('Unable to extract address from private key.');
         }
@@ -505,7 +500,8 @@ class ContractLinking extends GetxController
         Get.rawSnackbar(message: 'Wallet initialized successfully');
       } else {
         // Если длина ключа не соответствует, уведомляем пользователя
-        Get.rawSnackbar(message: 'Invalid private key length. It must be 64 characters.');
+        Get.rawSnackbar(
+            message: 'Invalid private key length. It must be 64 characters.');
       }
     } catch (e) {
       // Обработка ошибок
@@ -524,7 +520,7 @@ class ContractLinking extends GetxController
       privateKey: privateKey.value,
       name: nameController.text,
     );
-    final existingUser = users.firstWhere((u) => u.address == userAddress,
+    final existingUser = users.firstWhere((u) => u.address == userAddress.value,
         orElse: () => User(address: '', avatar: '', privateKey: '', name: ''));
     if (existingUser.address == '') {
       users.add(user);
@@ -674,7 +670,6 @@ class ContractLinking extends GetxController
     if (svgCode == null || force) {
       svgCode = multiavatar(DateTime.now().millisecondsSinceEpoch.toString());
     }
-    svgRoot = await SvgWrapper(svgCode!).generateLogo();
     update();
     isLoading.value = false;
   }

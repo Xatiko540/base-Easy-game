@@ -5,16 +5,11 @@ import 'package:flutter_web3/ethereum.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:get/get.dart';
-import 'package:lottery_advance/app/modules/lottery/lotteries_view.dart';
-import 'package:lottery_advance/app/modules/home/views/my_paint.dart';
-import 'package:lottery_advance/app/modules/home/views/svg_wrapper.dart';
 import 'package:lottery_advance/app/services/contract_linking.dart';
-import 'package:lottery_advance/utils/constants.dart';
 import 'package:lottery_advance/utils/font_styles.dart';
 import 'package:lottery_advance/utils/input_decorations.dart';
 import 'package:lottery_advance/utils/remove_scroll_glow.dart';
 import 'package:lottery_advance/utils/theme.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import 'levels.dart';
 
@@ -32,14 +27,17 @@ class HomeView extends StatelessWidget {
       builder: (_) => Container(
         height: avatarSize,
         width: avatarSize,
-        child: _.svgRoot == null
+        child: _.svgCode == null
             ? const SizedBox.shrink()
             : Material(
                 elevation: 8,
                 shape: const CircleBorder(),
-                child: CustomPaint(
-                  painter: MyPainter(_.svgRoot!, Size(avatarSize, avatarSize)),
-                  child: Container(),
+                clipBehavior: Clip.antiAlias,
+                child: SvgPicture.string(
+                  _.svgCode!,
+                  width: avatarSize,
+                  height: avatarSize,
+                  fit: BoxFit.cover,
                 ),
               ),
         decoration: const BoxDecoration(
@@ -52,12 +50,12 @@ class HomeView extends StatelessWidget {
 
   HomeView({Key? key}) : super(key: key);
 
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Connection via Wallet', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        title: const Text('Connection via Wallet',
+            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         centerTitle: true,
         // backgroundColor: Colors.blue,
         backgroundColor: primaryColor,
@@ -258,7 +256,8 @@ class HomeView extends StatelessWidget {
                   if (_walletService.isConnected) {
                     return Column(
                       children: [
-                        Text('Wallet address: ${_walletService.currentAddress}', textAlign: TextAlign.center),
+                        Text('Wallet address: ${_walletService.currentAddress}',
+                            textAlign: TextAlign.center),
                         const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: _walletService.disconnectWallet,
@@ -282,8 +281,6 @@ class HomeView extends StatelessWidget {
               ],
             ),
           ),
-
-
         ],
       ),
       body: Center(
@@ -305,7 +302,7 @@ class HomeView extends StatelessWidget {
                   decoration: borderedInputDecoration(
                     fillColor: primaryColor,
                     hint: 'Copy private key from Metamask and paste here',
-                    icon: const Icon(
+                    icon: const FaIcon(
                       FontAwesomeIcons.userLock,
                       color: primaryColor,
                     ),
@@ -339,8 +336,8 @@ class HomeView extends StatelessWidget {
                   () => contractLink.userAddress.value.isNotEmpty
                       ? ListTile(
                           contentPadding: const EdgeInsets.all(0),
-                          leading: const Icon(
-                            FontAwesomeIcons.userAlt,
+                          leading: const FaIcon(
+                            FontAwesomeIcons.user,
                             color: primaryColor,
                           ),
                           title: const Text(
@@ -366,7 +363,7 @@ class HomeView extends StatelessWidget {
                   () => contractLink.userBalance.value.isNotEmpty
                       ? ListTile(
                           contentPadding: const EdgeInsets.all(0),
-                          leading: const Icon(
+                          leading: const FaIcon(
                             FontAwesomeIcons.ethereum,
                             color: primaryColor,
                           ),
@@ -408,7 +405,7 @@ class HomeView extends StatelessWidget {
                           decoration: borderedInputDecoration(
                               fillColor: primaryColor,
                               hint: 'Enter name of account to save',
-                              icon: const Icon(
+                              icon: const FaIcon(
                                 FontAwesomeIcons.userAstronaut,
                                 color: primaryColor,
                               )),
@@ -461,8 +458,7 @@ class HomeView extends StatelessWidget {
                                   child: Column(
                                     children: [
                                       ListTile(
-                                        contentPadding:
-                                            const EdgeInsets.all(0),
+                                        contentPadding: const EdgeInsets.all(0),
                                         title: const Text(
                                           'Address',
                                           style: bodySemiBold,
@@ -472,8 +468,7 @@ class HomeView extends StatelessWidget {
                                         ),
                                       ),
                                       ListTile(
-                                        contentPadding:
-                                            const EdgeInsets.all(0),
+                                        contentPadding: const EdgeInsets.all(0),
                                         title: const Text(
                                           'Balance',
                                           style: bodySemiBold,
@@ -483,8 +478,7 @@ class HomeView extends StatelessWidget {
                                         ),
                                       ),
                                       ListTile(
-                                        contentPadding:
-                                            const EdgeInsets.all(0),
+                                        contentPadding: const EdgeInsets.all(0),
                                         title: const Text(
                                           'Account Name',
                                           style: bodySemiBold,
@@ -547,7 +541,6 @@ class HomeView extends StatelessWidget {
   }
 }
 
-
 class WalletConnectService extends GetxController {
   final RxString _currentAddress = ''.obs;
   final RxBool _isConnected = false.obs;
@@ -585,4 +578,3 @@ class WalletConnectService extends GetxController {
     print('Wallet is disabled');
   }
 }
-

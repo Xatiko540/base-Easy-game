@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
@@ -142,7 +140,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                       children: [
                         Column(
                           children: [
-                            const Icon(
+                            const FaIcon(
                               FontAwesomeIcons.award,
                               color: primaryColor,
                               size: 22,
@@ -168,7 +166,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                         ),
                         Column(
                           children: [
-                            Icon(
+                            FaIcon(
                               contractLink.lotteryLive.value
                                   ? FontAwesomeIcons.toggleOn
                                   : FontAwesomeIcons.toggleOff,
@@ -186,7 +184,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                       ],
                     ).marginSymmetric(vertical: 20),
                     ListTile(
-                      leading: const Icon(
+                      leading: const FaIcon(
                         FontAwesomeIcons.gift,
                         color: primaryColor,
                       ),
@@ -201,8 +199,8 @@ class _LotteryDetailState extends State<LotteryDetail> {
                       ),
                     ),
                     ListTile(
-                      leading: const Icon(
-                        FontAwesomeIcons.ticketAlt,
+                      leading: const FaIcon(
+                        FontAwesomeIcons.ticketSimple,
                         color: primaryColor,
                       ),
                       title: Text(
@@ -218,7 +216,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                     if (contractLink.managerAddress.value ==
                         contractLink.userAddress.value)
                       ListTile(
-                        leading: const Icon(
+                        leading: const FaIcon(
                           FontAwesomeIcons.clipboardCheck,
                           color: primaryColor,
                         ),
@@ -265,7 +263,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                                           ).paddingAll(12),
                                         ).paddingSymmetric(
                                           vertical: 4, horizontal: 16)
-                                      : (contractLink.players.value.contains(
+                                      : (contractLink.players.contains(
                                                   contractLink
                                                       .userAddress.value) &&
                                               contractLink
@@ -415,7 +413,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                 decoration: borderedInputDecoration(
                   fillColor: primaryColor,
                   hint: 'Ex: 1',
-                  icon: const Icon(
+                  icon: const FaIcon(
                     FontAwesomeIcons.ethereum,
                     color: primaryColor,
                   ),

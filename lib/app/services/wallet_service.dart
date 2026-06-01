@@ -1,5 +1,3 @@
-import 'dart:math'; //used for the random number generator
-
 import 'package:web3dart/web3dart.dart';
 
 class WalletService {

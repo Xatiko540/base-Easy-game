@@ -1,16 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 
 class MyPainter extends CustomPainter {
-  MyPainter(this.svg, this.size);
+  MyPainter(this.size);
 
-  final DrawableRoot svg;
   final Size size;
+
   @override
   void paint(Canvas canvas, Size size) {
-    svg.scaleCanvasToViewBox(canvas, this.size);
-    svg.clipCanvasToViewBox(canvas);
-    svg.draw(canvas, Rect.zero);
+    // SVG rendering is handled by SvgPicture.string with flutter_svg 2.x.
   }
 
   @override
