@@ -1,177 +1,180 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.4.22 <0.9.0;
+pragma solidity ^0.8.24;
 
 contract LotteryGenerator {
     address[] public lotteries;
-    struct lottery{
-        uint index;
+
+    struct LotteryInfo {
+        uint256 index;
         address manager;
+        bool exists;
     }
-    mapping(address => lottery) lotteryStructs;
+
+    mapping(address => LotteryInfo) private lotteryStructs;
 
     function createLottery(string memory name) public {
-        require(bytes(name).length > 0);
-        Lottery newLottery = new Lottery(name, msg.sender);
-        lotteries.push(address(newLottery));
-        lotteryStructs[address(newLottery)].index = lotteries.length- 1;
-        lotteryStructs[address(newLottery)].manager = msg.sender;
+        require(bytes(name).length > 0, "Lottery name is required");
 
-        // event
-        emit LotteryCreated(address(newLottery));
+        Lottery newLottery = new Lottery(name, msg.sender);
+        address lotteryAddress = address(newLottery);
+
+        lotteries.push(lotteryAddress);
+        lotteryStructs[lotteryAddress] = LotteryInfo({
+            index: lotteries.length - 1,
+            manager: msg.sender,
+            exists: true
+        });
+
+        emit LotteryCreated(lotteryAddress);
     }
 
-    function getLotteries() public view returns(address[] memory) {
+    function getLotteries() public view returns (address[] memory) {
         return lotteries;
     }
 
     function deleteLottery(address lotteryAddress) public {
+        require(lotteryStructs[lotteryAddress].exists, "Lottery does not exist");
         require(msg.sender == lotteryStructs[lotteryAddress].manager, "Only manager can delete the lottery");
-        uint indexToDelete = lotteryStructs[lotteryAddress].index;
 
-        // Перемещаем последний элемент на место удаляемого
+        uint256 indexToDelete = lotteryStructs[lotteryAddress].index;
         address lastAddress = lotteries[lotteries.length - 1];
-        lotteries[indexToDelete] = lastAddress;
-        lotteryStructs[lastAddress].index = indexToDelete;
 
-        // Удаляем последний элемент
+        if (lotteryAddress != lastAddress) {
+            lotteries[indexToDelete] = lastAddress;
+            lotteryStructs[lastAddress].index = indexToDelete;
+        }
+
         lotteries.pop();
         delete lotteryStructs[lotteryAddress];
     }
 
-    // Events
-    event LotteryCreated(
-        address lotteryAddress
-    );
+    event LotteryCreated(address lotteryAddress);
 }
 
 contract Lottery {
-    // name of the lottery
     string public lotteryName;
-    // Creator of the lottery contract
     address public manager;
 
-    // variables for players
     struct Player {
         string name;
-        uint entryCount;
-        uint index;
+        uint256 entryCount;
+        uint256 index;
         address adrs;
     }
+
     address[] public addressIndexes;
-    mapping(address => Player) players;
+    mapping(address => Player) private players;
     address payable[] public lotteryBag;
 
-    // Variables for lottery information
     Player public winner;
     bool public isLotteryLive;
-    uint public maxEntriesForPlayer;
-    uint public ethToParticipate;
+    uint256 public maxEntriesForPlayer;
+    uint256 public ethToParticipate;
 
-    // constructor
-    constructor(string memory name, address creator){
+    constructor(string memory name, address creator) {
+        require(bytes(name).length > 0, "Lottery name is required");
+        require(creator != address(0), "Manager address is required");
+
         manager = creator;
         lotteryName = name;
     }
 
-    // Let users participate by sending eth directly to contract address
     receive() external payable {
-        // player name will be unknown
         participate("Unknown");
     }
 
     function participate(string memory playerName) public payable {
-        require(bytes(playerName).length > 0);
-        require(isLotteryLive);
-        require(msg.value == ethToParticipate * 1 ether);
-        require(players[msg.sender].entryCount < maxEntriesForPlayer);
+        require(bytes(playerName).length > 0, "Player name is required");
+        require(isLotteryLive, "Lottery is not active");
+        require(msg.value == ethToParticipate * 1 ether, "Incorrect ETH amount");
+        require(players[msg.sender].entryCount < maxEntriesForPlayer, "Entry limit reached");
 
         if (isNewPlayer(msg.sender)) {
             players[msg.sender].entryCount = 1;
             players[msg.sender].name = playerName;
             players[msg.sender].adrs = msg.sender;
             addressIndexes.push(msg.sender);
-            players[msg.sender].index = addressIndexes.length- 1;
+            players[msg.sender].index = addressIndexes.length - 1;
         } else {
             players[msg.sender].entryCount += 1;
         }
 
         lotteryBag.push(payable(msg.sender));
-    
-        // event
+
         emit PlayerParticipated(players[msg.sender].name, players[msg.sender].entryCount);
     }
 
-    function activateLottery(uint maxEntries, uint ethRequired) public restricted {
+    function activateLottery(uint256 maxEntries, uint256 ethRequired) public restricted {
+        require(!isLotteryLive, "Lottery is already active");
+
         isLotteryLive = true;
-        maxEntriesForPlayer = maxEntries == 0 ? 1: maxEntries;
-        ethToParticipate = ethRequired == 0 ? 1: ethRequired;
+        maxEntriesForPlayer = maxEntries == 0 ? 1 : maxEntries;
+        ethToParticipate = ethRequired == 0 ? 1 : ethRequired;
     }
 
-    function declareWinner() public restricted{
-        require(lotteryBag.length > 0);
+    function declareWinner() public restricted {
+        require(lotteryBag.length > 0, "No players in lottery");
 
-        uint index = generateRandomNumber() % lotteryBag.length;
-        
-        lotteryBag[index].transfer(address(this).balance);
-         
-        winner.name = players[lotteryBag[index]].name;
-        winner.entryCount = players[lotteryBag[index]].entryCount;
-        winner.adrs = lotteryBag[index];
-        // empty the lottery bag and indexAddresses
+        uint256 index = generateRandomNumber() % lotteryBag.length;
+        address payable winnerAddress = lotteryBag[index];
+        uint256 prize = address(this).balance;
+
+        winner.name = players[winnerAddress].name;
+        winner.entryCount = players[winnerAddress].entryCount;
+        winner.adrs = winnerAddress;
+
         lotteryBag = new address payable[](0);
         addressIndexes = new address[](0);
-
-        // Mark the lottery inactive
         isLotteryLive = false;
-    
-        // event
+
+        (bool sent, ) = winnerAddress.call{value: prize}("");
+        require(sent, "Prize transfer failed");
+
         emit WinnerDeclared(winner.name, winner.entryCount);
     }
 
-    function getPlayers() public view returns(address[] memory) {
+    function getPlayers() public view returns (address[] memory) {
         return addressIndexes;
     }
 
-    function getLotterySoldCount() public view returns(uint) {
+    function getLotterySoldCount() public view returns (uint256) {
         return lotteryBag.length;
     }
 
-    function getPlayer(address playerAddress) public view returns (string memory, uint) {
+    function getPlayer(address playerAddress) public view returns (string memory, uint256) {
         if (isNewPlayer(playerAddress)) {
             return ("", 0);
         }
+
         return (players[playerAddress].name, players[playerAddress].entryCount);
     }
 
-    function getWinningPrice() public view returns (uint) {
+    function getWinningPrice() public view returns (uint256) {
         return address(this).balance;
     }
 
-    function getCurrentWinner() public view returns (string memory, uint,address) {
-        return (winner.name,winner.entryCount,winner.adrs);
+    function getCurrentWinner() public view returns (string memory, uint256, address) {
+        return (winner.name, winner.entryCount, winner.adrs);
     }
 
-    // Private functions
-    function isNewPlayer(address playerAddress) private view returns(bool) {
+    function isNewPlayer(address playerAddress) private view returns (bool) {
         if (addressIndexes.length == 0) {
             return true;
         }
+
         return (addressIndexes[players[playerAddress].index] != playerAddress);
     }
 
     // NOTE: This should not be used for generating random number in real world
-    function generateRandomNumber() private view returns(uint) {
-        // return uint(keccak256(block.difficulty, now, block.timestamp.length));
-        return uint(keccak256(abi.encodePacked(block.difficulty,block.timestamp,lotteryBag.length)));
+    function generateRandomNumber() private view returns (uint256) {
+        return uint256(keccak256(abi.encodePacked(block.prevrandao, block.timestamp, lotteryBag.length)));
     }
 
-    // Modifiers
     modifier restricted() {
-        require(msg.sender == manager);
+        require(msg.sender == manager, "Only manager can call this function");
         _;
     }
 
-    // Events
-    event WinnerDeclared( string name, uint entryCount );
-    event PlayerParticipated( string name, uint entryCount );
+    event WinnerDeclared(string name, uint256 entryCount);
+    event PlayerParticipated(string name, uint256 entryCount);
 }

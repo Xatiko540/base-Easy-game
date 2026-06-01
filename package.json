@@ -1,6 +1,14 @@
 {
+  "scripts": {
+    "compile": "hardhat compile",
+    "clean": "hardhat clean",
+    "deploy": "hardhat run scripts/deploy.js"
+  },
   "dependencies": {
-    "@truffle/hdwallet-provider": "^1.7.0",
     "dotenv": "^16.0.1"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0",
+    "hardhat": "^2.26.0"
   }
 }

@@ -1,20 +1,31 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config(); // Загружаем переменные окружения из .env
 
-const MNEMONIC = process.env.MNEMONIC || "order reduce decorate family nature heavy ethics useless error clever key want";
-const BASE_SEPOLIA_API_KEY = process.env.BASE_SEPOLIA_API_KEY || "7WXKWG7BHJW9D9SZEVAJT6MD8X8T752PAE";
+const MNEMONIC = process.env.MNEMONIC;
+const BASE_SEPOLIA_RPC_URL = process.env.BASE_SEPOLIA_RPC_URL || "";
+const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || "";
 
 module.exports = {
-  solidity: "0.8.16", // Указываем используемую версию компилятора Solidity
+  solidity: {
+    version: "0.8.24",
+    settings: {
+      optimizer: {
+        enabled: true,
+        runs: 200,
+      },
+    },
+  },
   networks: {
     baseSepolia: {
-      url: `https://base-sepolia.blockapi.com/v1/${BASE_SEPOLIA_API_KEY}`, // Указываем URL API для Base Sepolia
-      accounts: { mnemonic: MNEMONIC }, // Генерация аккаунтов с использованием мнемонической фразы
-      chainId: 11155111, // Указываем идентификатор сети Base Sepolia
+      url: BASE_SEPOLIA_RPC_URL,
+      accounts: MNEMONIC ? { mnemonic: MNEMONIC } : [],
+      chainId: 84532,
     },
   },
   etherscan: {
-    apiKey: BASE_SEPOLIA_API_KEY, // Для проверки контракта
+    apiKey: {
+      baseSepolia: BASESCAN_API_KEY,
+    },
   },
   paths: {
     sources: "./contracts", // Папка с контрактами
