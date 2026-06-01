@@ -6,6 +6,117 @@ the logic of a binary matrix with 1 million participants and 1 billion cells </h
 
 <h3 align="center">Implementation of the project as a proof of the theory of large numbers and winning percentages, describing the real numbers of winnings, as well as all processes of interaction with the blockchain and distribution of payments through baes </h3>
 
+## Current Easy Game logic
+
+Easy Game is a Flutter + Solidity Web3 application built around a 17-level binary matrix. The user connects a Web3 wallet, activates levels with ETH on Base Sepolia, and is placed into the level matrix. Each level has its own price and its own binary placement tree.
+
+### User flow
+
+1. Connect wallet with MetaMask or another injected Web3 wallet.
+2. Open the Easy Game levels screen.
+3. Choose an available level.
+4. Enter or approve the upline/referral address.
+5. Continue to payment.
+6. The app calls `EasyGame.activateLevel(level, inviter)` through the wallet.
+7. The contract places the player in the matrix and distributes the payment.
+
+### Smart contract mechanics
+
+The active Easy Game contract is `contracts/EasyGame.sol`.
+
+- There are 17 levels.
+- Each level has a predefined ETH price.
+- A player cannot activate a level twice.
+- A player cannot activate level `N` before level `N - 1`.
+- Each level has a separate binary matrix.
+- New positions are filled left-to-right through the first available parent node.
+- When both child slots of a parent are filled, that parent position is closed.
+- A closed parent triggers recycle for that player.
+- After two cycles, if the next level is not active, the current level becomes frozen.
+- Activating the next level unfreezes the previous frozen level.
+
+### Payment distribution
+
+Each level activation distributes the paid amount as:
+
+- `80%` to the matrix parent/upline of the current level.
+- `9.5%` to the direct referral.
+- `0.5%` to the operator wallet.
+- `6%` to the second-line referral.
+- `4%` to the third-line referral.
+
+If a referral line is missing, that part is routed to the treasury wallet. If the matrix parent is frozen, the matrix reward is routed to treasury instead of the frozen player.
+
+### Contract events for UI
+
+The contract emits events that can be used to build live UI state:
+
+- `LevelActivated`
+- `MatrixPlaced`
+- `MatrixRewardPaid`
+- `ReferralPaid`
+- `Recycled`
+- `LevelFrozen`
+- `LevelUnfrozen`
+
+### Flutter integration
+
+The app uses `WalletConnectService` as the shared wallet and contract bridge.
+
+- Wallet connection state is shared between login, levels, profile, registration, and payment screens.
+- `LevelsScreen` can read on-chain level state from `EasyGame`.
+- `ActivateExpressGameScreen` sends `activateLevel` transactions.
+- Payment value is read from `levelPrices(level)` in the contract, so the transaction uses exact wei instead of floating-point ETH conversion.
+
+### Deploy
+
+Compile contracts and sync app artifacts:
+
+```bash
+npm run compile
+```
+
+Deploy to Base Sepolia:
+
+```bash
+TREASURY_ADDRESS=0x... OPERATOR_WALLET=0x... npx hardhat run scripts/deploy.js --network baseSepolia
+```
+
+The deploy script writes the deployed contract address into `src/artifacts/EasyGame.json`.
+
+You can also pass the contract address directly to Flutter:
+
+```bash
+flutter run -d chrome --dart-define=EASY_GAME_ADDRESS=0x...
+```
+
+Optional default inviter:
+
+```bash
+flutter run -d chrome --dart-define=EASY_GAME_ADDRESS=0x... --dart-define=EASY_GAME_INVITER=0x...
+```
+
+### Tests
+
+Run Easy Game contract tests:
+
+```bash
+npx hardhat test test/EasyGame.js
+```
+
+Current tests cover:
+
+- First level activation.
+- Previous-level requirement.
+- Duplicate activation rejection.
+- Exact payment validation.
+- Left-to-right matrix placement.
+- Buyer position correctness during recycle.
+- 80/20 payment distribution.
+- Freeze after two cycles.
+- Frozen parent reward routing.
+- Unfreeze after activating the next level.
+
 ## Projects that inspired this project
 
 https://github.com/user-attachments/assets/58c1ac8d-a3e3-452c-8c0c-01509652a688
@@ -169,7 +280,6 @@ Develop a notification system for participants at each recycle or new level fill
 
 
 [License](https://github.com/Xatiko540/base-Easy-game/blob/master/LICENSE)
-
 
 
 
