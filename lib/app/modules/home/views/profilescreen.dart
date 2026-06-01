@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../services/Notifications.dart';
 import 'PartnerBonusScreen.dart';
 import 'levels.dart';
 
-
-
-
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({Key? key, this.walletAddress}) : super(key: key);
+  ProfileScreen({Key? key}) : super(key: key);
 
-  final String? walletAddress;
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
 
   final String referralLink = "https://express.game/npalce";
 
@@ -43,7 +41,6 @@ class ProfileScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(
@@ -101,19 +98,19 @@ class ProfileScreen extends StatelessWidget {
               SizedBox(width: 2),
 
               // "0x7C...65"
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.grey[800],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  walletAddress == null
-                      ? "Not logged in" // Текст до логина
-                      : walletAddress!, // Адрес кошелька после логина
-                  style: TextStyle(color: Colors.white, fontSize: 14),
-                ),
-              ),
+              Obx(() => Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[800],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      walletService.isConnected.value
+                          ? walletService.shortAddress
+                          : "Not logged in",
+                      style: TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  )),
               SizedBox(width: 2),
 
               // Icons
@@ -129,7 +126,8 @@ class ProfileScreen extends StatelessWidget {
                     context: context,
                     isScrollControlled: true,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(16)),
                     ),
                     backgroundColor: Colors.black,
                     builder: (context) => NotificationsBottomSheet(),
@@ -139,7 +137,8 @@ class ProfileScreen extends StatelessWidget {
               ),
               IconButton(
                 onPressed: () {
-                  // Refresh action
+                  walletService.disconnectWallet();
+                  Get.offAllNamed('/home');
                 },
                 icon: Icon(Icons.logout, color: Colors.white),
               ),
@@ -147,8 +146,6 @@ class ProfileScreen extends StatelessWidget {
           ),
         ],
       ),
-
-
       drawer: Drawer(
         backgroundColor: Color(0xFF1A1F2E), // Background color for the drawer
         child: Column(
@@ -188,37 +185,42 @@ class ProfileScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.dashboard, color: Colors.white),
-                    title: Text("Instrument panel", style: TextStyle(color: Colors.white)),
+                    title: Text("Instrument panel",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Dashboard
-                      Get.to(() => const ProfileScreen());
+                      Get.to(() => ProfileScreen());
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.bar_chart, color: Colors.white),
-                    title: Text("Statistics", style: TextStyle(color: Colors.white)),
+                    title: Text("Statistics",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Statistics
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.people, color: Colors.white),
-                    title: Text("Affiliate bonus", style: TextStyle(color: Colors.white)),
+                    title: Text("Affiliate bonus",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Partner Bonus
-                      Get.to(() =>  PartnerBonusScreen());
+                      Get.to(() => PartnerBonusScreen());
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Colors.white),
-                    title: Text("Information", style: TextStyle(color: Colors.white)),
+                    title: Text("Information",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Information
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.telegram, color: Colors.white),
-                    title: Text("Telegram bots", style: TextStyle(color: Colors.white)),
+                    title: Text("Telegram bots",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Telegram Bots
                     },
@@ -240,14 +242,16 @@ class ProfileScreen extends StatelessWidget {
                 Divider(color: Colors.grey),
                 ListTile(
                   leading: Icon(Icons.notifications, color: Colors.white),
-                  title: Text("Notifier Bot", style: TextStyle(color: Colors.white)),
+                  title: Text("Notifier Bot",
+                      style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Bot Notifier
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.settings, color: Colors.white),
-                  title: Text("Settings", style: TextStyle(color: Colors.white)),
+                  title:
+                      Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Settings
                   },
@@ -256,7 +260,8 @@ class ProfileScreen extends StatelessWidget {
                   leading: Icon(Icons.logout, color: Colors.white),
                   title: Text("Exit", style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Handle Logout
+                    walletService.disconnectWallet();
+                    Get.offAllNamed('/home');
                   },
                 ),
               ],
@@ -264,12 +269,9 @@ class ProfileScreen extends StatelessWidget {
           ],
         ),
       ),
-
       body: SingleChildScrollView(
-
         padding: EdgeInsets.symmetric(
             horizontal: MediaQuery.of(context).size.width * 0.10),
-
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -368,7 +370,6 @@ class ProfileScreen extends StatelessWidget {
             ),
             SizedBox(height: 16),
 
-
             // Секция карточек
             Text(
               "Program",
@@ -422,16 +423,19 @@ class ProfileScreen extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.start,
                               children: List.generate(
                                 3, // Количество ячеек в первом ряду
-                                    (i) => Container(
+                                (i) => Container(
                                   width: 20,
                                   height: 20,
                                   margin: EdgeInsets.only(right: 4),
                                   decoration: BoxDecoration(
-                                    color: i == 2 ? Colors.green : Colors.grey[800],
+                                    color: i == 2
+                                        ? Colors.green
+                                        : Colors.grey[800],
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: i == 2
-                                      ? Icon(Icons.check, color: Colors.white, size: 12)
+                                      ? Icon(Icons.check,
+                                          color: Colors.white, size: 12)
                                       : null,
                                 ),
                               ),
@@ -441,16 +445,19 @@ class ProfileScreen extends StatelessWidget {
                               mainAxisAlignment: MainAxisAlignment.start,
                               children: List.generate(
                                 3, // Количество ячеек во втором ряду
-                                    (i) => Container(
+                                (i) => Container(
                                   width: 20,
                                   height: 20,
                                   margin: EdgeInsets.only(right: 4),
                                   decoration: BoxDecoration(
-                                    color: i == 5 ? Colors.purple : Colors.grey[800],
+                                    color: i == 5
+                                        ? Colors.purple
+                                        : Colors.grey[800],
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: i == 5
-                                      ? Icon(Icons.star, color: Colors.white, size: 12)
+                                      ? Icon(Icons.star,
+                                          color: Colors.white, size: 12)
                                       : null,
                                 ),
                               ),
@@ -476,14 +483,10 @@ class ProfileScreen extends StatelessWidget {
                               borderRadius: BorderRadius.circular(12),
                             ),
                           ),
-                          child: Text("Upgrade ${(index + 1) * 10} ETH(base)",
-
-                              style: TextStyle(fontSize: 16, color: Colors.white),
-
+                          child: Text(
+                            "Upgrade ${(index + 1) * 10} ETH(base)",
+                            style: TextStyle(fontSize: 16, color: Colors.white),
                           ),
-
-
-
                         ),
                       ],
                     ),
@@ -492,10 +495,6 @@ class ProfileScreen extends StatelessWidget {
               },
             ),
             SizedBox(height: 16),
-
-
-
-
 
             SizedBox(height: 16),
             Container(
@@ -533,19 +532,23 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       // Первый ряд ячеек
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.start, // Выравнивание влево
+                        mainAxisAlignment:
+                            MainAxisAlignment.start, // Выравнивание влево
                         children: List.generate(
                           3,
-                              (index) => Container(
+                          (index) => Container(
                             width: 32, // Ширина ячейки
                             height: 32, // Высота ячейки
-                            margin: EdgeInsets.only(right: 8), // Промежуток между ячейками
+                            margin: EdgeInsets.only(
+                                right: 8), // Промежуток между ячейками
                             decoration: BoxDecoration(
-                              color: index == 5 ? Colors.purple : Colors.grey[800],
+                              color:
+                                  index == 5 ? Colors.purple : Colors.grey[800],
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: index == 2
-                                ? Icon(Icons.access_time, color: Colors.white, size: 16)
+                                ? Icon(Icons.access_time,
+                                    color: Colors.white, size: 16)
                                 : null,
                           ),
                         ),
@@ -553,19 +556,23 @@ class ProfileScreen extends StatelessWidget {
                       SizedBox(height: 8),
                       // Второй ряд ячеек
                       Row(
-                        mainAxisAlignment: MainAxisAlignment.start, // Выравнивание влево
+                        mainAxisAlignment:
+                            MainAxisAlignment.start, // Выравнивание влево
                         children: List.generate(
-                         3,
-                              (index) => Container(
+                          3,
+                          (index) => Container(
                             width: 32, // Ширина ячейки
                             height: 32, // Высота ячейки
-                            margin: EdgeInsets.only(right: 8), // Промежуток между ячейками
+                            margin: EdgeInsets.only(
+                                right: 8), // Промежуток между ячейками
                             decoration: BoxDecoration(
-                              color: index == 3 ? Colors.green : Colors.grey[800],
+                              color:
+                                  index == 3 ? Colors.green : Colors.grey[800],
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: index == 3
-                                ? Icon(Icons.access_time, color: Colors.white, size: 16)
+                                ? Icon(Icons.access_time,
+                                    color: Colors.white, size: 16)
                                 : null,
                           ),
                         ),
@@ -585,9 +592,7 @@ class ProfileScreen extends StatelessWidget {
                     ),
                     child: ElevatedButton(
                       onPressed: () {
-
                         Get.to(() => LevelsScreen());
-
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.transparent,
@@ -615,260 +620,268 @@ class ProfileScreen extends StatelessWidget {
             ),
             SizedBox(height: 16),
             Container(
-          padding: EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Заголовок и описание
-              Text(
-                "0 Easy Game ",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.white,
-                ),
-              ),
-              SizedBox(height: 8),
-              Text(
-                "The world's first smart contract game with passive income in BNB directly to your wallet."
-                    " All players are randomly placed on 16 levels with unlimited cycles. Rewards are distributed as follows:",
-                style: TextStyle(color: Colors.grey[400], fontSize: 14),
-              ),
-              SizedBox(height: 8),
-              Text(
-                "- 74% of the level cost for each cycle of your level\n"
-                    "- 13%-8%-5% of the level value from partners up to 3 deep whenever they earn",
-                style: TextStyle(color: Colors.grey[500], fontSize: 12),
-              ),
-              SizedBox(height: 16),
-              // Раздел с видео и презентациями
-              Row(
+              padding: EdgeInsets.all(16),
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Видео-презентация
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      height: 200,
-                      decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: Center(
-                        child: Text(
-                          "Easy Game \n[VIDEO PLACEHOLDER]",
-                          textAlign: TextAlign.center,
-                          style: TextStyle(color: Colors.white, fontSize: 14),
-                        ),
-                      ),
-                    ),
-                  ),
-                  SizedBox(width: 16),
-                  // Презентации и кнопка
-                  Expanded(
-                    flex: 1,
-                    child: Column(
-                      children: [
-                        Container(
-                          padding: EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.grey[900],
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                "Easy Game  presentations",
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              SizedBox(height: 8),
-                              _presentationRow("English", Icons.flag),
-                              _presentationRow("Hindi", Icons.language),
-                              // _presentationRow("русский", Icons.flag_circle),
-                            ],
-                          ),
-                        ),
-                        SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: () {},
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.purple,
-                            minimumSize: Size(double.infinity, 48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          child: Text("Find out more about Express"),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 16),
-              // Информация о контрактах
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[900],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "Easy Game  Contracts",
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text("Express", style: TextStyle(color: Colors.grey[400])),
-                        Row(
-                          children: [
-                            Text("0x4c9...d2B", style: TextStyle(color: Colors.white)),
-                            SizedBox(width: 4),
-                            Icon(Icons.copy, color: Colors.white, size: 16),
-                          ],
-                        ),
-                      ],
-                    ),
-                    Divider(color: Colors.grey[600]),
-                    _infoRow("Total participants", "2 280"),
-                    _infoRow("The deals are done", "9 937"),
-                    _infoRow("Turnover, ETH(base)", "11 785.48"),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-            SizedBox(height: 16),
-            Container(
-          padding: EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.grey[900],
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Заголовок раздела
-              Row(
-                children: [
+                  // Заголовок и описание
                   Text(
-                    "Easy Game  recent activity",
+                    "0 Easy Game ",
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Colors.white,
                     ),
                   ),
-                  SizedBox(width: 8),
-                  Icon(Icons.info_outline, color: Colors.grey, size: 16),
-                ],
-              ),
-              SizedBox(height: 16),
-              // Список активности
-              Column(
-                children: List.generate(8, (index) {
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        // Иконка и информация
-                        Row(
-                          children: [
-                            Icon(
-                              index % 2 == 0 ? Icons.person : Icons.monetization_on,
-                              color: index % 2 == 0 ? Colors.green : Colors.blue,
-                              size: 20,
+                  SizedBox(height: 8),
+                  Text(
+                    "The world's first smart contract game with passive income in BNB directly to your wallet."
+                    " All players are randomly placed on 16 levels with unlimited cycles. Rewards are distributed as follows:",
+                    style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    "- 74% of the level cost for each cycle of your level\n"
+                    "- 13%-8%-5% of the level value from partners up to 3 deep whenever they earn",
+                    style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                  ),
+                  SizedBox(height: 16),
+                  // Раздел с видео и презентациями
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Видео-презентация
+                      Expanded(
+                        flex: 2,
+                        child: Container(
+                          height: 200,
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Center(
+                            child: Text(
+                              "Easy Game \n[VIDEO PLACEHOLDER]",
+                              textAlign: TextAlign.center,
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 14),
                             ),
-                            SizedBox(width: 8),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          ),
+                        ),
+                      ),
+                      SizedBox(width: 16),
+                      // Презентации и кнопка
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          children: [
+                            Container(
+                              padding: EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: Colors.grey[900],
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    "Easy Game  presentations",
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  _presentationRow("English", Icons.flag),
+                                  _presentationRow("Hindi", Icons.language),
+                                  // _presentationRow("русский", Icons.flag_circle),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: 16),
+                            ElevatedButton(
+                              onPressed: () {},
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.purple,
+                                minimumSize: Size(double.infinity, 48),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: Text("Find out more about Express"),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  // Информация о контрактах
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[900],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Easy Game  Contracts",
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text("Express",
+                                style: TextStyle(color: Colors.grey[400])),
+                            Row(
                               children: [
-                                Row(
-                                  children: [
-                                    Text(
-                                      "ID ${305521 + index}",
-                                      style: TextStyle(color: Colors.blue, fontSize: 14),
-                                    ),
-                                    SizedBox(width: 4),
-                                    Text(
-                                      index % 2 == 0
-                                          ? "activated"
-                                          : "+ affiliate bonus 0.${(index + 1) * 7} ETH(base)",
-                                      style: TextStyle(
-                                          color: Colors.white, fontSize: 14),
-                                    ),
-                                  ],
-                                ),
-                                Text(
-                                  "${index % 2 == 0 ? "6 level" : "4 level"}  Express",
-                                  style: TextStyle(color: Colors.grey, fontSize: 12),
-                                ),
+                                Text("0x4c9...d2B",
+                                    style: TextStyle(color: Colors.white)),
+                                SizedBox(width: 4),
+                                Icon(Icons.copy, color: Colors.white, size: 16),
                               ],
                             ),
                           ],
                         ),
-                        // Время и кнопка
-                        Row(
-                          children: [
-                            Text(
-                              "1 minute",
-                              style: TextStyle(color: Colors.grey, fontSize: 12),
-                            ),
-                            SizedBox(width: 8),
-                            Icon(Icons.open_in_new, color: Colors.grey, size: 16),
-                          ],
-                        ),
+                        Divider(color: Colors.grey[600]),
+                        _infoRow("Total participants", "2 280"),
+                        _infoRow("The deals are done", "9 937"),
+                        _infoRow("Turnover, ETH(base)", "11 785.48"),
                       ],
                     ),
-                  );
-                }),
+                  ),
+                ],
               ),
-              SizedBox(height: 16),
-              // Кнопка "Узнать больше"
-              Center(
-                child: ElevatedButton(
-                  onPressed: () {},
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.grey[800],
-                    padding: EdgeInsets.symmetric(horizontal: 32, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+            ),
+            SizedBox(height: 16),
+            Container(
+              padding: EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Заголовок раздела
+                  Row(
+                    children: [
+                      Text(
+                        "Easy Game  recent activity",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Icon(Icons.info_outline, color: Colors.grey, size: 16),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  // Список активности
+                  Column(
+                    children: List.generate(8, (index) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            // Иконка и информация
+                            Row(
+                              children: [
+                                Icon(
+                                  index % 2 == 0
+                                      ? Icons.person
+                                      : Icons.monetization_on,
+                                  color: index % 2 == 0
+                                      ? Colors.green
+                                      : Colors.blue,
+                                  size: 20,
+                                ),
+                                SizedBox(width: 8),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Text(
+                                          "ID ${305521 + index}",
+                                          style: TextStyle(
+                                              color: Colors.blue, fontSize: 14),
+                                        ),
+                                        SizedBox(width: 4),
+                                        Text(
+                                          index % 2 == 0
+                                              ? "activated"
+                                              : "+ affiliate bonus 0.${(index + 1) * 7} ETH(base)",
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14),
+                                        ),
+                                      ],
+                                    ),
+                                    Text(
+                                      "${index % 2 == 0 ? "6 level" : "4 level"}  Express",
+                                      style: TextStyle(
+                                          color: Colors.grey, fontSize: 12),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            // Время и кнопка
+                            Row(
+                              children: [
+                                Text(
+                                  "1 minute",
+                                  style: TextStyle(
+                                      color: Colors.grey, fontSize: 12),
+                                ),
+                                SizedBox(width: 8),
+                                Icon(Icons.open_in_new,
+                                    color: Colors.grey, size: 16),
+                              ],
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ),
+                  SizedBox(height: 16),
+                  // Кнопка "Узнать больше"
+                  Center(
+                    child: ElevatedButton(
+                      onPressed: () {},
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.grey[800],
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 32, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        "Find out more",
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
                     ),
                   ),
-                  child: Text(
-                    "Find out more",
-                    style: TextStyle(color: Colors.white, fontSize: 14),
-                  ),
-                ),
+                ],
               ),
-            ],
-          ),
-        ),
+            ),
             SizedBox(height: 16),
-
-
-
-
-        ],
+          ],
         ),
       ),
-
     );
   }
 

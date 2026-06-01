@@ -5,26 +5,49 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/profilescreen.dart';
 import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 import '../../../services/Notifications.dart';
 import 'ActivateExpressGameScreen.dart';
 import 'PartnerBonusScreen.dart';
 
+double levelPrice(int level) {
+  const prices = {
+    1: 0.01,
+    2: 0.015,
+    3: 0.02,
+    4: 0.03,
+    5: 0.04,
+    6: 0.06,
+    7: 0.09,
+    8: 0.13,
+    9: 0.2,
+    10: 0.3,
+    11: 0.4,
+    12: 0.6,
+    13: 0.9,
+    14: 1.3,
+    15: 2.0,
+    16: 3.0,
+    17: 4.0,
+  };
+  return prices[level] ?? 0.01;
+}
+
 class LevelsScreen extends StatefulWidget {
   final String? walletAddress;
 
-   LevelsScreen({Key? key, this.walletAddress}) : super(key: key);
+  LevelsScreen({Key? key, this.walletAddress}) : super(key: key);
 
   @override
   _LevelsScreenState createState() => _LevelsScreenState();
 }
 
 class _LevelsScreenState extends State<LevelsScreen> {
-
   Timer? liveTimer;
   List<Level> levels = [];
 
-   String? walletAddress;
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
 
   LevelStatus getStatus(int level) {
     if (level <= 3) return LevelStatus.active;
@@ -32,16 +55,84 @@ class _LevelsScreenState extends State<LevelsScreen> {
     return LevelStatus.locked;
   }
 
+  Future<void> refreshLevelsFromContract() async {
+    if (!walletService.isConnected.value || levels.isEmpty) {
+      return;
+    }
+
+    try {
+      for (final level in levels) {
+        final state = await walletService.getEasyGameLevel(
+          level: level.levelNumber,
+        );
+        final previousActive = level.levelNumber == 1
+            ? true
+            : (await walletService.isEasyGameLevelActive(
+                level: level.levelNumber - 1,
+              ));
+
+        level.status = state.active
+            ? state.frozen
+                ? LevelStatus.frozen
+                : LevelStatus.active
+            : previousActive
+                ? LevelStatus.waiting
+                : LevelStatus.locked;
+        level.fillPercent = state.active ? 50 : 0;
+        level.isVisible = previousActive || state.active;
+        level.unlockTime = null;
+      }
+
+      if (mounted) {
+        setState(() {});
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        print('Unable to refresh EasyGame levels from contract: $e');
+      }
+    }
+  }
+
   void initializeLevels() {
     // Базовые стоимости уровней и дни разблокировки
     Map<int, double> baseValues = {
-      1: 0.01, 2: 0.015, 3: 0.02, 4: 0.03, 5: 0.04, 6: 0.06, 7: 0.09, 8: 0.13,
-      9: 0.2, 10: 0.3, 11: 0.4, 12: 0.6, 13: 0.9, 14: 1.3, 15: 2.0, 16: 3.0, 17: 4.0
+      1: 0.01,
+      2: 0.015,
+      3: 0.02,
+      4: 0.03,
+      5: 0.04,
+      6: 0.06,
+      7: 0.09,
+      8: 0.13,
+      9: 0.2,
+      10: 0.3,
+      11: 0.4,
+      12: 0.6,
+      13: 0.9,
+      14: 1.3,
+      15: 2.0,
+      16: 3.0,
+      17: 4.0
     };
 
     Map<int, int> unlockHours = {
-      1: 0, 2: 0, 3: 0, 4: 12, 5: 12, 6: 12, 7: 24, 8: 24,
-      9: 36, 10: 36, 11: 48, 12: 48, 13: 60, 14: 72, 15: 84, 16: 96, 17: 108
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 12,
+      5: 12,
+      6: 12,
+      7: 24,
+      8: 24,
+      9: 36,
+      10: 36,
+      11: 48,
+      12: 48,
+      13: 60,
+      14: 72,
+      15: 84,
+      16: 96,
+      17: 108
     };
 
     DateTime now = DateTime.now();
@@ -74,7 +165,8 @@ class _LevelsScreenState extends State<LevelsScreen> {
             if (remainingTime.isNegative) {
               level.status = LevelStatus.waiting;
               level.isVisible = true;
-              print('Level ${level.levelNumber} is now waiting for activation.');
+              print(
+                  'Level ${level.levelNumber} is now waiting for activation.');
             } else {
               allLevelsUnlocked = false;
             }
@@ -151,7 +243,8 @@ class _LevelsScreenState extends State<LevelsScreen> {
             level.fillPercent = 100;
             completeLevel(level);
           }
-          print('Updated visible level: ${level.levelNumber} -> ${level.fillPercent}%');
+          print(
+              'Updated visible level: ${level.levelNumber} -> ${level.fillPercent}%');
         } else {
           int prevIndex = level.levelNumber - 2;
           if (prevIndex >= 0 && levels[prevIndex].fillPercent == 100) {
@@ -169,13 +262,13 @@ class _LevelsScreenState extends State<LevelsScreen> {
     }
   }
 
-
   @override
   void initState() {
     super.initState();
     initializeLevels(); // Инициализация уровней
     updateLevels();
     printLevels();
+    refreshLevelsFromContract();
     // startLevelProgression();
   }
 
@@ -185,7 +278,6 @@ class _LevelsScreenState extends State<LevelsScreen> {
     liveTimer?.cancel();
     super.dispose();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -254,11 +346,13 @@ class _LevelsScreenState extends State<LevelsScreen> {
                   color: Colors.grey[800],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Text(
-                  walletAddress == null
-                      ? "Not logged in" // Текст до логина
-                      : walletAddress!, // Адрес кошелька после логина
-                  style: TextStyle(color: Colors.white, fontSize: 14),
+                child: Obx(
+                  () => Text(
+                    walletService.isConnected.value
+                        ? walletService.shortAddress
+                        : "Not logged in",
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
                 ),
               ),
               SizedBox(width: 8),
@@ -276,7 +370,8 @@ class _LevelsScreenState extends State<LevelsScreen> {
                     context: context,
                     isScrollControlled: true,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(16)),
                     ),
                     backgroundColor: Colors.black,
                     builder: (context) => NotificationsBottomSheet(),
@@ -286,16 +381,15 @@ class _LevelsScreenState extends State<LevelsScreen> {
               ),
               IconButton(
                 onPressed: () {
-                  // Refresh action
+                  walletService.disconnectWallet();
+                  Get.offAllNamed('/home');
                 },
                 icon: Icon(Icons.logout, color: Colors.white),
               ),
             ],
           ),
         ],
-
       ),
-
       drawer: Drawer(
         backgroundColor: Color(0xFF1A1F2E), // Background color for the drawer
         child: Column(
@@ -335,37 +429,42 @@ class _LevelsScreenState extends State<LevelsScreen> {
                 children: [
                   ListTile(
                     leading: Icon(Icons.dashboard, color: Colors.white),
-                    title: Text("Instrument panel", style: TextStyle(color: Colors.white)),
+                    title: Text("Instrument panel",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Dashboard
-                      Get.to(() => const ProfileScreen());
+                      Get.to(() => ProfileScreen());
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.bar_chart, color: Colors.white),
-                    title: Text("Statistics", style: TextStyle(color: Colors.white)),
+                    title: Text("Statistics",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Statistics
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.people, color: Colors.white),
-                    title: Text("Affiliate bonus", style: TextStyle(color: Colors.white)),
+                    title: Text("Affiliate bonus",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Partner Bonus
-                      Get.to(() =>  PartnerBonusScreen());
+                      Get.to(() => PartnerBonusScreen());
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Colors.white),
-                    title: Text("Information", style: TextStyle(color: Colors.white)),
+                    title: Text("Information",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Information
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.telegram, color: Colors.white),
-                    title: Text("Telegram bots", style: TextStyle(color: Colors.white)),
+                    title: Text("Telegram bots",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Telegram Bots
                     },
@@ -387,14 +486,16 @@ class _LevelsScreenState extends State<LevelsScreen> {
                 Divider(color: Colors.grey),
                 ListTile(
                   leading: Icon(Icons.notifications, color: Colors.white),
-                  title: Text("Notifier Bot", style: TextStyle(color: Colors.white)),
+                  title: Text("Notifier Bot",
+                      style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Bot Notifier
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.settings, color: Colors.white),
-                  title: Text("Settings", style: TextStyle(color: Colors.white)),
+                  title:
+                      Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Settings
                   },
@@ -403,7 +504,8 @@ class _LevelsScreenState extends State<LevelsScreen> {
                   leading: Icon(Icons.logout, color: Colors.white),
                   title: Text("Exit", style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Handle Logout
+                    walletService.disconnectWallet();
+                    Get.offAllNamed('/home');
                   },
                 ),
               ],
@@ -411,7 +513,6 @@ class _LevelsScreenState extends State<LevelsScreen> {
           ],
         ),
       ),
-
       body: LayoutBuilder(
         builder: (context, constraints) {
           double width = constraints.maxWidth;
@@ -419,10 +520,10 @@ class _LevelsScreenState extends State<LevelsScreen> {
           int crossAxisCount = width < 480
               ? 2
               : width < 800
-              ? 2
-              : width < 1200
-              ? 3
-              : 4;
+                  ? 2
+                  : width < 1200
+                      ? 3
+                      : 4;
 
           double childAspectRatio = width < 480 ? 1 : 0.85;
 
@@ -431,7 +532,8 @@ class _LevelsScreenState extends State<LevelsScreen> {
               children: [
                 Padding(
                   padding: EdgeInsets.symmetric(
-                    horizontal: MediaQuery.of(context).size.width * 0.10, // Horizontal padding
+                    horizontal: MediaQuery.of(context).size.width *
+                        0.10, // Horizontal padding
                     vertical: 16, // Vertical padding
                   ),
                   child: const Row(
@@ -495,6 +597,12 @@ class _LevelsScreenState extends State<LevelsScreen> {
                             coin: level.coin,
                             availableTime: level.getRemainingTime(),
                           );
+                        case LevelStatus.frozen:
+                          return TimeCard(
+                            level: level.levelNumber,
+                            coin: level.coin,
+                            availableTime: 'Frozen',
+                          );
                         case LevelStatus.waiting:
                           return ActivateCard(
                             level: level.levelNumber,
@@ -516,7 +624,8 @@ class _LevelsScreenState extends State<LevelsScreen> {
                             coin: level.coin,
                             partnerBonus: level.partnerBonus,
                             levelProfit: level.levelProfit,
-                            fillPercent: 100, // Completed levels always show full progress
+                            fillPercent:
+                                100, // Completed levels always show full progress
                           );
                       }
                     },
@@ -530,7 +639,6 @@ class _LevelsScreenState extends State<LevelsScreen> {
           );
         },
       ),
-
     );
   }
 }
@@ -539,7 +647,8 @@ class LevelCard extends StatelessWidget {
   final int level;
   final double coin, partnerBonus, levelProfit, fillPercent;
 
-  const LevelCard({Key? key,
+  const LevelCard({
+    Key? key,
     required this.level,
     required this.coin,
     required this.partnerBonus,
@@ -553,9 +662,7 @@ class LevelCard extends StatelessWidget {
       onTap: () {
         // Navigate to the detail screen
 
-        Get.to(() =>  LevelDetailScreen(level: level));
-
-
+        Get.to(() => LevelDetailScreen(level: level));
       },
       child: AspectRatio(
         aspectRatio: 1 / 1.2,
@@ -702,32 +809,26 @@ class LevelCard extends StatelessWidget {
 }
 
 class ActivateCard extends StatefulWidget {
-
   final int level;
   final double coin;
   final LevelStatus status;
   final Function(Level) onActivate;
 
-
-  const ActivateCard
-      ({Key? key,
-
-    required this.level,
-    required this.coin,
-    required this.status,
-    required this.onActivate
-
-  }) : super(key: key);
+  const ActivateCard(
+      {Key? key,
+      required this.level,
+      required this.coin,
+      required this.status,
+      required this.onActivate})
+      : super(key: key);
 
   @override
   ActivateCardState createState() => ActivateCardState();
 }
 
 class ActivateCardState extends State<ActivateCard> {
-
   Timer? liveTimer;
   List<Level> levels = [];
-
 
   void activateLevel(Level level) {
     setState(() {
@@ -767,9 +868,7 @@ class ActivateCardState extends State<ActivateCard> {
         onTap: () {
           // Navigate to the detail screen
 
-
-          Get.to(() =>  ActivateCardDetailScreen(level: widget.level));
-
+          Get.to(() => ActivateCardDetailScreen(level: widget.level));
         },
         child: AspectRatio(
           aspectRatio: 1 / 1.2,
@@ -837,14 +936,19 @@ class ActivateCardState extends State<ActivateCard> {
                         ),
                         child: ElevatedButton(
                           onPressed: () {
-                            Get.to(() => RegistrationScreen(widget.status));
-
+                            Get.to(() => RegistrationScreen(
+                                  widget.status,
+                                  level: widget.level,
+                                  amount: widget.coin,
+                                ));
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.transparent, // Делает фон прозрачным
+                            backgroundColor:
+                                Colors.transparent, // Делает фон прозрачным
                             shadowColor: Colors.transparent, // Убирает тень
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8), // Закругленные углы
+                              borderRadius:
+                                  BorderRadius.circular(8), // Закругленные углы
                             ),
                           ),
                           child: Text(
@@ -1076,7 +1180,8 @@ class BottomTableSection extends StatelessWidget {
 class ActivateCardDetailScreen extends StatelessWidget {
   final int level;
 
-  const ActivateCardDetailScreen({Key? key, required this.level}) : super(key: key);
+  const ActivateCardDetailScreen({Key? key, required this.level})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -1091,7 +1196,8 @@ class ActivateCardDetailScreen extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
-          horizontal: MediaQuery.of(context).size.width * 0.10, // 5% horizontal padding
+          horizontal:
+              MediaQuery.of(context).size.width * 0.10, // 5% horizontal padding
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1135,10 +1241,12 @@ class ActivateCardDetailScreen extends StatelessWidget {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.arrow_back_ios, color: Colors.white, size: 16),
+                                Icon(Icons.arrow_back_ios,
+                                    color: Colors.white, size: 16),
                                 Text(
                                   "Level ${level + 1}",
-                                  style: TextStyle(color: Colors.white, fontSize: 14),
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 14),
                                 ),
                               ],
                             ),
@@ -1164,9 +1272,11 @@ class ActivateCardDetailScreen extends StatelessWidget {
                               children: [
                                 Text(
                                   "Level ${level - 1}",
-                                  style: TextStyle(color: Colors.white, fontSize: 14),
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 14),
                                 ),
-                                Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                                Icon(Icons.arrow_forward_ios,
+                                    color: Colors.white, size: 16),
                               ],
                             ),
                           ),
@@ -1200,7 +1310,7 @@ class ActivateCardDetailScreen extends StatelessWidget {
                           ),
                           SizedBox(width: 8),
                           Text(
-                            "0.03 ETH(base)",
+                            "${levelPrice(level).toStringAsFixed(3)} ETH(base)",
                             style: TextStyle(color: Colors.white, fontSize: 16),
                           ),
                         ],
@@ -1320,7 +1430,8 @@ class ActivateCardDetailScreen extends StatelessWidget {
                   // Activate Button
                   Center(
                     child: Container(
-                      constraints: BoxConstraints(maxWidth: 300), // Maximum width for the button
+                      constraints: BoxConstraints(
+                          maxWidth: 300), // Maximum width for the button
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [
@@ -1335,7 +1446,10 @@ class ActivateCardDetailScreen extends StatelessWidget {
                       child: ElevatedButton(
                         onPressed: () {
                           // Handle Activate Button
-                          Get.to(() => ActivateExpressGameScreen());
+                          Get.to(() => ActivateExpressGameScreen(
+                                level: level,
+                                totalAmount: levelPrice(level),
+                              ));
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.transparent,
@@ -1350,7 +1464,8 @@ class ActivateCardDetailScreen extends StatelessWidget {
                           children: [
                             Text(
                               "Activate",
-                              style: TextStyle(fontSize: 16, color: Colors.white),
+                              style:
+                                  TextStyle(fontSize: 16, color: Colors.white),
                             ),
                             SizedBox(width: 8),
                             Icon(Icons.arrow_forward, color: Colors.white),
@@ -1373,65 +1488,73 @@ class ActivateCardDetailScreen extends StatelessWidget {
               ),
             ),
             SizedBox(height: 8),
-            Center(child: Container(
-              decoration: BoxDecoration(
-                color: Color(0xFF1A1F2E),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DataTable(
-                columns: const [
-                  DataColumn(
-                    label: Text(
-                      "Type",
-                      style: TextStyle(color: Colors.white),
+            Center(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Color(0xFF1A1F2E),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DataTable(
+                  columns: const [
+                    DataColumn(
+                      label: Text(
+                        "Type",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      "Date",
-                      style: TextStyle(color: Colors.white),
+                    DataColumn(
+                      label: Text(
+                        "Date",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      "ID",
-                      style: TextStyle(color: Colors.white),
+                    DataColumn(
+                      label: Text(
+                        "ID",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      "Level",
-                      style: TextStyle(color: Colors.white),
+                    DataColumn(
+                      label: Text(
+                        "Level",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      "Wallet",
-                      style: TextStyle(color: Colors.white),
+                    DataColumn(
+                      label: Text(
+                        "Wallet",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
-                  ),
-                  DataColumn(
-                    label: Text(
-                      "ETH(base)",
-                      style: TextStyle(color: Colors.white),
+                    DataColumn(
+                      label: Text(
+                        "ETH(base)",
+                        style: TextStyle(color: Colors.white),
+                      ),
                     ),
-                  ),
-                ],
-                rows: List<DataRow>.generate(
-                  5,
-                      (index) => DataRow(
-                    cells: [
-                      DataCell(Text("Gift", style: TextStyle(color: Colors.white))),
-                      DataCell(Text("02.04.2022", style: TextStyle(color: Colors.white))),
-                      DataCell(Text("ID $index", style: TextStyle(color: Colors.white))),
-                      DataCell(Text("$level", style: TextStyle(color: Colors.white))),
-                      DataCell(Text("0xB...9F", style: TextStyle(color: Colors.white))),
-                      DataCell(Text("0.10 base", style: TextStyle(color: Colors.white))),
-                    ],
+                  ],
+                  rows: List<DataRow>.generate(
+                    5,
+                    (index) => DataRow(
+                      cells: [
+                        DataCell(Text("Gift",
+                            style: TextStyle(color: Colors.white))),
+                        DataCell(Text("02.04.2022",
+                            style: TextStyle(color: Colors.white))),
+                        DataCell(Text("ID $index",
+                            style: TextStyle(color: Colors.white))),
+                        DataCell(Text("$level",
+                            style: TextStyle(color: Colors.white))),
+                        DataCell(Text("0xB...9F",
+                            style: TextStyle(color: Colors.white))),
+                        DataCell(Text("0.10 base",
+                            style: TextStyle(color: Colors.white))),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),)
+            )
           ],
         ),
       ),
@@ -1457,7 +1580,8 @@ class LevelDetailScreen extends StatelessWidget {
       ),
       body: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
-          horizontal: MediaQuery.of(context).size.width * 0.05, // 5% horizontal padding
+          horizontal:
+              MediaQuery.of(context).size.width * 0.05, // 5% horizontal padding
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1500,10 +1624,12 @@ class LevelDetailScreen extends StatelessWidget {
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Icon(Icons.arrow_back_ios, color: Colors.white, size: 16),
+                                Icon(Icons.arrow_back_ios,
+                                    color: Colors.white, size: 16),
                                 Text(
                                   "Level ${level + 1}",
-                                  style: TextStyle(color: Colors.white, fontSize: 14),
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 14),
                                 ),
                               ],
                             ),
@@ -1529,9 +1655,11 @@ class LevelDetailScreen extends StatelessWidget {
                               children: [
                                 Text(
                                   "Level ${level - 1}",
-                                  style: TextStyle(color: Colors.white, fontSize: 14),
+                                  style: TextStyle(
+                                      color: Colors.white, fontSize: 14),
                                 ),
-                                Icon(Icons.arrow_forward_ios, color: Colors.white, size: 16),
+                                Icon(Icons.arrow_forward_ios,
+                                    color: Colors.white, size: 16),
                               ],
                             ),
                           ),
@@ -1643,29 +1771,40 @@ class LevelDetailScreen extends StatelessWidget {
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Missed profit", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                          Text("0 ETH(base)", style: TextStyle(color: Colors.white, fontSize: 14)),
+                          Text("Missed profit",
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 14)),
+                          Text("0 ETH(base)",
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 14)),
                         ],
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Total level profit", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                          Text("0.1036 ETH(base)", style: TextStyle(color: Colors.white, fontSize: 14)),
+                          Text("Total level profit",
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 14)),
+                          Text("0.1036 ETH(base)",
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 14)),
                         ],
                       ),
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text("Total partner bonus", style: TextStyle(color: Colors.grey, fontSize: 14)),
-                          Text("0.0364 ETH(base)", style: TextStyle(color: Colors.white, fontSize: 14)),
+                          Text("Total partner bonus",
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 14)),
+                          Text("0.0364 ETH(base)",
+                              style:
+                                  TextStyle(color: Colors.white, fontSize: 14)),
                         ],
                       ),
                     ],
                   ),
                   SizedBox(height: 16),
                   // Activate Button
-
                 ],
               ),
             ),
@@ -1673,50 +1812,66 @@ class LevelDetailScreen extends StatelessWidget {
             // Transaction History Section
             Text(
               "Transaction History",
-              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 8),
-            Center(child: Container(
-              decoration: BoxDecoration(
-                color: Color(0xFF1A1F2E),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: DataTable(
-                columns: const [
-                  DataColumn(
-                    label: Text("Type", style: TextStyle(color: Colors.white)),
-                  ),
-                  DataColumn(
-                    label: Text("Date", style: TextStyle(color: Colors.white)),
-                  ),
-                  DataColumn(
-                    label: Text("ID", style: TextStyle(color: Colors.white)),
-                  ),
-                  DataColumn(
-                    label: Text("Level", style: TextStyle(color: Colors.white)),
-                  ),
-                  DataColumn(
-                    label: Text("Wallet", style: TextStyle(color: Colors.white)),
-                  ),
-                  DataColumn(
-                    label: Text("ETH(base)", style: TextStyle(color: Colors.white)),
-                  ),
-                ],
-                rows: List<DataRow>.generate(
-                  5,
-                      (index) => DataRow(
-                    cells: [
-                      DataCell(Text("Gift", style: TextStyle(color: Colors.white))),
-                      DataCell(Text("02.04.2022", style: TextStyle(color: Colors.white))),
-                      DataCell(Text("ID $index", style: TextStyle(color: Colors.white))),
-                      DataCell(Text("$level", style: TextStyle(color: Colors.white))),
-                      DataCell(Text("0xB...9F", style: TextStyle(color: Colors.white))),
-                      DataCell(Text("0.10 BNB", style: TextStyle(color: Colors.white))),
-                    ],
+            Center(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Color(0xFF1A1F2E),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: DataTable(
+                  columns: const [
+                    DataColumn(
+                      label:
+                          Text("Type", style: TextStyle(color: Colors.white)),
+                    ),
+                    DataColumn(
+                      label:
+                          Text("Date", style: TextStyle(color: Colors.white)),
+                    ),
+                    DataColumn(
+                      label: Text("ID", style: TextStyle(color: Colors.white)),
+                    ),
+                    DataColumn(
+                      label:
+                          Text("Level", style: TextStyle(color: Colors.white)),
+                    ),
+                    DataColumn(
+                      label:
+                          Text("Wallet", style: TextStyle(color: Colors.white)),
+                    ),
+                    DataColumn(
+                      label: Text("ETH(base)",
+                          style: TextStyle(color: Colors.white)),
+                    ),
+                  ],
+                  rows: List<DataRow>.generate(
+                    5,
+                    (index) => DataRow(
+                      cells: [
+                        DataCell(Text("Gift",
+                            style: TextStyle(color: Colors.white))),
+                        DataCell(Text("02.04.2022",
+                            style: TextStyle(color: Colors.white))),
+                        DataCell(Text("ID $index",
+                            style: TextStyle(color: Colors.white))),
+                        DataCell(Text("$level",
+                            style: TextStyle(color: Colors.white))),
+                        DataCell(Text("0xB...9F",
+                            style: TextStyle(color: Colors.white))),
+                        DataCell(Text("0.10 BNB",
+                            style: TextStyle(color: Colors.white))),
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),)
+            )
           ],
         ),
       ),
@@ -1724,7 +1879,7 @@ class LevelDetailScreen extends StatelessWidget {
   }
 }
 
-enum LevelStatus { locked, active, waiting, completed }
+enum LevelStatus { locked, frozen, active, waiting, completed }
 
 class Level {
   final int levelNumber;
@@ -1747,27 +1902,27 @@ class Level {
     this.unlockTime,
   });
 
-
   // Example for JSON serialization
   Map<String, dynamic> toJson() => {
-    'levelNumber': levelNumber,
-    'status': status.toString(),
-    'coin': coin,
-    'partnerBonus': partnerBonus,
-    'levelProfit': levelProfit,
-    'fillPercent': fillPercent,
-    'isVisible': isVisible,
-  };
+        'levelNumber': levelNumber,
+        'status': status.toString(),
+        'coin': coin,
+        'partnerBonus': partnerBonus,
+        'levelProfit': levelProfit,
+        'fillPercent': fillPercent,
+        'isVisible': isVisible,
+      };
 
   factory Level.fromJson(Map<String, dynamic> json) => Level(
-    levelNumber: json['levelNumber'],
-    status: LevelStatus.values.firstWhere((e) => e.toString() == json['status']),
-    coin: json['coin'],
-    partnerBonus: json['partnerBonus'],
-    levelProfit: json['levelProfit'],
-    fillPercent: json['fillPercent'],
-    isVisible: json['isVisible'],
-  );
+        levelNumber: json['levelNumber'],
+        status: LevelStatus.values
+            .firstWhere((e) => e.toString() == json['status']),
+        coin: json['coin'],
+        partnerBonus: json['partnerBonus'],
+        levelProfit: json['levelProfit'],
+        fillPercent: json['fillPercent'],
+        isVisible: json['isVisible'],
+      );
 
   String getRemainingTime() {
     if (unlockTime == null) return '';

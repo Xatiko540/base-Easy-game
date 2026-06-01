@@ -1,30 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_web3/ethereum.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/profilescreen.dart';
-import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 import 'PartnerBonusScreen.dart';
-import 'home_view.dart';
 import 'levels.dart';
 
-import 'package:flutter/material.dart';
-import 'package:get/get.dart';
-
 class ExpressGameScreen extends StatelessWidget {
-    ExpressGameScreen({Key? key, this.walletAddress}) : super(key: key);
+  ExpressGameScreen({Key? key}) : super(key: key);
 
-  final String? walletAddress;
-
-   final WalletConnectService _walletService = WalletConnectService();
+  final WalletConnectService _walletService = Get.find<WalletConnectService>();
 
   @override
   Widget build(BuildContext context) {
-
     return Scaffold(
-
       backgroundColor: Colors.black,
-
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(
@@ -37,23 +27,24 @@ class ExpressGameScreen extends StatelessWidget {
               style: TextStyle(color: Colors.white, fontSize: 18),
             ),
             Spacer(),
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.grey[800],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                walletAddress == null
-                    ? "Not logged in" // Текст до логина
-                    : walletAddress!, // Адрес кошелька после логина
-                style: TextStyle(color: Colors.white, fontSize: 14),
+            Obx(
+              () => Container(
+                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.grey[800],
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  _walletService.isConnected.value
+                      ? _walletService.shortAddress
+                      : "Not logged in",
+                  style: TextStyle(color: Colors.white, fontSize: 14),
+                ),
               ),
             ),
           ],
         ),
       ),
-
       drawer: Drawer(
         backgroundColor: Color(0xFF1A1F2E), // Background color for the drawer
         child: Column(
@@ -93,37 +84,42 @@ class ExpressGameScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.dashboard, color: Colors.white),
-                    title: Text("Instrument panel", style: TextStyle(color: Colors.white)),
+                    title: Text("Instrument panel",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Dashboard
-                      Get.to(() => const ProfileScreen());
+                      Get.to(() => ProfileScreen());
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.bar_chart, color: Colors.white),
-                    title: Text("Statistics", style: TextStyle(color: Colors.white)),
+                    title: Text("Statistics",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Statistics
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.people, color: Colors.white),
-                    title: Text("Affiliate bonus", style: TextStyle(color: Colors.white)),
+                    title: Text("Affiliate bonus",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Partner Bonus
-                      Get.to(() =>  PartnerBonusScreen());
+                      Get.to(() => PartnerBonusScreen());
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Colors.white),
-                    title: Text("Information", style: TextStyle(color: Colors.white)),
+                    title: Text("Information",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Information
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.telegram, color: Colors.white),
-                    title: Text("Telegram bots", style: TextStyle(color: Colors.white)),
+                    title: Text("Telegram bots",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Telegram Bots
                     },
@@ -145,14 +141,16 @@ class ExpressGameScreen extends StatelessWidget {
                 Divider(color: Colors.grey),
                 ListTile(
                   leading: Icon(Icons.notifications, color: Colors.white),
-                  title: Text("Notifier Bot", style: TextStyle(color: Colors.white)),
+                  title: Text("Notifier Bot",
+                      style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Bot Notifier
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.settings, color: Colors.white),
-                  title: Text("Settings", style: TextStyle(color: Colors.white)),
+                  title:
+                      Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Settings
                   },
@@ -161,7 +159,8 @@ class ExpressGameScreen extends StatelessWidget {
                   leading: Icon(Icons.logout, color: Colors.white),
                   title: Text("Exit", style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Handle Logout
+                    _walletService.disconnectWallet();
+                    Get.back();
                   },
                 ),
               ],
@@ -169,11 +168,11 @@ class ExpressGameScreen extends StatelessWidget {
           ],
         ),
       ),
-
       body: SingleChildScrollView(
         child: Padding(
-          padding:  EdgeInsets.symmetric(
-              horizontal: MediaQuery.of(context).size.width * 0.10), // Боковые отступы
+          padding: EdgeInsets.symmetric(
+              horizontal:
+                  MediaQuery.of(context).size.width * 0.10), // Боковые отступы
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -191,16 +190,12 @@ class ExpressGameScreen extends StatelessWidget {
               SizedBox(height: 16),
               _previewModeSection(),
               SizedBox(height: 30),
-
             ],
           ),
         ),
       ),
-
     );
   }
-
-
 
   Widget _drawerTile(IconData icon, String title, VoidCallback onTap) {
     return ListTile(
@@ -260,14 +255,14 @@ class ExpressGameScreen extends StatelessWidget {
                 ),
                 child: ElevatedButton(
                   onPressed: () async {
-                    if (_walletService.isConnected) {
+                    if (_walletService.isConnected.value) {
                       // Если кошелек подключен, переходим на другую страницу
                       Get.to(() => LevelsScreen());
                     } else {
                       // Если кошелек не подключен, пробуем подключить
                       try {
                         await _walletService.connectWallet();
-                        if (_walletService.isConnected) {
+                        if (_walletService.isConnected.value) {
                           // После успешного подключения переходим на другую страницу
                           Get.to(() => LevelsScreen());
                         }
@@ -278,16 +273,23 @@ class ExpressGameScreen extends StatelessWidget {
                     }
                   },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.transparent, // Прозрачный фон для градиента
+                    backgroundColor:
+                        Colors.transparent, // Прозрачный фон для градиента
                     shadowColor: Colors.transparent,
                     padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  child: Text(
-                    "Login to your account",
-                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  child: Obx(
+                    () => Text(
+                      _walletService.isConnecting.value
+                          ? "Connecting..."
+                          : _walletService.isConnected.value
+                              ? "Enter your account"
+                              : "Login to your account",
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
                   ),
                 ),
               ),
@@ -298,29 +300,29 @@ class ExpressGameScreen extends StatelessWidget {
     );
   }
 
-    Widget _timerSection() {
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Container(
-          decoration: BoxDecoration(
-            color: Color(0xFF6A1B9A), // Цвет фона для таймера
-            borderRadius: BorderRadius.circular(16), // Закругление углов
-          ),
-          padding:  EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center, // Центрирование контента
-            children: [
-              Icon(Icons.timer, color: Colors.white, size: 16), // Иконка таймера
-              SizedBox(width: 8),
-              Text(
-                "Level 3 available at: 00 D 07 H 32 M 54 S", // Текст таймера
-                style: TextStyle(color: Colors.white, fontSize: 14),
-              ),
-            ],
-          ),
+  Widget _timerSection() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Color(0xFF6A1B9A), // Цвет фона для таймера
+          borderRadius: BorderRadius.circular(16), // Закругление углов
         ),
-      );
-    }
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center, // Центрирование контента
+          children: [
+            Icon(Icons.timer, color: Colors.white, size: 16), // Иконка таймера
+            SizedBox(width: 8),
+            Text(
+              "Level 3 available at: 00 D 07 H 32 M 54 S", // Текст таймера
+              style: TextStyle(color: Colors.white, fontSize: 14),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
   Widget _previewModeSection() {
     return Padding(
@@ -381,8 +383,6 @@ class ExpressGameScreen extends StatelessWidget {
   }
 }
 
-
-
 class WalletScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -404,43 +404,5 @@ class SettingsScreen extends StatelessWidget {
         child: Text("Settings Screen", style: TextStyle(color: Colors.white)),
       ),
     );
-  }
-}
-
-class WalletConnectService extends GetxController {
-  final RxString _currentAddress = ''.obs;
-  final RxBool _isConnected = false.obs;
-
-  // Доступ к данным
-  String get currentAddress => _currentAddress.value;
-  bool get isConnected => _isConnected.value;
-
-  // Проверка наличия кошелька
-  bool get isWalletAvailable => ethereum != null;
-
-  // Подключение кошелька
-  Future<void> connectWallet() async {
-    if (isWalletAvailable) {
-      try {
-        final accounts = await ethereum!.requestAccount();
-        _currentAddress.value = accounts.first;
-        _isConnected.value = true;
-        print('Wallet connected: ${_currentAddress.value}');
-      } catch (e) {
-        _isConnected.value = false;
-        print('Connection error: $e');
-        rethrow;
-      }
-    } else {
-      print('MetaMask or other Web3 wallet is not installed');
-      throw Exception('Wallet not available');
-    }
-  }
-
-  // Отключение кошелька
-  void disconnectWallet() {
-    _currentAddress.value = '';
-    _isConnected.value = false;
-    print('Wallet is disabled');
   }
 }

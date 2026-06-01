@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_shimmer/flutter_shimmer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:flutter_web3/ethereum.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/contract_linking.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/font_styles.dart';
 import 'package:lottery_advance/utils/input_decorations.dart';
 import 'package:lottery_advance/utils/remove_scroll_glow.dart';
@@ -14,11 +14,11 @@ import 'package:lottery_advance/utils/theme.dart';
 import 'levels.dart';
 
 class HomeView extends StatelessWidget {
-  final contractLink = Get.put(ContractLinking(), permanent: true);
+  final contractLink = Get.find<ContractLinking>();
   final avatarSize = 100.0;
   final FocusNode keyFocusNode = FocusNode(); // Управление фокусом
 
-  final WalletConnectService _walletService = WalletConnectService();
+  final WalletConnectService _walletService = Get.find<WalletConnectService>();
 
   // var contractLink;
 
@@ -253,10 +253,11 @@ class HomeView extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Obx(() {
-                  if (_walletService.isConnected) {
+                  if (_walletService.isConnected.value) {
                     return Column(
                       children: [
-                        Text('Wallet address: ${_walletService.currentAddress}',
+                        Text(
+                            'Wallet address: ${_walletService.currentAddress.value}',
                             textAlign: TextAlign.center),
                         const SizedBox(height: 20),
                         ElevatedButton(
@@ -538,43 +539,5 @@ class HomeView extends StatelessWidget {
         ),
       ),
     );
-  }
-}
-
-class WalletConnectService extends GetxController {
-  final RxString _currentAddress = ''.obs;
-  final RxBool _isConnected = false.obs;
-
-  // Доступ к данным
-  String get currentAddress => _currentAddress.value;
-  bool get isConnected => _isConnected.value;
-
-  // Проверка наличия кошелька
-  bool get isWalletAvailable => ethereum != null;
-
-  // Подключение кошелька
-  Future<void> connectWallet() async {
-    if (isWalletAvailable) {
-      try {
-        final accounts = await ethereum!.requestAccount();
-        _currentAddress.value = accounts.first;
-        _isConnected.value = true;
-        print('Wallet connected: ${_currentAddress.value}');
-      } catch (e) {
-        _isConnected.value = false;
-        print('Connection error: $e');
-        rethrow;
-      }
-    } else {
-      print('MetaMask or other Web3 wallet is not installed');
-      throw Exception('Wallet not available');
-    }
-  }
-
-  // Отключение кошелька
-  void disconnectWallet() {
-    _currentAddress.value = '';
-    _isConnected.value = false;
-    print('Wallet is disabled');
   }
 }

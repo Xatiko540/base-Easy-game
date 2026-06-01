@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/services/contract_linking.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
 import 'app/modules/controller/lotteries_controller.dart';
@@ -14,6 +16,9 @@ void main() async {
   final matrix = BinaryMatrix();
   matrix.fillMatrix(6); // Заполняем 6 уровней
   matrix.printMatrix();
+
+  Get.put(WalletConnectService(), permanent: true);
+  Get.lazyPut(() => ContractLinking(), fenix: true);
 
   runApp(
     GetMaterialApp(

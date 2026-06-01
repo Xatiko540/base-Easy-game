@@ -1,10 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 class ActivateExpressGameScreen extends StatelessWidget {
-  final int level = 6;
-  final double totalAmount = 0.28;
+  final int level;
+  final double totalAmount;
+  final String inviter;
 
-  const ActivateExpressGameScreen({Key? key}) : super(key: key);
+  ActivateExpressGameScreen({
+    Key? key,
+    this.level = 4,
+    this.totalAmount = 0.28,
+    this.inviter = '',
+  }) : super(key: key);
+
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
 
   @override
   Widget build(BuildContext context) {
@@ -52,7 +62,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                   children: [
                     SizedBox(height: 50), // Adjust for the overlapping card
                     Text(
-                      "Level 4",
+                      "Level $level",
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -61,15 +71,19 @@ class ActivateExpressGameScreen extends StatelessWidget {
                     ),
                     SizedBox(height: 8),
                     Text(
-                      "Reward per level 74%",
+                      "Reward distribution",
                       style: TextStyle(color: Colors.grey, fontSize: 14),
                     ),
                     SizedBox(height: 16),
-                    _buildRewardRow("Direct partners", "13%", "0.0364 base"),
+                    _buildRewardRow("Matrix parent", "80%", "level reward"),
                     SizedBox(height: 8),
-                    _buildRewardRow("2nd Line Partners", "8%", "0.0224 base"),
+                    _buildRewardRow("Direct partner", "9.5%", "referral"),
                     SizedBox(height: 8),
-                    _buildRewardRow("3rd Line Partners", "5%", "0.014 base"),
+                    _buildRewardRow("Operations", "0.5%", "system"),
+                    SizedBox(height: 8),
+                    _buildRewardRow("2nd line partner", "6%", "referral"),
+                    SizedBox(height: 8),
+                    _buildRewardRow("3rd line partner", "4%", "referral"),
                     SizedBox(height: 8),
                     Divider(color: Colors.grey),
                     SizedBox(height: 16),
@@ -77,42 +91,80 @@ class ActivateExpressGameScreen extends StatelessWidget {
                       children: [
                         Icon(Icons.check_circle, color: Colors.green, size: 20),
                         SizedBox(width: 8),
-                        Text(
-                          "Network check(Smart Chain)",
-                          style: TextStyle(color: Colors.grey, fontSize: 14),
+                        Obx(
+                          () => Text(
+                            walletService.chainId.value ==
+                                    WalletConnectService.baseSepoliaChainId
+                                ? "Network check(Base Sepolia)"
+                                : "Switch network to Base Sepolia",
+                            style: TextStyle(color: Colors.grey, fontSize: 14),
+                          ),
                         ),
                       ],
                     ),
                     SizedBox(height: 8),
                     Row(
                       children: [
-                        Icon(Icons.cancel, color: Colors.red, size: 20),
+                        Obx(
+                          () => Icon(
+                            walletService.isConnected.value
+                                ? Icons.check_circle
+                                : Icons.cancel,
+                            color: walletService.isConnected.value
+                                ? Colors.green
+                                : Colors.red,
+                            size: 20,
+                          ),
+                        ),
                         SizedBox(width: 8),
                         Text(
-                          "Balance Check (min. 0.285 base)",
+                          "Payment amount ${totalAmount.toStringAsFixed(3)} ETH(base)",
                           style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                       ],
                     ),
                     SizedBox(height: 16),
-                    ElevatedButton(
-                      onPressed: () {
-                        // Add functionality here
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.blue,
-                        padding: EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                    Obx(
+                      () => ElevatedButton(
+                        onPressed: walletService.isPaying.value
+                            ? null
+                            : () async {
+                                try {
+                                  final txHash =
+                                      await walletService.activateEasyGameLevel(
+                                    level: level,
+                                    inviter: inviter,
+                                  );
+                                  Get.snackbar(
+                                    'Payment sent',
+                                    'Transaction: $txHash',
+                                    snackPosition: SnackPosition.BOTTOM,
+                                  );
+                                } catch (e) {
+                                  Get.snackbar(
+                                    'Payment unavailable',
+                                    '$e',
+                                    snackPosition: SnackPosition.BOTTOM,
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.blue,
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
                         ),
-                      ),
-                      child: Center(
-                        child: Text(
-                          "Check again",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
+                        child: Center(
+                          child: Text(
+                            walletService.isPaying.value
+                                ? "Waiting for wallet..."
+                                : "Pay ${totalAmount.toStringAsFixed(3)} ETH(base)",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
@@ -145,7 +197,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
-                            "Level 4",
+                            "Level $level",
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 14,
@@ -158,7 +210,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                                   color: Colors.yellow, size: 16),
                               SizedBox(width: 4),
                               Text(
-                                "0.03 base",
+                                "${totalAmount.toStringAsFixed(3)} base",
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 14,
@@ -173,7 +225,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                         value: 0.0,
                         backgroundColor: Colors.grey[700],
                         valueColor:
-                        AlwaysStoppedAnimation<Color>(Colors.orange),
+                            AlwaysStoppedAnimation<Color>(Colors.orange),
                       ),
                       SizedBox(height: 8),
                       Row(
@@ -186,8 +238,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                           // ),
                           Text(
                             "0%",
-                            style: TextStyle(
-                                color: Colors.white, fontSize: 12),
+                            style: TextStyle(color: Colors.white, fontSize: 12),
                           ),
                         ],
                       ),

@@ -1,12 +1,28 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/views/ActivateExpressGameScreen.dart';
 import 'package:lottery_advance/app/modules/home/views/profilescreen.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 import 'PartnerBonusScreen.dart';
 import 'levels.dart';
 
 class RegistrationScreen extends StatelessWidget {
-  const RegistrationScreen(LevelStatus level1, {Key? key}) : super(key: key);
+  final int level;
+  final double amount;
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final TextEditingController uplineController;
+
+  RegistrationScreen(
+    LevelStatus level1, {
+    Key? key,
+    this.level = 3,
+    this.amount = 0.1,
+    String? inviter,
+  })  : uplineController = TextEditingController(
+          text: inviter ?? WalletConnectService.easyGameInviter,
+        ),
+        super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -77,37 +93,42 @@ class RegistrationScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.dashboard, color: Colors.white),
-                    title: Text("Dashboard", style: TextStyle(color: Colors.white)),
+                    title: Text("Dashboard",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Dashboard
-                      Get.to(() => const ProfileScreen());
+                      Get.to(() => ProfileScreen());
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.bar_chart, color: Colors.white),
-                    title: Text("Statistics", style: TextStyle(color: Colors.white)),
+                    title: Text("Statistics",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Statistics
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.people, color: Colors.white),
-                    title: Text("Affiliate Bonus", style: TextStyle(color: Colors.white)),
+                    title: Text("Affiliate Bonus",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Partner Bonus
-                      Get.to(() =>  PartnerBonusScreen());
+                      Get.to(() => PartnerBonusScreen());
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Colors.white),
-                    title: Text("Information", style: TextStyle(color: Colors.white)),
+                    title: Text("Information",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Information
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.telegram, color: Colors.white),
-                    title: Text("Telegram Bots", style: TextStyle(color: Colors.white)),
+                    title: Text("Telegram Bots",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Telegram Bots
                     },
@@ -129,14 +150,16 @@ class RegistrationScreen extends StatelessWidget {
                 Divider(color: Colors.grey),
                 ListTile(
                   leading: Icon(Icons.notifications, color: Colors.white),
-                  title: Text("Notifier Bot", style: TextStyle(color: Colors.white)),
+                  title: Text("Notifier Bot",
+                      style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Bot Notifier
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.settings, color: Colors.white),
-                  title: Text("Settings", style: TextStyle(color: Colors.white)),
+                  title:
+                      Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Settings
                   },
@@ -145,7 +168,8 @@ class RegistrationScreen extends StatelessWidget {
                   leading: Icon(Icons.logout, color: Colors.white),
                   title: Text("Exit", style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Handle Logout
+                    walletService.disconnectWallet();
+                    Get.offAllNamed('/home');
                   },
                 ),
               ],
@@ -153,7 +177,6 @@ class RegistrationScreen extends StatelessWidget {
           ],
         ),
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -187,16 +210,29 @@ class RegistrationScreen extends StatelessWidget {
                       color: Colors.grey[900],
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Text(
-                      "0x47",
+                    child: TextField(
+                      controller: uplineController,
                       style: TextStyle(color: Colors.white, fontSize: 14),
-                      overflow: TextOverflow.ellipsis,
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        isDense: true,
+                        hintText: "0x...",
+                        hintStyle: TextStyle(color: Colors.grey),
+                      ),
                     ),
                   ),
                 ),
                 SizedBox(width: 8),
                 ElevatedButton(
-                  onPressed: () {},
+                  onPressed: () {
+                    Get.snackbar(
+                      'Upline saved',
+                      uplineController.text.trim().isEmpty
+                          ? 'No upline address will be used'
+                          : uplineController.text.trim(),
+                      snackPosition: SnackPosition.BOTTOM,
+                    );
+                  },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.grey[800],
                     padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -220,12 +256,13 @@ class RegistrationScreen extends StatelessWidget {
               child: DropdownButton<String>(
                 isExpanded: true,
                 dropdownColor: Colors.grey[900],
-                value: "Level 3 (0.1 ETH(base))",
+                value: "Level $level (${amount.toStringAsFixed(3)} ETH(base))",
                 items: [
                   DropdownMenuItem(
-                    value: "Level 3 (0.1 ETH(base))",
+                    value:
+                        "Level $level (${amount.toStringAsFixed(3)} ETH(base))",
                     child: Text(
-                      "Level 3 (0.1 ETH(base))",
+                      "Level $level (${amount.toStringAsFixed(3)} ETH(base))",
                       style: TextStyle(color: Colors.white),
                     ),
                   ),
@@ -267,7 +304,7 @@ class RegistrationScreen extends StatelessWidget {
                     onPressed: () {},
                     icon: Icon(Icons.warning, color: Colors.red),
                     label: Text(
-                      "0.1 ETH(base) to open this level",
+                      "${amount.toStringAsFixed(3)} ETH(base) to open this level",
                       style: TextStyle(color: Colors.red, fontSize: 14),
                     ),
                     style: OutlinedButton.styleFrom(
@@ -284,9 +321,11 @@ class RegistrationScreen extends StatelessWidget {
             SizedBox(height: 8),
             ElevatedButton(
               onPressed: () {
-
-
-
+                Get.to(() => ActivateExpressGameScreen(
+                      level: level,
+                      totalAmount: amount,
+                      inviter: uplineController.text.trim(),
+                    ));
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
@@ -297,7 +336,7 @@ class RegistrationScreen extends StatelessWidget {
                 ),
               ),
               child: Text(
-                "Check again (0.12729 ETH(base))",
+                "Continue to payment (${amount.toStringAsFixed(3)} ETH(base))",
                 style: TextStyle(fontSize: 16, color: Colors.white),
               ),
             ),

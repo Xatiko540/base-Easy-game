@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:get/get_core/src/get_main.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/modules/home/views/profilescreen.dart';
 
 import '../../../services/Notifications.dart';
 
 class PartnerBonusScreen extends StatelessWidget {
-  final String walletAddress = "0x7C...65";
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
 
-  const PartnerBonusScreen({Key? key}) : super(key: key); // Пример значения кошелька
+  PartnerBonusScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -80,17 +80,19 @@ class PartnerBonusScreen extends StatelessWidget {
               SizedBox(width: 8),
 
               // "Кошелек"
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.grey[800],
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text(
-                  walletAddress,
-                  style: TextStyle(color: Colors.white, fontSize: 14),
-                ),
-              ),
+              Obx(() => Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Colors.grey[800],
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      walletService.isConnected.value
+                          ? walletService.shortAddress
+                          : "Not logged in",
+                      style: TextStyle(color: Colors.white, fontSize: 14),
+                    ),
+                  )),
               SizedBox(width: 8),
 
               // Icons
@@ -106,7 +108,8 @@ class PartnerBonusScreen extends StatelessWidget {
                     context: context,
                     isScrollControlled: true,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(16)),
                     ),
                     backgroundColor: Colors.black,
                     builder: (context) => NotificationsBottomSheet(),
@@ -116,7 +119,8 @@ class PartnerBonusScreen extends StatelessWidget {
               ),
               IconButton(
                 onPressed: () {
-                  // Refresh action
+                  walletService.disconnectWallet();
+                  Get.offAllNamed('/home');
                 },
                 icon: Icon(Icons.logout, color: Colors.white),
               ),
@@ -124,7 +128,6 @@ class PartnerBonusScreen extends StatelessWidget {
           ),
         ],
       ),
-
       drawer: Drawer(
         backgroundColor: Color(0xFF1A1F2E), // Background color for the drawer
         child: Column(
@@ -164,37 +167,42 @@ class PartnerBonusScreen extends StatelessWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.dashboard, color: Colors.white),
-                    title: Text("Instrument panel", style: TextStyle(color: Colors.white)),
+                    title: Text("Instrument panel",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Dashboard
-                      Get.to(() => const ProfileScreen());
+                      Get.to(() => ProfileScreen());
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.bar_chart, color: Colors.white),
-                    title: Text("Statistics", style: TextStyle(color: Colors.white)),
+                    title: Text("Statistics",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Statistics
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.people, color: Colors.white),
-                    title: Text("Affiliate bonus", style: TextStyle(color: Colors.white)),
+                    title: Text("Affiliate bonus",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Partner Bonus
-                      Get.to(() =>  PartnerBonusScreen());
+                      Get.to(() => PartnerBonusScreen());
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.info_outline, color: Colors.white),
-                    title: Text("Information", style: TextStyle(color: Colors.white)),
+                    title: Text("Information",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Information
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.telegram, color: Colors.white),
-                    title: Text("Telegram bots", style: TextStyle(color: Colors.white)),
+                    title: Text("Telegram bots",
+                        style: TextStyle(color: Colors.white)),
                     onTap: () {
                       // Navigate to Telegram Bots
                     },
@@ -216,14 +224,16 @@ class PartnerBonusScreen extends StatelessWidget {
                 Divider(color: Colors.grey),
                 ListTile(
                   leading: Icon(Icons.notifications, color: Colors.white),
-                  title: Text("Notifier Bot", style: TextStyle(color: Colors.white)),
+                  title: Text("Notifier Bot",
+                      style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Bot Notifier
                   },
                 ),
                 ListTile(
                   leading: Icon(Icons.settings, color: Colors.white),
-                  title: Text("Settings", style: TextStyle(color: Colors.white)),
+                  title:
+                      Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
                     // Navigate to Settings
                   },
@@ -232,7 +242,8 @@ class PartnerBonusScreen extends StatelessWidget {
                   leading: Icon(Icons.logout, color: Colors.white),
                   title: Text("Exit", style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Handle Logout
+                    walletService.disconnectWallet();
+                    Get.offAllNamed('/home');
                   },
                 ),
               ],
@@ -240,99 +251,104 @@ class PartnerBonusScreen extends StatelessWidget {
           ],
         ),
       ),
-
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Center(child: Expanded(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Color(0xFF1A1F2E),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: DataTable(
-                  headingRowColor: MaterialStateProperty.all(Color(0xFF1A1F2E)),
-                  columnSpacing: 16,
-                  columns: [
-                    DataColumn(
-                      label: Text(
-                        "Date",
-                        style: TextStyle(color: Colors.grey),
+            Center(
+              child: Expanded(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Color(0xFF1A1F2E),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: DataTable(
+                    headingRowColor:
+                        MaterialStateProperty.all(Color(0xFF1A1F2E)),
+                    columnSpacing: 16,
+                    columns: [
+                      DataColumn(
+                        label: Text(
+                          "Date",
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        "Wallet",
-                        style: TextStyle(color: Colors.grey),
+                      DataColumn(
+                        label: Text(
+                          "Wallet",
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        "ID",
-                        style: TextStyle(color: Colors.grey),
+                      DataColumn(
+                        label: Text(
+                          "ID",
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        "Partner Bonus %",
-                        style: TextStyle(color: Colors.grey),
+                      DataColumn(
+                        label: Text(
+                          "Partner Bonus %",
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        "Express Levels",
-                        style: TextStyle(color: Colors.grey),
+                      DataColumn(
+                        label: Text(
+                          "Express Levels",
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        "Total Bonus Received",
-                        style: TextStyle(color: Colors.grey),
+                      DataColumn(
+                        label: Text(
+                          "Total Bonus Received",
+                          style: TextStyle(color: Colors.grey),
+                        ),
                       ),
-                    ),
-                  ],
-                  rows: List<DataRow>.generate(
-                    2,
-                        (index) => DataRow(
-                      cells: [
-                        DataCell(Text(
-                          index == 0 ? "02.04.2022 13:13" : "01.04.2022 23:50",
-                          style: TextStyle(color: Colors.white),
-                        )),
-                        DataCell(Row(
-                          children: [
-                            Text(
-                              index == 0 ? "0x8E32...762E" : "0xB8F3...9708",
-                              style: TextStyle(color: Colors.white),
-                            ),
-                            SizedBox(width: 8),
-                            Icon(Icons.copy, color: Colors.white, size: 16),
-                          ],
-                        )),
-                        DataCell(Text(
-                          index == 0 ? "ID 310112" : "ID 308783",
-                          style: TextStyle(color: Theme.of(context).primaryColor),
-                        )),
-                        DataCell(Text(
-                          index == 0 ? "0" : "13",
-                          style: TextStyle(color: Colors.white),
-                        )),
-                        DataCell(Text(
-                          index == 0 ? "4" : "5",
-                          style: TextStyle(color: Colors.white),
-                        )),
-                        DataCell(Text(
-                          "0.0442 ETH(base)",
-                          style: TextStyle(color: Colors.white),
-                        )),
-                      ],
+                    ],
+                    rows: List<DataRow>.generate(
+                      2,
+                      (index) => DataRow(
+                        cells: [
+                          DataCell(Text(
+                            index == 0
+                                ? "02.04.2022 13:13"
+                                : "01.04.2022 23:50",
+                            style: TextStyle(color: Colors.white),
+                          )),
+                          DataCell(Row(
+                            children: [
+                              Text(
+                                index == 0 ? "0x8E32...762E" : "0xB8F3...9708",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              SizedBox(width: 8),
+                              Icon(Icons.copy, color: Colors.white, size: 16),
+                            ],
+                          )),
+                          DataCell(Text(
+                            index == 0 ? "ID 310112" : "ID 308783",
+                            style: TextStyle(
+                                color: Theme.of(context).primaryColor),
+                          )),
+                          DataCell(Text(
+                            index == 0 ? "0" : "13",
+                            style: TextStyle(color: Colors.white),
+                          )),
+                          DataCell(Text(
+                            index == 0 ? "4" : "5",
+                            style: TextStyle(color: Colors.white),
+                          )),
+                          DataCell(Text(
+                            "0.0442 ETH(base)",
+                            style: TextStyle(color: Colors.white),
+                          )),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),)
+            )
           ],
         ),
       ),
