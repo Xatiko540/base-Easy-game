@@ -46,6 +46,7 @@ class ContractLinking extends GetxController
   final String _wsUrl = "ws://127.0.0.1:8545";
 
   late Web3Client _web3client;
+  int? _chainId;
 
   late String _abiCode;
   late String _abiCode2;
@@ -110,6 +111,11 @@ class ContractLinking extends GetxController
         return WebSocketChannel.connect(Uri.parse(_wsUrl)).cast<String>();
       },
     );
+    try {
+      _chainId = (await _web3client.getChainId()).toInt();
+    } catch (_) {
+      _chainId = null;
+    }
     // await getAbi();
     // await getCredentials();
     // await getDeployedContractLotteryGenerator();
@@ -148,10 +154,11 @@ class ContractLinking extends GetxController
     //     EthereumAddress.fromHex(jsonAbi["networks"]["5777"]["address"]);
     // _contractAddressLotteryGenerator =
     //     EthereumAddress.fromHex(jsonAbi2["networks"]["1337"]["address"]);
-    // Получаем networkId динамически из "networks"
-    var networkId = jsonAbi2["networks"].keys.first; // Получает первый ключ
+    final networks = jsonAbi2["networks"] as Map<String, dynamic>? ?? {};
+    final networkId = _chainId != null && networks.containsKey('$_chainId')
+        ? '$_chainId'
+        : networks.keys.first;
 
-    // Получаем адрес контракта по динамическому networkId
     _contractAddressLotteryGenerator =
         EthereumAddress.fromHex(jsonAbi2["networks"][networkId]["address"]);
 
@@ -291,8 +298,7 @@ class ContractLinking extends GetxController
         function: createLottery,
         parameters: [name],
       ),
-      chainId: 1337,
-      // fetchChainIdFromNetworkId: true,
+      chainId: _chainId,
     );
     isLoading.value = false;
     print("Exited createLotteryFunc");
@@ -357,8 +363,7 @@ class ContractLinking extends GetxController
           EthereumAddress.fromHex(address),
         ],
       ),
-      chainId: 1337,
-      // fetchChainIdFromNetworkId: true,
+      chainId: _chainId,
     );
     // lottries.value =
     //     (res.first as List<dynamic>).map((e) => e.toString()).toList();
@@ -378,8 +383,7 @@ class ContractLinking extends GetxController
           BigInt.from(ethRequired),
         ],
       ),
-      chainId: 1337,
-      // fetchChainIdFromNetworkId: true,
+      chainId: _chainId,
     );
     await reloadContractOnActivate();
     isLoadingActivateLottery.value = false;
@@ -561,8 +565,7 @@ class ContractLinking extends GetxController
           parameters: [name.value],
           value: EtherAmount.inWei(BigInt.from(amountInWei)),
         ),
-        chainId: 1337,
-        // fetchChainIdFromNetworkId: true,
+        chainId: _chainId,
       );
       message.value = "You've been entered, updating values may take sometime";
       await Future.delayed(const Duration(seconds: 5));
@@ -589,8 +592,7 @@ class ContractLinking extends GetxController
           function: declareWinner,
           parameters: [],
         ),
-        chainId: 1337,
-        // fetchChainIdFromNetworkId: true,
+        chainId: _chainId,
       );
       await reloadContractOnDecalreWinner();
       message.value = 'Winner: ${lastWinner} ';
