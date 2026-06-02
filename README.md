@@ -170,6 +170,7 @@ https://github.com/user-attachments/assets/8003673a-a62f-4aed-9cfc-9b151a3e6e56
 - [x] Contract view functions expose player level state, player position, matrix node data, and level matrix stats.
 - [x] Flutter can read on-chain level status and show active, waiting, locked, and frozen states.
 - [x] Registration screen lets the user enter an upline/referral address.
+- [x] Referral links / invite URL parsing can fill the upline address from `?inviter=0x...`, `?ref=0x...`, `?upline=0x...`, or `/npalce/0x...`.
 - [x] Contract tests cover activation, placement, payment distribution, recycle, freeze, frozen reward routing, and unfreeze.
 - [x] Web build succeeds with the current Flutter package versions.
 
@@ -189,7 +190,6 @@ https://github.com/user-attachments/assets/8003673a-a62f-4aed-9cfc-9b151a3e6e56
 - [ ] Full live matrix visualization in Flutter with all matrix nodes, child slots, and recycle movement.
 - [ ] Real-time event listener in Flutter for `MatrixPlaced`, `MatrixRewardPaid`, `ReferralPaid`, `Recycled`, `LevelFrozen`, and `LevelUnfrozen`.
 - [ ] Notification system for participants, referrals, rewards, freeze, and recycle status.
-- [ ] Referral links / invite URL parsing that automatically fills the upline address.
 - [ ] User ID system connected to wallet addresses and matrix positions.
 - [ ] Persistent local user profile data for Easy Game beyond the connected wallet.
 - [ ] Infinite or billion-cell scalability proof on-chain. The matrix grows dynamically, but very large matrices need gas/indexing strategy and off-chain indexing.
@@ -301,7 +301,6 @@ Develop a notification system for participants at each recycle or new level fill
 
 
 [License](https://github.com/Xatiko540/base-Easy-game/blob/master/LICENSE)
-
 
 
 

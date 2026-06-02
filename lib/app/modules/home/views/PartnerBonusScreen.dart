@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/modules/home/views/profilescreen.dart';
+import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 
 import '../../../services/Notifications.dart';
 
@@ -179,7 +180,7 @@ class PartnerBonusScreen extends StatelessWidget {
                     title: Text("Statistics",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Statistics
+                      UiNavigationService.openStatistics();
                     },
                   ),
                   ListTile(
@@ -196,7 +197,7 @@ class PartnerBonusScreen extends StatelessWidget {
                     title: Text("Information",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Information
+                      UiNavigationService.openInformation();
                     },
                   ),
                   ListTile(
@@ -204,14 +205,14 @@ class PartnerBonusScreen extends StatelessWidget {
                     title: Text("Telegram bots",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Telegram Bots
+                      UiNavigationService.openTelegramBots();
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.campaign, color: Colors.white),
                     title: Text("Promo", style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Promo
+                      UiNavigationService.openPromo();
                     },
                   ),
                 ],
@@ -227,7 +228,7 @@ class PartnerBonusScreen extends StatelessWidget {
                   title: Text("Notifier Bot",
                       style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Navigate to Bot Notifier
+                    UiNavigationService.openNotifierBot();
                   },
                 ),
                 ListTile(
@@ -235,7 +236,7 @@ class PartnerBonusScreen extends StatelessWidget {
                   title:
                       Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Navigate to Settings
+                    UiNavigationService.openSettings();
                   },
                 ),
                 ListTile(

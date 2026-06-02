@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/services/referral_link_service.dart';
+import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -12,8 +14,11 @@ class ProfileScreen extends StatelessWidget {
   ProfileScreen({Key? key}) : super(key: key);
 
   final WalletConnectService walletService = Get.find<WalletConnectService>();
+  late final Future<String> easyGameContractAddress =
+      walletService.resolveEasyGameAddress();
 
-  final String referralLink = "https://express.game/npalce";
+  String get referralLink =>
+      ReferralLinkService.buildReferralLink(walletService.currentAddress.value);
 
   void copyToClipboard(BuildContext context) {
     Clipboard.setData(ClipboardData(text: referralLink));
@@ -197,7 +202,7 @@ class ProfileScreen extends StatelessWidget {
                     title: Text("Statistics",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Statistics
+                      UiNavigationService.openStatistics();
                     },
                   ),
                   ListTile(
@@ -214,7 +219,7 @@ class ProfileScreen extends StatelessWidget {
                     title: Text("Information",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Information
+                      UiNavigationService.openInformation();
                     },
                   ),
                   ListTile(
@@ -222,14 +227,14 @@ class ProfileScreen extends StatelessWidget {
                     title: Text("Telegram bots",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Telegram Bots
+                      UiNavigationService.openTelegramBots();
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.campaign, color: Colors.white),
                     title: Text("Promo", style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Promo
+                      UiNavigationService.openPromo();
                     },
                   ),
                 ],
@@ -245,7 +250,7 @@ class ProfileScreen extends StatelessWidget {
                   title: Text("Notifier Bot",
                       style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Navigate to Bot Notifier
+                    UiNavigationService.openNotifierBot();
                   },
                 ),
                 ListTile(
@@ -253,7 +258,7 @@ class ProfileScreen extends StatelessWidget {
                   title:
                       Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Navigate to Settings
+                    UiNavigationService.openSettings();
                   },
                 ),
                 ListTile(
@@ -327,9 +332,12 @@ class ProfileScreen extends StatelessWidget {
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            "express.game/npalce",
-                            style: TextStyle(color: Colors.blue, fontSize: 16),
+                          Obx(
+                            () => Text(
+                              referralLink.replaceFirst('https://', ''),
+                              style:
+                                  TextStyle(color: Colors.blue, fontSize: 16),
+                            ),
                           ),
                           Row(
                             children: [
@@ -474,7 +482,7 @@ class ProfileScreen extends StatelessWidget {
                         ),
                         Spacer(),
                         ElevatedButton(
-                          onPressed: () {},
+                          onPressed: () => Get.to(() => LevelsScreen()),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.transparent,
                             shadowColor: Colors.transparent,
@@ -635,14 +643,14 @@ class ProfileScreen extends StatelessWidget {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    "The world's first smart contract game with passive income in BNB directly to your wallet."
+                    "The world's first smart contract game with passive income in ETH(base) directly to your wallet."
                     " All players are randomly placed on 16 levels with unlimited cycles. Rewards are distributed as follows:",
                     style: TextStyle(color: Colors.grey[400], fontSize: 14),
                   ),
                   SizedBox(height: 8),
                   Text(
-                    "- 74% of the level cost for each cycle of your level\n"
-                    "- 13%-8%-5% of the level value from partners up to 3 deep whenever they earn",
+                    "- 80% of the level cost to the matrix parent\n"
+                    "- 9.5%, 6% and 4% referral rewards up to 3 deep, plus 0.5% operations",
                     style: TextStyle(color: Colors.grey[500], fontSize: 12),
                   ),
                   SizedBox(height: 16),
@@ -701,7 +709,7 @@ class ProfileScreen extends StatelessWidget {
                             ),
                             SizedBox(height: 16),
                             ElevatedButton(
-                              onPressed: () {},
+                              onPressed: UiNavigationService.openExpressInfo,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.purple,
                                 minimumSize: Size(double.infinity, 48),
@@ -743,8 +751,21 @@ class ProfileScreen extends StatelessWidget {
                                 style: TextStyle(color: Colors.grey[400])),
                             Row(
                               children: [
-                                Text("0x4c9...d2B",
-                                    style: TextStyle(color: Colors.white)),
+                                FutureBuilder<String>(
+                                  future: easyGameContractAddress,
+                                  builder: (context, snapshot) {
+                                    final address = snapshot.data ?? '';
+                                    final text = address.length > 12
+                                        ? '${address.substring(0, 6)}...${address.substring(address.length - 4)}'
+                                        : snapshot.hasError
+                                            ? 'Not loaded'
+                                            : 'Loading...';
+                                    return Text(
+                                      text,
+                                      style: TextStyle(color: Colors.white),
+                                    );
+                                  },
+                                ),
                                 SizedBox(width: 4),
                                 Icon(Icons.copy, color: Colors.white, size: 16),
                               ],
@@ -860,7 +881,7 @@ class ProfileScreen extends StatelessWidget {
                   // Кнопка "Узнать больше"
                   Center(
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: UiNavigationService.openRecentActivity,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.grey[800],
                         padding:
@@ -924,9 +945,12 @@ class ProfileScreen extends StatelessWidget {
 }
 
 class ReferralLinkWidget extends StatelessWidget {
-  final String referralLink = "https://express.game/npalce";
+  ReferralLinkWidget({Key? key}) : super(key: key);
 
-  const ReferralLinkWidget({Key? key}) : super(key: key);
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
+
+  String get referralLink =>
+      ReferralLinkService.buildReferralLink(walletService.currentAddress.value);
 
   void copyToClipboard(BuildContext context) {
     Clipboard.setData(ClipboardData(text: referralLink));
@@ -978,9 +1002,11 @@ class ReferralLinkWidget extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                referralLink,
-                style: TextStyle(color: Colors.blue, fontSize: 16),
+              Obx(
+                () => Text(
+                  referralLink.replaceFirst('https://', ''),
+                  style: TextStyle(color: Colors.blue, fontSize: 16),
+                ),
               ),
               Row(
                 children: [

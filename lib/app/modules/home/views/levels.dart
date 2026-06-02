@@ -1,14 +1,12 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/profilescreen.dart';
 import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
+import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 import '../../../services/Notifications.dart';
-import 'ActivateExpressGameScreen.dart';
 import 'PartnerBonusScreen.dart';
 
 double levelPrice(int level) {
@@ -34,6 +32,147 @@ double levelPrice(int level) {
   return prices[level] ?? 0.01;
 }
 
+String formatWeiToEth(BigInt wei, {int decimals = 4}) {
+  final base = BigInt.from(10).pow(18);
+  final whole = wei ~/ base;
+  final fraction = (wei % base).toString().padLeft(18, '0');
+  final clipped = fraction.substring(0, decimals);
+  final trimmed = clipped.replaceFirst(RegExp(r'0+$'), '');
+  return trimmed.isEmpty ? whole.toString() : '$whole.$trimmed';
+}
+
+double weiToEthDouble(BigInt wei) {
+  final base = BigInt.from(10).pow(18);
+  final whole = wei ~/ base;
+  final fraction = wei % base;
+  return whole.toDouble() + fraction.toDouble() / base.toDouble();
+}
+
+class LevelsProvider extends GetxController {
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
+
+  final RxList<Level> levels = <Level>[].obs;
+  final RxBool isLoading = false.obs;
+  final RxString errorMessage = ''.obs;
+  String? playerAddress;
+
+  BigInt get totalEarnedWei => levels.fold<BigInt>(
+        BigInt.zero,
+        (sum, level) => sum + level.earnedWei,
+      );
+
+  int get activeLevels => levels
+      .where((level) =>
+          level.status == LevelStatus.active ||
+          level.status == LevelStatus.frozen)
+      .length;
+
+  void configure({String? playerAddress}) {
+    this.playerAddress = playerAddress;
+    if (levels.isEmpty) {
+      levels.assignAll(_initialLevels());
+    }
+    refreshFromContract();
+  }
+
+  Future<void> refreshFromContract() async {
+    if (!walletService.isConnected.value && playerAddress == null) {
+      errorMessage.value = 'Connect wallet to read EasyGame level state.';
+      levels.assignAll(_initialLevels());
+      return;
+    }
+
+    isLoading.value = true;
+    errorMessage.value = '';
+
+    try {
+      final nextLevels = <Level>[];
+      for (var levelNumber = 1; levelNumber <= 17; levelNumber++) {
+        nextLevels.add(await _loadLevel(levelNumber));
+      }
+      levels.assignAll(nextLevels);
+    } catch (e) {
+      errorMessage.value = 'Unable to refresh EasyGame levels: $e';
+      if (kDebugMode) {
+        print(errorMessage.value);
+      }
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<Level> _loadLevel(int levelNumber) async {
+    final priceWei = await walletService.getEasyGameLevelPriceWei(levelNumber);
+    final state = await walletService.getEasyGameLevel(
+      playerAddress: playerAddress,
+      level: levelNumber,
+    );
+    final matrixStats = await walletService.getEasyGameMatrixStats(levelNumber);
+    final previousActive = levelNumber == 1
+        ? true
+        : await walletService.isEasyGameLevelActive(
+            playerAddress: playerAddress,
+            level: levelNumber - 1,
+          );
+
+    final status = state.active
+        ? state.frozen
+            ? LevelStatus.frozen
+            : LevelStatus.active
+        : previousActive
+            ? LevelStatus.waiting
+            : LevelStatus.locked;
+
+    return Level(
+      levelNumber: levelNumber,
+      status: status,
+      coin: weiToEthDouble(priceWei),
+      partnerBonus: weiToEthDouble(priceWei) * 0.095,
+      levelProfit: weiToEthDouble(state.earnedWei),
+      fillPercent: _fillPercent(state, matrixStats),
+      isVisible: previousActive || state.active || levelNumber == 1,
+      cycles: state.cycles,
+      positionId: state.positionId,
+      earnedWei: state.earnedWei,
+      matrixSize: matrixStats.size,
+    );
+  }
+
+  List<Level> _initialLevels() {
+    return [
+      for (var i = 1; i <= 17; i++)
+        Level(
+          levelNumber: i,
+          status: i == 1 ? LevelStatus.waiting : LevelStatus.locked,
+          coin: levelPrice(i),
+          partnerBonus: levelPrice(i) * 0.095,
+          levelProfit: 0,
+          fillPercent: 0,
+          isVisible: i == 1,
+        ),
+    ];
+  }
+
+  double _fillPercent(
+    EasyGameLevelState state,
+    EasyGameMatrixStats matrixStats,
+  ) {
+    if (!state.active || matrixStats.size == BigInt.zero) {
+      return 0;
+    }
+    if (state.positionId == BigInt.zero) {
+      return 0;
+    }
+
+    final filled = state.positionId.toDouble();
+    final total = matrixStats.size.toDouble();
+    if (total <= 0) {
+      return 0;
+    }
+    return ((filled / total) * 100).clamp(0, 100).toDouble();
+  }
+}
+
 class LevelsScreen extends StatefulWidget {
   final String? walletAddress;
 
@@ -44,239 +183,69 @@ class LevelsScreen extends StatefulWidget {
 }
 
 class _LevelsScreenState extends State<LevelsScreen> {
-  Timer? liveTimer;
-  List<Level> levels = [];
-
   final WalletConnectService walletService = Get.find<WalletConnectService>();
-
-  LevelStatus getStatus(int level) {
-    if (level <= 3) return LevelStatus.active;
-    if (level <= 6) return LevelStatus.waiting;
-    return LevelStatus.locked;
-  }
-
-  Future<void> refreshLevelsFromContract() async {
-    if (!walletService.isConnected.value || levels.isEmpty) {
-      return;
-    }
-
-    try {
-      for (final level in levels) {
-        final state = await walletService.getEasyGameLevel(
-          level: level.levelNumber,
-        );
-        final previousActive = level.levelNumber == 1
-            ? true
-            : (await walletService.isEasyGameLevelActive(
-                level: level.levelNumber - 1,
-              ));
-
-        level.status = state.active
-            ? state.frozen
-                ? LevelStatus.frozen
-                : LevelStatus.active
-            : previousActive
-                ? LevelStatus.waiting
-                : LevelStatus.locked;
-        level.fillPercent = state.active ? 50 : 0;
-        level.isVisible = previousActive || state.active;
-        level.unlockTime = null;
-      }
-
-      if (mounted) {
-        setState(() {});
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print('Unable to refresh EasyGame levels from contract: $e');
-      }
-    }
-  }
-
-  void initializeLevels() {
-    // Базовые стоимости уровней и дни разблокировки
-    Map<int, double> baseValues = {
-      1: 0.01,
-      2: 0.015,
-      3: 0.02,
-      4: 0.03,
-      5: 0.04,
-      6: 0.06,
-      7: 0.09,
-      8: 0.13,
-      9: 0.2,
-      10: 0.3,
-      11: 0.4,
-      12: 0.6,
-      13: 0.9,
-      14: 1.3,
-      15: 2.0,
-      16: 3.0,
-      17: 4.0
-    };
-
-    Map<int, int> unlockHours = {
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 12,
-      5: 12,
-      6: 12,
-      7: 24,
-      8: 24,
-      9: 36,
-      10: 36,
-      11: 48,
-      12: 48,
-      13: 60,
-      14: 72,
-      15: 84,
-      16: 96,
-      17: 108
-    };
-
-    DateTime now = DateTime.now();
-
-    for (int i = 1; i <= 17; i++) {
-      levels.add(Level(
-        levelNumber: i,
-        status: getStatus(i),
-        coin: baseValues[i]!,
-        partnerBonus: baseValues[i]! * 0.5,
-        levelProfit: baseValues[i]! * 4,
-        fillPercent: i <= 3 ? 50 : 0,
-        isVisible: i <= 6,
-        unlockTime: i > 3 ? now.add(Duration(hours: unlockHours[i]!)) : null,
-      ));
-    }
-
-    setState(() {});
-    startLiveTimer();
-  }
-
-  void startLiveTimer() {
-    liveTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
-      bool allLevelsUnlocked = true;
-
-      setState(() {
-        for (var level in levels) {
-          if (level.status == LevelStatus.locked && level.unlockTime != null) {
-            final remainingTime = level.unlockTime!.difference(DateTime.now());
-            if (remainingTime.isNegative) {
-              level.status = LevelStatus.waiting;
-              level.isVisible = true;
-              print(
-                  'Level ${level.levelNumber} is now waiting for activation.');
-            } else {
-              allLevelsUnlocked = false;
-            }
-          }
-        }
-      });
-
-      if (allLevelsUnlocked) {
-        timer.cancel();
-      }
-    });
-  }
-
-  void activateLevel(Level level) {
-    setState(() {
-      level.status = LevelStatus.active;
-      print('Level ${level.levelNumber} activated');
-    });
-  }
-
-  void completeLevel(Level level) {
-    setState(() {
-      level.status = LevelStatus.completed;
-      print('Level ${level.levelNumber} completed');
-    });
-
-    // Unlock the next level if it exists
-    final nextIndex = levels.indexOf(level) + 1;
-    if (nextIndex < levels.length) {
-      startWaiting(levels[nextIndex]);
-    }
-  }
-
-  void startWaiting(Level level) {
-    setState(() {
-      level.status = LevelStatus.waiting;
-      print('Level ${level.levelNumber} is waiting for activation');
-    });
-
-    // Simulate waiting period with a timer
-    Timer(const Duration(seconds: 10), () {
-      activateLevel(level);
-    });
-  }
-
-  void startLevelProgression() {
-    Timer.periodic(Duration(seconds: 2), (timer) {
-      setState(() {
-        updateLevels();
-        startLiveTimer();
-      });
-    });
-  }
-
-  // void initializeLevels() {
-  //   for (int i = 1; i <= 17; i++) {
-  //     levels.add(Level(
-  //       levelNumber: i,
-  //       isVisible: i == 1, // Только первый уровень виден
-  //       coin: 0.1 * i, // Пример стоимости
-  //       partnerBonus: 0.05 * i, // Пример бонуса
-  //       levelProfit: 0.4 * i, // Пример прибыли
-  //       fillPercent: 0, // Уровни изначально пустые
-  //     ));
-  //   }
-  // }
-
-  void updateLevels() {
-    setState(() {
-      for (var level in levels) {
-        if (level.isVisible && level.status == LevelStatus.active) {
-          level.fillPercent += 5;
-          if (level.fillPercent > 100) {
-            level.fillPercent = 100;
-            completeLevel(level);
-          }
-          print(
-              'Updated visible level: ${level.levelNumber} -> ${level.fillPercent}%');
-        } else {
-          int prevIndex = level.levelNumber - 2;
-          if (prevIndex >= 0 && levels[prevIndex].fillPercent == 100) {
-            level.isVisible = true;
-            print('Level ${level.levelNumber} is now visible.');
-          }
-        }
-      }
-    });
-  }
-
-  void printLevels() {
-    for (var level in levels) {
-      print(level.toString());
-    }
-  }
+  late final String providerTag;
+  late final LevelsProvider levelsProvider;
 
   @override
   void initState() {
     super.initState();
-    initializeLevels(); // Инициализация уровней
-    updateLevels();
-    printLevels();
-    refreshLevelsFromContract();
-    // startLevelProgression();
+    providerTag = widget.walletAddress ?? 'connected-wallet';
+    levelsProvider = Get.put(LevelsProvider(), tag: providerTag);
+    levelsProvider.configure(playerAddress: widget.walletAddress);
   }
 
   @override
   void dispose() {
-    // Cancel the timer to prevent setState calls after dispose
-    liveTimer?.cancel();
+    if (Get.isRegistered<LevelsProvider>(tag: providerTag)) {
+      Get.delete<LevelsProvider>(tag: providerTag);
+    }
     super.dispose();
+  }
+
+  Widget _buildLevelCard(Level level) {
+    switch (level.status) {
+      case LevelStatus.locked:
+        return StatusCard(
+          level: level.levelNumber,
+          coin: level.coin,
+          title: 'Locked',
+          subtitle: 'Activate previous level first',
+          icon: Icons.lock,
+          color: Colors.grey,
+        );
+      case LevelStatus.frozen:
+        return StatusCard(
+          level: level.levelNumber,
+          coin: level.coin,
+          title: 'Frozen',
+          subtitle: 'Activate next level to unfreeze',
+          icon: Icons.ac_unit,
+          color: Colors.lightBlueAccent,
+          onTap: () => Get.to(
+            () => EasyGameLevelDetailScreen(level: level.levelNumber),
+          ),
+        );
+      case LevelStatus.waiting:
+        return ActivateCard(
+          level: level.levelNumber,
+          coin: level.coin,
+          status: level.status,
+        );
+      case LevelStatus.active:
+      case LevelStatus.completed:
+        return LevelCard(
+          level: level.levelNumber,
+          coin: level.coin,
+          partnerBonus: level.partnerBonus,
+          levelProfit: level.levelProfit,
+          fillPercent: level.fillPercent,
+          cycles: level.cycles,
+          positionId: level.positionId,
+          earnedWei: level.earnedWei,
+          matrixSize: level.matrixSize,
+        );
+    }
   }
 
   @override
@@ -319,22 +288,24 @@ class _LevelsScreenState extends State<LevelsScreen> {
               // ),
               // const SizedBox(width: 8),
 
-              // "0.265 BNB"
               Container(
                 padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: Colors.grey[800],
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Row(
-                  children: [
-                    Icon(Icons.monetization_on, color: Colors.yellow, size: 16),
-                    SizedBox(width: 4),
-                    Text(
-                      "0.265 BNB",
-                      style: TextStyle(color: Colors.white, fontSize: 14),
-                    ),
-                  ],
+                child: Obx(
+                  () => Row(
+                    children: [
+                      Icon(Icons.monetization_on,
+                          color: Colors.yellow, size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        "${formatWeiToEth(levelsProvider.totalEarnedWei)} ETH(base)",
+                        style: TextStyle(color: Colors.white, fontSize: 14),
+                      ),
+                    ],
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -364,6 +335,10 @@ class _LevelsScreenState extends State<LevelsScreen> {
               //   },
               //   icon: Icon(Icons.search, color: Colors.white),
               // ),
+              IconButton(
+                onPressed: levelsProvider.refreshFromContract,
+                icon: Icon(Icons.refresh, color: Colors.white),
+              ),
               IconButton(
                 onPressed: () {
                   showModalBottomSheet(
@@ -441,7 +416,7 @@ class _LevelsScreenState extends State<LevelsScreen> {
                     title: Text("Statistics",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Statistics
+                      UiNavigationService.openStatistics();
                     },
                   ),
                   ListTile(
@@ -458,7 +433,7 @@ class _LevelsScreenState extends State<LevelsScreen> {
                     title: Text("Information",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Information
+                      UiNavigationService.openInformation();
                     },
                   ),
                   ListTile(
@@ -466,14 +441,14 @@ class _LevelsScreenState extends State<LevelsScreen> {
                     title: Text("Telegram bots",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Telegram Bots
+                      UiNavigationService.openTelegramBots();
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.campaign, color: Colors.white),
                     title: Text("Promo", style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Promo
+                      UiNavigationService.openPromo();
                     },
                   ),
                 ],
@@ -489,7 +464,7 @@ class _LevelsScreenState extends State<LevelsScreen> {
                   title: Text("Notifier Bot",
                       style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Navigate to Bot Notifier
+                    UiNavigationService.openNotifierBot();
                   },
                 ),
                 ListTile(
@@ -497,7 +472,7 @@ class _LevelsScreenState extends State<LevelsScreen> {
                   title:
                       Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Navigate to Settings
+                    UiNavigationService.openSettings();
                   },
                 ),
                 ListTile(
@@ -536,22 +511,33 @@ class _LevelsScreenState extends State<LevelsScreen> {
                         0.10, // Horizontal padding
                     vertical: 16, // Vertical padding
                   ),
-                  child: const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Left Side: ID and Title
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                  child: Obx(() => Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text(
-                            "ID 308435 / Easy game",
-                            style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 14,
-                            ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                widget.walletAddress == null
+                                    ? walletService.shortAddress
+                                    : "Preview ${widget.walletAddress!.substring(0, 6)}...${widget.walletAddress!.substring(widget.walletAddress!.length - 4)}",
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 14,
+                                ),
+                              ),
+                              Text(
+                                "Easy game",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                           Text(
-                            "Easy game",
+                            "${formatWeiToEth(levelsProvider.totalEarnedWei)} ETH(base)",
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 18,
@@ -559,76 +545,44 @@ class _LevelsScreenState extends State<LevelsScreen> {
                             ),
                           ),
                         ],
-                      ),
-                      // Right Side: Amount
-                      Text(
-                        "0.192 ETH(base)",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
+                      )),
                 ),
                 Padding(
                   padding: EdgeInsets.symmetric(
                     horizontal: MediaQuery.of(context).size.width * 0.10,
                   ),
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: crossAxisCount,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: childAspectRatio,
+                  child: Obx(
+                    () => Column(
+                      children: [
+                        if (levelsProvider.errorMessage.value.isNotEmpty)
+                          _LevelStateBanner(
+                            message: levelsProvider.errorMessage.value,
+                            onRefresh: levelsProvider.refreshFromContract,
+                          ),
+                        if (levelsProvider.isLoading.value)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: LinearProgressIndicator(),
+                          ),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossAxisCount,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: childAspectRatio,
+                          ),
+                          itemCount: levelsProvider.levels.length,
+                          itemBuilder: (context, index) {
+                            final level = levelsProvider.levels[index];
+                            return _buildLevelCard(level);
+                          },
+                        ),
+                      ],
                     ),
-                    itemCount: levels.length,
-                    itemBuilder: (context, index) {
-                      final level = levels[index];
-
-                      switch (level.status) {
-                        case LevelStatus.locked:
-                          return TimeCard(
-                            level: level.levelNumber,
-                            coin: level.coin,
-                            availableTime: level.getRemainingTime(),
-                          );
-                        case LevelStatus.frozen:
-                          return TimeCard(
-                            level: level.levelNumber,
-                            coin: level.coin,
-                            availableTime: 'Frozen',
-                          );
-                        case LevelStatus.waiting:
-                          return ActivateCard(
-                            level: level.levelNumber,
-                            onActivate: (Level status) => activateLevel(status),
-                            coin: level.coin,
-                            status: level.status,
-                          );
-                        case LevelStatus.active:
-                          return LevelCard(
-                            level: level.levelNumber,
-                            coin: level.coin,
-                            partnerBonus: level.partnerBonus,
-                            levelProfit: level.levelProfit,
-                            fillPercent: level.fillPercent,
-                          );
-                        case LevelStatus.completed:
-                          return LevelCard(
-                            level: level.levelNumber,
-                            coin: level.coin,
-                            partnerBonus: level.partnerBonus,
-                            levelProfit: level.levelProfit,
-                            fillPercent:
-                                100, // Completed levels always show full progress
-                          );
-                      }
-                    },
                   ),
                 ),
                 SizedBox(height: 16),
@@ -646,6 +600,7 @@ class _LevelsScreenState extends State<LevelsScreen> {
 class LevelCard extends StatelessWidget {
   final int level;
   final double coin, partnerBonus, levelProfit, fillPercent;
+  final BigInt cycles, positionId, earnedWei, matrixSize;
 
   const LevelCard({
     Key? key,
@@ -654,6 +609,10 @@ class LevelCard extends StatelessWidget {
     required this.partnerBonus,
     required this.levelProfit,
     required this.fillPercent,
+    required this.cycles,
+    required this.positionId,
+    required this.earnedWei,
+    required this.matrixSize,
   }) : super(key: key);
 
   @override
@@ -662,7 +621,7 @@ class LevelCard extends StatelessWidget {
       onTap: () {
         // Navigate to the detail screen
 
-        Get.to(() => LevelDetailScreen(level: level));
+        Get.to(() => EasyGameLevelDetailScreen(level: level));
       },
       child: AspectRatio(
         aspectRatio: 1 / 1.2,
@@ -727,7 +686,7 @@ class LevelCard extends StatelessWidget {
                 ),
                 Spacer(),
                 const Text(
-                  "Waiting next line...",
+                  "Active matrix",
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 SizedBox(height: 8),
@@ -760,11 +719,13 @@ class LevelCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 const Text(
-                  "Current line fill",
+                  "Matrix progress",
                   style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
                 Text(
-                  "${fillPercent.toStringAsFixed(2)}%",
+                  matrixSize == BigInt.zero
+                      ? "No matrix data"
+                      : "${fillPercent.toStringAsFixed(2)}%",
                   style: const TextStyle(color: Colors.white, fontSize: 14),
                 ),
                 const Spacer(),
@@ -775,7 +736,7 @@ class LevelCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          partnerBonus.toStringAsFixed(4) + " ETH(base)",
+                          "Cycles ${cycles.toString()}",
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -788,7 +749,7 @@ class LevelCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Text(
-                          levelProfit.toStringAsFixed(4) + " base",
+                          "${formatWeiToEth(earnedWei)} ETH earned",
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 12,
@@ -799,6 +760,11 @@ class LevelCard extends StatelessWidget {
                     ),
                   ],
                 ),
+                const SizedBox(height: 4),
+                Text(
+                  "Position ${positionId.toString()} / matrix ${matrixSize.toString()}",
+                  style: const TextStyle(color: Colors.grey, fontSize: 11),
+                ),
               ],
             ),
           ),
@@ -808,59 +774,17 @@ class LevelCard extends StatelessWidget {
   }
 }
 
-class ActivateCard extends StatefulWidget {
+class ActivateCard extends StatelessWidget {
   final int level;
   final double coin;
   final LevelStatus status;
-  final Function(Level) onActivate;
 
-  const ActivateCard(
-      {Key? key,
-      required this.level,
-      required this.coin,
-      required this.status,
-      required this.onActivate})
-      : super(key: key);
-
-  @override
-  ActivateCardState createState() => ActivateCardState();
-}
-
-class ActivateCardState extends State<ActivateCard> {
-  Timer? liveTimer;
-  List<Level> levels = [];
-
-  void activateLevel(Level level) {
-    setState(() {
-      level.status = LevelStatus.active;
-      print('Level ${level.levelNumber} activated');
-    });
-  }
-
-  void completeLevel(Level level) {
-    setState(() {
-      level.status = LevelStatus.completed;
-      print('Level ${level.levelNumber} completed');
-    });
-
-    // Unlock the next level if it exists
-    final nextIndex = levels.indexOf(level) + 1;
-    if (nextIndex < levels.length) {
-      startWaiting(levels[nextIndex]);
-    }
-  }
-
-  void startWaiting(Level level) {
-    setState(() {
-      level.status = LevelStatus.waiting;
-      print('Level ${level.levelNumber} is waiting for activation');
-    });
-
-    // Simulate waiting period with a timer
-    Timer(const Duration(seconds: 10), () {
-      activateLevel(level);
-    });
-  }
+  const ActivateCard({
+    Key? key,
+    required this.level,
+    required this.coin,
+    required this.status,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -868,7 +792,7 @@ class ActivateCardState extends State<ActivateCard> {
         onTap: () {
           // Navigate to the detail screen
 
-          Get.to(() => ActivateCardDetailScreen(level: widget.level));
+          Get.to(() => EasyGameLevelDetailScreen(level: level));
         },
         child: AspectRatio(
           aspectRatio: 1 / 1.2,
@@ -883,7 +807,7 @@ class ActivateCardState extends State<ActivateCard> {
                   top: 16,
                   left: 16,
                   child: Text(
-                    'Level ${widget.level}',
+                    'Level $level',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 14,
@@ -907,7 +831,7 @@ class ActivateCardState extends State<ActivateCard> {
                       ),
                       SizedBox(width: 4),
                       Text(
-                        widget.coin.toStringAsFixed(2),
+                        coin.toStringAsFixed(3),
                         style: TextStyle(color: Colors.white, fontSize: 14),
                       ),
                     ],
@@ -937,9 +861,11 @@ class ActivateCardState extends State<ActivateCard> {
                         child: ElevatedButton(
                           onPressed: () {
                             Get.to(() => RegistrationScreen(
-                                  widget.status,
-                                  level: widget.level,
-                                  amount: widget.coin,
+                                  status,
+                                  level: level,
+                                  amount: coin,
+                                  inviter: Get.find<WalletConnectService>()
+                                      .activeInviter,
                                 ));
                           },
                           style: ElevatedButton.styleFrom(
@@ -968,6 +894,123 @@ class ActivateCardState extends State<ActivateCard> {
             ),
           ),
         ));
+  }
+}
+
+class StatusCard extends StatelessWidget {
+  final int level;
+  final double coin;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final VoidCallback? onTap;
+
+  const StatusCard({
+    Key? key,
+    required this.level,
+    required this.coin,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AspectRatio(
+        aspectRatio: 1 / 1.2,
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: const Color(0xFF1A1F2E),
+            border: Border.all(color: color.withOpacity(0.5)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Level $level',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    '${coin.toStringAsFixed(3)} ETH',
+                    style: const TextStyle(color: Colors.white, fontSize: 12),
+                  ),
+                ],
+              ),
+              const Spacer(),
+              Icon(icon, size: 44, color: color),
+              const SizedBox(height: 12),
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                subtitle,
+                style: const TextStyle(color: Colors.grey, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _LevelStateBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRefresh;
+
+  const _LevelStateBanner({
+    required this.message,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1F2E),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.orangeAccent.withOpacity(0.6)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.info_outline, color: Colors.orangeAccent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: Colors.white, fontSize: 13),
+            ),
+          ),
+          TextButton(
+            onPressed: onRefresh,
+            child: const Text('Refresh'),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1061,9 +1104,8 @@ class BottomTableSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Заголовок
           Text(
-            "Marketing legend",
+            "Level activity",
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
@@ -1072,66 +1114,68 @@ class BottomTableSection extends StatelessWidget {
           ),
           SizedBox(height: 8),
           Text(
-            "All prices in ETH(base)",
+            "On-chain events are emitted by EasyGame. A full activity table needs the event listener/indexer to persist history.",
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey,
             ),
           ),
           SizedBox(height: 16),
-          // Таблица
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingRowColor: MaterialStateProperty.all(Colors.grey[900]),
-              dataRowColor: MaterialStateProperty.all(Colors.black),
-              columns: [
-                DataColumn(
-                  label: Text(
-                    "Type",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-                DataColumn(
-                  label: Text(
-                    "Date",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-                DataColumn(
-                  label: Text(
-                    "ID",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-                DataColumn(
-                  label: Text(
-                    "Level",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-                DataColumn(
-                  label: Text(
-                    "Wallet",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-                DataColumn(
-                  label: Text(
-                    "ETH(base)",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
-              ],
-              rows: [
-                _buildRow(Icons.card_giftcard, "02.04.2022 11:14", "ID 310375",
-                    4, "0xB634...8CA9C", "0.1036"),
-                _buildRow(Icons.card_giftcard, "02.04.2022 10:23", "ID 310112",
-                    4, "0x6E322...076E2", "+ gift"),
-                _buildRow(Icons.card_giftcard, "02.04.2022 10:13", "ID 310112",
-                    5, "0x6E322...076E2", "0.05"),
-                _buildRow(Icons.card_giftcard, "02.04.2022 06:56", "ID 308783",
-                    5, "0xBf3E...89708", "+ gift"),
+          _EventStatusRow(
+            icon: Icons.account_tree,
+            title: "MatrixPlaced",
+            description: "Placement events for new level positions.",
+          ),
+          _EventStatusRow(
+            icon: Icons.payments,
+            title: "MatrixRewardPaid / ReferralPaid",
+            description: "Reward events emitted after activation payment.",
+          ),
+          _EventStatusRow(
+            icon: Icons.autorenew,
+            title: "Recycled / LevelFrozen / LevelUnfrozen",
+            description: "Cycle and freeze state changes emitted by contract.",
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EventStatusRow extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String description;
+
+  const _EventStatusRow({
+    required this.icon,
+    required this.title,
+    required this.description,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1F2E),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.greenAccent, size: 22),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(color: Colors.white, fontSize: 14)),
+                const SizedBox(height: 3),
+                Text(description,
+                    style: const TextStyle(color: Colors.grey, fontSize: 12)),
               ],
             ),
           ),
@@ -1139,740 +1183,282 @@ class BottomTableSection extends StatelessWidget {
       ),
     );
   }
+}
 
-  DataRow _buildRow(IconData icon, String date, String id, int level,
-      String wallet, String bnb) {
-    return DataRow(
-      cells: [
-        DataCell(
-          Row(
-            children: [
-              Icon(icon, color: Colors.green, size: 20),
-              SizedBox(width: 8),
-              Text(""),
-            ],
-          ),
+class EasyGameLevelDetailScreen extends StatelessWidget {
+  final int level;
+
+  EasyGameLevelDetailScreen({Key? key, required this.level}) : super(key: key);
+
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
+
+  Future<_LevelDetailSnapshot> _load() async {
+    final state = await walletService.getEasyGameLevel(level: level);
+    final stats = await walletService.getEasyGameMatrixStats(level);
+    final priceWei = await walletService.getEasyGameLevelPriceWei(level);
+    return _LevelDetailSnapshot(
+      state: state,
+      stats: stats,
+      priceWei: priceWei,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: Text(
+          "Level $level",
+          style: const TextStyle(color: Colors.white, fontSize: 18),
         ),
-        DataCell(Text(date, style: TextStyle(color: Colors.white))),
-        DataCell(Text(id, style: TextStyle(color: Colors.blue))),
-        DataCell(Text(level.toString(), style: TextStyle(color: Colors.white))),
-        DataCell(
-          Row(
-            children: [
-              Text(wallet, style: TextStyle(color: Colors.white)),
-              Icon(Icons.copy, color: Colors.grey, size: 16),
-            ],
-          ),
-        ),
-        DataCell(
+        leading: const BackButton(color: Colors.white),
+      ),
+      body: FutureBuilder<_LevelDetailSnapshot>(
+        future: _load(),
+        builder: (context, snapshot) {
+          final data = snapshot.data;
+          return SingleChildScrollView(
+            padding: EdgeInsets.symmetric(
+              horizontal: MediaQuery.of(context).size.width * 0.08,
+              vertical: 20,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    _LevelNavButton(
+                      label: "Level ${level <= 1 ? 1 : level - 1}",
+                      icon: Icons.arrow_back_ios,
+                      enabled: level > 1,
+                      onTap: () => Get.off(
+                        () => EasyGameLevelDetailScreen(level: level - 1),
+                      ),
+                    ),
+                    _LevelNavButton(
+                      label: "Level ${level >= 17 ? 17 : level + 1}",
+                      icon: Icons.arrow_forward_ios,
+                      trailing: true,
+                      enabled: level < 17,
+                      onTap: () => Get.off(
+                        () => EasyGameLevelDetailScreen(level: level + 1),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (snapshot.connectionState == ConnectionState.waiting)
+                  const LinearProgressIndicator(),
+                if (snapshot.hasError)
+                  _LevelStateBanner(
+                    message: 'Unable to load level details: ${snapshot.error}',
+                    onRefresh: () => Get.off(
+                      () => EasyGameLevelDetailScreen(level: level),
+                    ),
+                  ),
+                if (data != null) ...[
+                  _LevelDetailPanel(
+                    title: 'Level status',
+                    rows: [
+                      _DetailRow('Price',
+                          '${formatWeiToEth(data.priceWei)} ETH(base)'),
+                      _DetailRow('Active', data.state.active ? 'Yes' : 'No'),
+                      _DetailRow('Frozen', data.state.frozen ? 'Yes' : 'No'),
+                      _DetailRow('Cycles', data.state.cycles.toString()),
+                      _DetailRow(
+                          'Position ID', data.state.positionId.toString()),
+                      _DetailRow('Earned',
+                          '${formatWeiToEth(data.state.earnedWei)} ETH(base)'),
+                    ],
+                  ),
+                  _LevelDetailPanel(
+                    title: 'Matrix',
+                    rows: [
+                      _DetailRow('Matrix size', data.stats.size.toString()),
+                      _DetailRow(
+                        'Next open parent',
+                        data.stats.nextOpenParentId.toString(),
+                      ),
+                      _DetailRow(
+                        'Fill indicator',
+                        data.stats.size == BigInt.zero
+                            ? 'No matrix data'
+                            : '${_detailFillPercent(data).toStringAsFixed(2)}%',
+                      ),
+                    ],
+                  ),
+                  _LevelDetailPanel(
+                    title: 'Activity',
+                    rows: const [
+                      _DetailRow(
+                        'History source',
+                        'On-chain event/indexer connection required',
+                      ),
+                      _DetailRow(
+                        'Events',
+                        'MatrixPlaced, Rewards, ReferralPaid, Recycle, Freeze',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (!data.state.active)
+                    ElevatedButton(
+                      onPressed: () {
+                        Get.to(() => RegistrationScreen(
+                              LevelStatus.waiting,
+                              level: level,
+                              amount: weiToEthDouble(data.priceWei),
+                              inviter: walletService.activeInviter,
+                            ));
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue,
+                        minimumSize: const Size(double.infinity, 50),
+                      ),
+                      child: const Text(
+                        'Activate level',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ),
+                ],
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  double _detailFillPercent(_LevelDetailSnapshot data) {
+    if (data.stats.size == BigInt.zero ||
+        data.state.positionId == BigInt.zero) {
+      return 0;
+    }
+    return ((data.state.positionId.toDouble() / data.stats.size.toDouble()) *
+            100)
+        .clamp(0, 100)
+        .toDouble();
+  }
+}
+
+class _LevelDetailSnapshot {
+  final EasyGameLevelState state;
+  final EasyGameMatrixStats stats;
+  final BigInt priceWei;
+
+  const _LevelDetailSnapshot({
+    required this.state,
+    required this.stats,
+    required this.priceWei,
+  });
+}
+
+class _LevelDetailPanel extends StatelessWidget {
+  final String title;
+  final List<_DetailRow> rows;
+
+  const _LevelDetailPanel({
+    required this.title,
+    required this.rows,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1F2E),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           Text(
-            bnb,
-            style: TextStyle(
-              color: bnb.contains("gift") ? Colors.green : Colors.white,
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
             ),
           ),
-        ),
-      ],
-    );
-  }
-}
-
-class ActivateCardDetailScreen extends StatelessWidget {
-  final int level;
-
-  const ActivateCardDetailScreen({Key? key, required this.level})
-      : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(
-          "Level $level",
-          style: TextStyle(color: Colors.white, fontSize: 18),
-        ),
-        leading: BackButton(color: Colors.white),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(
-          horizontal:
-              MediaQuery.of(context).size.width * 0.10, // 5% horizontal padding
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "ID 308435 / Easy Game / Level $level",
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-            SizedBox(height: 16),
-            // Main Content Container
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF1A1F2E), Color(0xFF0F131A)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          const SizedBox(height: 10),
+          for (final row in rows)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  // Navigation Arrows
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Previous Level Navigation
-                      GestureDetector(
-                        onTap: () {
-                          // Navigate to Previous Level
-                        },
-                        child: Container(
-                          height: 60,
-                          width: 80,
-                          decoration: BoxDecoration(
-                            color: Color(0xFF1A1F2E),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.arrow_back_ios,
-                                    color: Colors.white, size: 16),
-                                Text(
-                                  "Level ${level + 1}",
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 14),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Next Level Navigation
-                      GestureDetector(
-                        onTap: () {
-                          // Navigate to Next Level
-                        },
-                        child: Container(
-                          height: 60,
-                          width: 80,
-                          decoration: BoxDecoration(
-                            color: Color(0xFF1A1F2E),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  "Level ${level - 1}",
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 14),
-                                ),
-                                Icon(Icons.arrow_forward_ios,
-                                    color: Colors.white, size: 16),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  // Level Info Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Lvl $level",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: Colors.orangeAccent,
-                            radius: 10,
-                            child: Icon(
-                              Icons.monetization_on,
-                              size: 14,
-                              color: Colors.white,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            "${levelPrice(level).toStringAsFixed(3)} ETH(base)",
-                            style: TextStyle(color: Colors.white, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Center(
+                  Text(row.label,
+                      style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                  const SizedBox(width: 12),
+                  Flexible(
                     child: Text(
-                      "You",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Center(
-                    child: Text(
-                      "ID 308435",
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  // Progress Bar with Coin
-                  Stack(
-                    alignment: Alignment.centerRight,
-                    children: [
-                      Container(
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[800],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      FractionallySizedBox(
-                        widthFactor: 0.94, // 93.99% filled
-                        child: Container(
-                          height: 20,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Color(0xFF6A4BFF),
-                                Color(0xFF009EFD),
-                                Color(0xFF2AF598),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 4,
-                        child: CircleAvatar(
-                          backgroundColor: Colors.orangeAccent,
-                          radius: 10,
-                          child: Icon(
-                            Icons.monetization_on,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Center(
-                    child: Text(
-                      "Current line fill: 93.99%",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  // Stats Row
-                  // Row(
-                  //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  //   children: [
-                  //     Column(
-                  //       crossAxisAlignment: CrossAxisAlignment.start,
-                  //       children: [
-                  //         Text(
-                  //           "Missed profit",
-                  //           style: TextStyle(color: Colors.grey, fontSize: 14),
-                  //         ),
-                  //         Text(
-                  //           "0 BNB",
-                  //           style: TextStyle(color: Colors.white, fontSize: 14),
-                  //         ),
-                  //       ],
-                  //     ),
-                  //     Column(
-                  //       crossAxisAlignment: CrossAxisAlignment.start,
-                  //       children: [
-                  //         Text(
-                  //           "Total level profit",
-                  //           style: TextStyle(color: Colors.grey, fontSize: 14),
-                  //         ),
-                  //         Text(
-                  //           "0.1036 BNB",
-                  //           style: TextStyle(color: Colors.white, fontSize: 14),
-                  //         ),
-                  //       ],
-                  //     ),
-                  //     Column(
-                  //       crossAxisAlignment: CrossAxisAlignment.start,
-                  //       children: [
-                  //         Text(
-                  //           "Total partner bonus",
-                  //           style: TextStyle(color: Colors.grey, fontSize: 14),
-                  //         ),
-                  //         Text(
-                  //           "0.0364 BNB",
-                  //           style: TextStyle(color: Colors.white, fontSize: 14),
-                  //         ),
-                  //       ],
-                  //     ),
-                  //   ],
-                  // ),
-                  SizedBox(height: 16),
-                  // Activate Button
-                  Center(
-                    child: Container(
-                      constraints: BoxConstraints(
-                          maxWidth: 300), // Maximum width for the button
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Color(0xFF8A00D4),
-                            Color(0xFF0078FF),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: ElevatedButton(
-                        onPressed: () {
-                          // Handle Activate Button
-                          Get.to(() => ActivateExpressGameScreen(
-                                level: level,
-                                totalAmount: levelPrice(level),
-                              ));
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.transparent,
-                          shadowColor: Colors.transparent,
-                          padding: EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              "Activate",
-                              style:
-                                  TextStyle(fontSize: 16, color: Colors.white),
-                            ),
-                            SizedBox(width: 8),
-                            Icon(Icons.arrow_forward, color: Colors.white),
-                          ],
-                        ),
-                      ),
+                      row.value,
+                      textAlign: TextAlign.right,
+                      style: const TextStyle(color: Colors.white, fontSize: 13),
                     ),
                   ),
                 ],
               ),
             ),
-            SizedBox(height: 16),
-            // Transaction History Section
-            Text(
-              "Transaction History",
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            SizedBox(height: 8),
-            Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Color(0xFF1A1F2E),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: DataTable(
-                  columns: const [
-                    DataColumn(
-                      label: Text(
-                        "Type",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        "Date",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        "ID",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        "Level",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        "Wallet",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                    DataColumn(
-                      label: Text(
-                        "ETH(base)",
-                        style: TextStyle(color: Colors.white),
-                      ),
-                    ),
-                  ],
-                  rows: List<DataRow>.generate(
-                    5,
-                    (index) => DataRow(
-                      cells: [
-                        DataCell(Text("Gift",
-                            style: TextStyle(color: Colors.white))),
-                        DataCell(Text("02.04.2022",
-                            style: TextStyle(color: Colors.white))),
-                        DataCell(Text("ID $index",
-                            style: TextStyle(color: Colors.white))),
-                        DataCell(Text("$level",
-                            style: TextStyle(color: Colors.white))),
-                        DataCell(Text("0xB...9F",
-                            style: TextStyle(color: Colors.white))),
-                        DataCell(Text("0.10 base",
-                            style: TextStyle(color: Colors.white))),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            )
-          ],
-        ),
+        ],
       ),
     );
   }
 }
 
-class LevelDetailScreen extends StatelessWidget {
-  final int level;
+class _DetailRow {
+  final String label;
+  final String value;
 
-  const LevelDetailScreen({Key? key, required this.level}) : super(key: key);
+  const _DetailRow(this.label, this.value);
+}
+
+class _LevelNavButton extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool trailing;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  const _LevelNavButton({
+    required this.label,
+    required this.icon,
+    required this.enabled,
+    required this.onTap,
+    this.trailing = false,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: Text(
-          "Level $level",
-          style: TextStyle(color: Colors.white, fontSize: 18),
+    final content = [
+      Icon(icon, color: enabled ? Colors.white : Colors.grey, size: 16),
+      const SizedBox(width: 4),
+      Text(
+        label,
+        style: TextStyle(
+          color: enabled ? Colors.white : Colors.grey,
+          fontSize: 14,
         ),
-        leading: BackButton(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(
-          horizontal:
-              MediaQuery.of(context).size.width * 0.05, // 5% horizontal padding
+    ];
+    return GestureDetector(
+      onTap: enabled ? onTap : null,
+      child: Container(
+        height: 48,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1A1F2E),
+          borderRadius: BorderRadius.circular(10),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "ID 308435 / Easy Game / Level $level",
-              style: TextStyle(color: Colors.grey, fontSize: 14),
-            ),
-            SizedBox(height: 16),
-            // Main Content Container
-            Container(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF1A1F2E), Color(0xFF0F131A)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Navigation Arrows
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Previous Level Navigation
-                      GestureDetector(
-                        onTap: () {
-                          // Navigate to Previous Level
-                        },
-                        child: Container(
-                          height: 60,
-                          width: 80,
-                          decoration: BoxDecoration(
-                            color: Color(0xFF1A1F2E),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.arrow_back_ios,
-                                    color: Colors.white, size: 16),
-                                Text(
-                                  "Level ${level + 1}",
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 14),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-
-                      // Next Level Navigation
-                      GestureDetector(
-                        onTap: () {
-                          // Navigate to Next Level
-                        },
-                        child: Container(
-                          height: 60,
-                          width: 80,
-                          decoration: BoxDecoration(
-                            color: Color(0xFF1A1F2E),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Center(
-                            child: Row(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Text(
-                                  "Level ${level - 1}",
-                                  style: TextStyle(
-                                      color: Colors.white, fontSize: 14),
-                                ),
-                                Icon(Icons.arrow_forward_ios,
-                                    color: Colors.white, size: 16),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  // Level Info
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Lvl $level",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      Row(
-                        children: [
-                          CircleAvatar(
-                            backgroundColor: Colors.orangeAccent,
-                            radius: 10,
-                            child: Icon(
-                              Icons.monetization_on,
-                              size: 14,
-                              color: Colors.white,
-                            ),
-                          ),
-                          SizedBox(width: 8),
-                          Text(
-                            "0.02 ETH(base)",
-                            style: TextStyle(color: Colors.white, fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Center(
-                    child: Text(
-                      "You",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ),
-                  SizedBox(height: 4),
-                  Center(
-                    child: Text(
-                      "ID 308435",
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  // Progress Bar with Coin
-                  Stack(
-                    alignment: Alignment.centerRight,
-                    children: [
-                      Container(
-                        height: 20,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[800],
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                      ),
-                      FractionallySizedBox(
-                        widthFactor: 0.94,
-                        child: Container(
-                          height: 20,
-                          decoration: BoxDecoration(
-                            gradient: LinearGradient(
-                              colors: [
-                                Color(0xFF6A4BFF),
-                                Color(0xFF009EFD),
-                                Color(0xFF2AF598),
-                              ],
-                            ),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                        ),
-                      ),
-                      Positioned(
-                        right: 4,
-                        child: CircleAvatar(
-                          backgroundColor: Colors.orangeAccent,
-                          radius: 10,
-                          child: Icon(
-                            Icons.monetization_on,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 8),
-                  Center(
-                    child: Text(
-                      "Current line fill: 93.99%",
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ),
-                  SizedBox(height: 16),
-                  // Stats Row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Missed profit",
-                              style:
-                                  TextStyle(color: Colors.grey, fontSize: 14)),
-                          Text("0 ETH(base)",
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 14)),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Total level profit",
-                              style:
-                                  TextStyle(color: Colors.grey, fontSize: 14)),
-                          Text("0.1036 ETH(base)",
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 14)),
-                        ],
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text("Total partner bonus",
-                              style:
-                                  TextStyle(color: Colors.grey, fontSize: 14)),
-                          Text("0.0364 ETH(base)",
-                              style:
-                                  TextStyle(color: Colors.white, fontSize: 14)),
-                        ],
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 16),
-                  // Activate Button
-                ],
-              ),
-            ),
-            SizedBox(height: 16),
-            // Transaction History Section
-            Text(
-              "Transaction History",
-              style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 8),
-            Center(
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Color(0xFF1A1F2E),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: DataTable(
-                  columns: const [
-                    DataColumn(
-                      label:
-                          Text("Type", style: TextStyle(color: Colors.white)),
-                    ),
-                    DataColumn(
-                      label:
-                          Text("Date", style: TextStyle(color: Colors.white)),
-                    ),
-                    DataColumn(
-                      label: Text("ID", style: TextStyle(color: Colors.white)),
-                    ),
-                    DataColumn(
-                      label:
-                          Text("Level", style: TextStyle(color: Colors.white)),
-                    ),
-                    DataColumn(
-                      label:
-                          Text("Wallet", style: TextStyle(color: Colors.white)),
-                    ),
-                    DataColumn(
-                      label: Text("ETH(base)",
-                          style: TextStyle(color: Colors.white)),
-                    ),
-                  ],
-                  rows: List<DataRow>.generate(
-                    5,
-                    (index) => DataRow(
-                      cells: [
-                        DataCell(Text("Gift",
-                            style: TextStyle(color: Colors.white))),
-                        DataCell(Text("02.04.2022",
-                            style: TextStyle(color: Colors.white))),
-                        DataCell(Text("ID $index",
-                            style: TextStyle(color: Colors.white))),
-                        DataCell(Text("$level",
-                            style: TextStyle(color: Colors.white))),
-                        DataCell(Text("0xB...9F",
-                            style: TextStyle(color: Colors.white))),
-                        DataCell(Text("0.10 BNB",
-                            style: TextStyle(color: Colors.white))),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            )
-          ],
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: trailing ? content.reversed.toList() : content,
         ),
       ),
     );
@@ -1884,12 +1470,16 @@ enum LevelStatus { locked, frozen, active, waiting, completed }
 class Level {
   final int levelNumber;
   LevelStatus status;
-  final double coin;
-  final double partnerBonus;
-  final double levelProfit;
+  double coin;
+  double partnerBonus;
+  double levelProfit;
   double fillPercent;
   bool isVisible;
   DateTime? unlockTime; // Time when the level becomes available
+  late BigInt cycles;
+  late BigInt positionId;
+  late BigInt earnedWei;
+  late BigInt matrixSize;
 
   Level({
     required this.levelNumber,
@@ -1900,7 +1490,16 @@ class Level {
     required this.fillPercent,
     required this.isVisible,
     this.unlockTime,
-  });
+    BigInt? cycles,
+    BigInt? positionId,
+    BigInt? earnedWei,
+    BigInt? matrixSize,
+  }) {
+    this.cycles = cycles ?? BigInt.zero;
+    this.positionId = positionId ?? BigInt.zero;
+    this.earnedWei = earnedWei ?? BigInt.zero;
+    this.matrixSize = matrixSize ?? BigInt.zero;
+  }
 
   // Example for JSON serialization
   Map<String, dynamic> toJson() => {
@@ -1911,6 +1510,10 @@ class Level {
         'levelProfit': levelProfit,
         'fillPercent': fillPercent,
         'isVisible': isVisible,
+        'cycles': cycles.toString(),
+        'positionId': positionId.toString(),
+        'earnedWei': earnedWei.toString(),
+        'matrixSize': matrixSize.toString(),
       };
 
   factory Level.fromJson(Map<String, dynamic> json) => Level(
@@ -1922,6 +1525,12 @@ class Level {
         levelProfit: json['levelProfit'],
         fillPercent: json['fillPercent'],
         isVisible: json['isVisible'],
+        cycles: BigInt.tryParse('${json['cycles'] ?? 0}') ?? BigInt.zero,
+        positionId:
+            BigInt.tryParse('${json['positionId'] ?? 0}') ?? BigInt.zero,
+        earnedWei: BigInt.tryParse('${json['earnedWei'] ?? 0}') ?? BigInt.zero,
+        matrixSize:
+            BigInt.tryParse('${json['matrixSize'] ?? 0}') ?? BigInt.zero,
       );
 
   String getRemainingTime() {

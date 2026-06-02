@@ -21,6 +21,11 @@ module.exports = {
       accounts: MNEMONIC ? { mnemonic: MNEMONIC } : [],
       chainId: 84532,
     },
+    // Local Ganache for development/testing
+    localhost: {
+      url: process.env.LOCALHOST_RPC_URL || "http://127.0.0.1:7545",
+      chainId: Number(process.env.LOCAL_CHAIN_ID) || 1337,
+    },
   },
   etherscan: {
     apiKey: {

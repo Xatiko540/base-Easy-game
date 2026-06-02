@@ -1,0 +1,114 @@
+{
+  "_format": "hh-sol-cache-2",
+  "files": {
+    "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGame.sol": {
+      "lastModificationDate": 1780352196012,
+      "contentHash": "444261789b87bebb08eab0a4017dbae0",
+      "sourceName": "contracts/EasyGame.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "EasyGame"
+      ]
+    },
+    "/Users/xatiko/StudioProjects/base-Easy-game/contracts/Lottery_Advance.sol": {
+      "lastModificationDate": 1780346261009,
+      "contentHash": "09856614048d8f4c6aa4719772af1c81",
+      "sourceName": "contracts/Lottery_Advance.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "Lottery",
+        "LotteryGenerator"
+      ]
+    },
+    "/Users/xatiko/StudioProjects/base-Easy-game/contracts/Migrations.sol": {
+      "lastModificationDate": 1780346261183,
+      "contentHash": "acded41db8b1397ec5ac6476abe07046",
+      "sourceName": "contracts/Migrations.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "optimizer": {
+            "enabled": true,
+            "runs": 200
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "Migrations"
+      ]
+    }
+  }
+}

@@ -31,17 +31,24 @@ class LotteriesController extends GetxController
   final contractLink = Get.find<ContractLinking>();
 
   setup() async {
+    print("[DEBUG] LotteriesController: setup started.");
     // contractLink.isLoading.value = true;
+    print("[DEBUG] LotteriesController: calling getAbi...");
     await contractLink.getAbi();
+    print("[DEBUG] LotteriesController: calling getCredentials...");
     await contractLink.getCredentials();
+    print("[DEBUG] LotteriesController: calling getDeployedContractLotteryGenerator...");
     await contractLink.getDeployedContractLotteryGenerator();
     // contractLink.isLoading.value = false;
+    print("[DEBUG] LotteriesController: setup completed.");
   }
 
   @override
   Future<void> onInit() async {
+    print("[DEBUG] LotteriesController: onInit started.");
     await setup();
     super.onInit();
+    print("[DEBUG] LotteriesController: onInit completed.");
   }
 
   @override
@@ -68,8 +75,10 @@ class BinaryMatrix {
   int currentPlayerId = 1; // ID текущего игрока
 
   void fillMatrix(int levels) {
+    print("[DEBUG] BinaryMatrix: fillMatrix started for $levels levels.");
     for (int level = 0; level < levels; level++) {
       final int spotsInLevel = pow(2, level).toInt(); // Количество мест на уровне
+      print("[DEBUG] BinaryMatrix: level $level, spots: $spotsInLevel");
       final List<int?> currentLevel = List.filled(spotsInLevel, null);
 
       for (int spot = 0; spot < spotsInLevel; spot++) {
@@ -93,6 +102,7 @@ class BinaryMatrix {
 
       matrix.add(currentLevel);
     }
+    print("[DEBUG] BinaryMatrix: fillMatrix completed.");
   }
 
   // Проверяем, нужно ли рециклировать игрока
@@ -105,6 +115,7 @@ class BinaryMatrix {
         }
       }
     }
+    // Safety check to avoid potential issues if called too many times
     return completedSpots % 2 == 0 && completedSpots > 0; // Рециркуляция при заполнении двух мест
   }
 

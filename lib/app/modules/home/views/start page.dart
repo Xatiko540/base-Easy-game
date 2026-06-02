@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/profilescreen.dart';
+import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 import 'PartnerBonusScreen.dart';
@@ -10,6 +11,8 @@ class ExpressGameScreen extends StatelessWidget {
   ExpressGameScreen({Key? key}) : super(key: key);
 
   final WalletConnectService _walletService = Get.find<WalletConnectService>();
+  final TextEditingController _previewSearchController =
+      TextEditingController();
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +99,7 @@ class ExpressGameScreen extends StatelessWidget {
                     title: Text("Statistics",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Statistics
+                      UiNavigationService.openStatistics();
                     },
                   ),
                   ListTile(
@@ -113,7 +116,7 @@ class ExpressGameScreen extends StatelessWidget {
                     title: Text("Information",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Information
+                      UiNavigationService.openInformation();
                     },
                   ),
                   ListTile(
@@ -121,14 +124,14 @@ class ExpressGameScreen extends StatelessWidget {
                     title: Text("Telegram bots",
                         style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Telegram Bots
+                      UiNavigationService.openTelegramBots();
                     },
                   ),
                   ListTile(
                     leading: Icon(Icons.campaign, color: Colors.white),
                     title: Text("Promo", style: TextStyle(color: Colors.white)),
                     onTap: () {
-                      // Navigate to Promo
+                      UiNavigationService.openPromo();
                     },
                   ),
                 ],
@@ -144,7 +147,7 @@ class ExpressGameScreen extends StatelessWidget {
                   title: Text("Notifier Bot",
                       style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Navigate to Bot Notifier
+                    UiNavigationService.openNotifierBot();
                   },
                 ),
                 ListTile(
@@ -152,7 +155,7 @@ class ExpressGameScreen extends StatelessWidget {
                   title:
                       Text("Settings", style: TextStyle(color: Colors.white)),
                   onTap: () {
-                    // Navigate to Settings
+                    UiNavigationService.openSettings();
                   },
                 ),
                 ListTile(
@@ -268,7 +271,11 @@ class ExpressGameScreen extends StatelessWidget {
                         }
                       } catch (e) {
                         // Если произошла ошибка при подключении, показываем сообщение
-                        Get.snackbar('Error', 'Failed to connect wallet');
+                        Get.snackbar(
+                          'Failed to connect wallet',
+                          e.toString(),
+                          snackPosition: SnackPosition.BOTTOM,
+                        );
                       }
                     }
                   },
@@ -348,6 +355,7 @@ class ExpressGameScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: TextField(
+                  controller: _previewSearchController,
                   style: TextStyle(color: Colors.white),
                   decoration: InputDecoration(
                     filled: true,
@@ -364,7 +372,9 @@ class ExpressGameScreen extends StatelessWidget {
               SizedBox(width: 8),
               ElevatedButton(
                 onPressed: () {
-                  // Логика поиска
+                  UiNavigationService.openMemberPreview(
+                    _previewSearchController.text,
+                  );
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.teal,

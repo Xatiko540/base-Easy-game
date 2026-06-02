@@ -4,9 +4,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_web3/ethereum.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/services/referral_link_service.dart';
 
 class WalletConnectService extends GetxController {
   static const int baseSepoliaChainId = 84532;
+  static const int ganacheChainId = 5777;
+  static const int ganacheDefaultChainId = 1337;
   static const String paymentReceiver =
       String.fromEnvironment('PAYMENT_RECEIVER');
   static const String easyGameContractAddress =
@@ -22,6 +25,7 @@ class WalletConnectService extends GetxController {
   final RxBool isConnecting = false.obs;
   final RxBool isPaying = false.obs;
   final RxString easyGameAddress = ''.obs;
+  final RxString referralInviter = ''.obs;
 
   bool get isWalletAvailable => ethereum != null;
 
@@ -33,21 +37,43 @@ class WalletConnectService extends GetxController {
     return '${address.substring(0, 6)}...${address.substring(address.length - 4)}';
   }
 
+  String get activeInviter {
+    if (referralInviter.value.isNotEmpty) {
+      return referralInviter.value;
+    }
+    return ReferralLinkService.normalizeAddress(easyGameInviter);
+  }
+
+  void setReferralInviter(String inviter) {
+    final normalized = ReferralLinkService.normalizeAddress(inviter);
+    if (normalized.isNotEmpty) {
+      referralInviter.value = normalized;
+    }
+  }
+
+  void clearReferralInviter() {
+    referralInviter.value = '';
+  }
+
   @override
   void onInit() {
+    print("[DEBUG] WalletConnectService: onInit started.");
     super.onInit();
     _restoreConnection();
     _listenWalletChanges();
+    print("[DEBUG] WalletConnectService: onInit completed.");
   }
 
   Future<void> connectWallet() async {
     if (!isWalletAvailable) {
-      throw Exception('MetaMask or another Web3 wallet is not installed');
+      throw Exception(
+        'MetaMask is not detected in this Chrome window. If you use flutter run -d chrome, make sure that Chrome profile has the MetaMask extension, or run with web-server and open the app in your normal Chrome.',
+      );
     }
 
     isConnecting.value = true;
     try {
-      final accounts = await ethereum!.requestAccount();
+      final accounts = await _requestAccounts();
       _setAccounts(accounts);
       await refreshChainId();
     } catch (e) {
@@ -58,13 +84,31 @@ class WalletConnectService extends GetxController {
     }
   }
 
+  Future<List<String>> _requestAccounts() async {
+    try {
+      final accounts = await ethereum!.request<List<dynamic>>(
+        'eth_requestAccounts',
+        [],
+      );
+      return accounts.map((account) => account.toString()).toList();
+    } catch (e) {
+      final message = e.toString();
+      if (message.contains('4001') || message.contains('rejected')) {
+        throw Exception('Wallet connection request was rejected in MetaMask.');
+      }
+      throw Exception('MetaMask eth_requestAccounts failed: $message');
+    }
+  }
+
   Future<void> ensureBaseSepolia() async {
     if (!isWalletAvailable) {
       throw Exception('MetaMask or another Web3 wallet is not installed');
     }
 
     await refreshChainId();
-    if (chainId.value == baseSepoliaChainId) {
+    if (chainId.value == baseSepoliaChainId ||
+        chainId.value == ganacheChainId ||
+        chainId.value == ganacheDefaultChainId) {
       return;
     }
 
@@ -132,7 +176,7 @@ class WalletConnectService extends GetxController {
 
     final contractAddress = await resolveEasyGameAddress();
     final inviterAddress = _normalizeAddress(
-      inviter?.isNotEmpty == true ? inviter! : easyGameInviter,
+      inviter?.isNotEmpty == true ? inviter! : activeInviter,
     );
     final paymentWei = amountWei ?? await getEasyGameLevelPriceWei(level);
 
@@ -270,18 +314,29 @@ class WalletConnectService extends GetxController {
   }
 
   Future<void> _restoreConnection() async {
+    print("[DEBUG] WalletConnectService: _restoreConnection started.");
     if (!isWalletAvailable) {
+      print(
+          "[DEBUG] WalletConnectService: _restoreConnection - wallet not available.");
       return;
     }
 
     try {
+      print(
+          "[DEBUG] WalletConnectService: _restoreConnection - fetching accounts...");
       _setAccounts(await ethereum!.getAccounts());
+      print(
+          "[DEBUG] WalletConnectService: _restoreConnection - accounts fetched.");
       await refreshChainId();
+      print(
+          "[DEBUG] WalletConnectService: _restoreConnection - chainId refreshed.");
     } catch (e) {
+      print("[DEBUG] WalletConnectService: _restoreConnection - error: $e");
       if (kDebugMode) {
         print('Unable to restore wallet connection: $e');
       }
     }
+    print("[DEBUG] WalletConnectService: _restoreConnection completed.");
   }
 
   void _listenWalletChanges() {

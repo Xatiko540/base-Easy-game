@@ -94,9 +94,15 @@ class ActivateExpressGameScreen extends StatelessWidget {
                         Obx(
                           () => Text(
                             walletService.chainId.value ==
-                                    WalletConnectService.baseSepoliaChainId
-                                ? "Network check(Base Sepolia)"
-                                : "Switch network to Base Sepolia",
+                                        WalletConnectService
+                                            .baseSepoliaChainId ||
+                                    walletService.chainId.value ==
+                                        WalletConnectService.ganacheChainId ||
+                                    walletService.chainId.value ==
+                                        WalletConnectService
+                                            .ganacheDefaultChainId
+                                ? "Network check OK"
+                                : "Switch network to Base Sepolia or Ganache",
                             style: TextStyle(color: Colors.grey, fontSize: 14),
                           ),
                         ),

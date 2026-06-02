@@ -1,10 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/views/levels.dart';
+import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
+import 'package:lottery_advance/app/services/referral_link_service.dart';
+import 'package:lottery_advance/app/services/ui_navigation_service.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 class InviteScreen extends StatelessWidget {
-  const InviteScreen({Key? key}) : super(key: key);
+  final String inviter;
+
+  InviteScreen({Key? key, String? inviter})
+      : inviter = ReferralLinkService.normalizeAddress(
+          inviter ?? ReferralLinkService.inviterFromCurrentUrl(),
+        ),
+        super(key: key);
+
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
 
   @override
   Widget build(BuildContext context) {
+    if (inviter.isNotEmpty) {
+      walletService.setReferralInviter(inviter);
+    }
+
     return Scaffold(
       backgroundColor: Colors.black,
       body: SafeArea(
@@ -25,8 +43,16 @@ class InviteScreen extends StatelessWidget {
                     ),
                   ),
                   ElevatedButton(
-                    onPressed: () {
-                      // Подключение кошелька
+                    onPressed: () async {
+                      try {
+                        await walletService.connectWallet();
+                      } catch (e) {
+                        Get.snackbar(
+                          'Failed to connect wallet',
+                          '$e',
+                          snackPosition: SnackPosition.BOTTOM,
+                        );
+                      }
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Colors.grey[800],
@@ -47,7 +73,9 @@ class InviteScreen extends StatelessWidget {
               child: Column(
                 children: [
                   Text(
-                    "ID: 123456",
+                    inviter.isEmpty
+                        ? "Partner link"
+                        : "Inviter: ${inviter.substring(0, 6)}...${inviter.substring(inviter.length - 4)}",
                     style: TextStyle(
                       color: Colors.yellow,
                       fontSize: 18,
@@ -71,7 +99,12 @@ class InviteScreen extends StatelessWidget {
             // Button "Play Now"
             ElevatedButton(
               onPressed: () {
-                // Действие "Играть сейчас"
+                Get.to(() => RegistrationScreen(
+                      LevelStatus.waiting,
+                      level: 1,
+                      amount: levelPrice(1),
+                      inviter: inviter,
+                    ));
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.green,
@@ -112,9 +145,9 @@ class InviteScreen extends StatelessWidget {
                     SizedBox(height: 16),
                     Text(
                       "1. Follow the partner's referral link.\n"
-                          "2. Connect your Metamask wallet and click 'Play Now'.\n"
-                          "3. Check the inviter ID, select the level and purchase it.\n"
-                          "4. Log in to your account and start the game.",
+                      "2. Connect your Metamask wallet and click 'Play Now'.\n"
+                      "3. Check the inviter ID, select the level and purchase it.\n"
+                      "4. Log in to your account and start the game.",
                       style: TextStyle(color: Colors.grey, fontSize: 14),
                     ),
                     Spacer(),
@@ -122,9 +155,7 @@ class InviteScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         ElevatedButton(
-                          onPressed: () {
-                            // Поддержка
-                          },
+                          onPressed: UiNavigationService.openSupport,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.purple,
                             shape: RoundedRectangleBorder(
@@ -136,9 +167,7 @@ class InviteScreen extends StatelessWidget {
                           child: Text("Support"),
                         ),
                         IconButton(
-                          onPressed: () {
-                            // Настройки или другое действие
-                          },
+                          onPressed: UiNavigationService.openSettings,
                           icon: Icon(Icons.settings, color: Colors.white),
                         ),
                       ],

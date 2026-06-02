@@ -42,8 +42,8 @@ class ContractLinking extends GetxController
   // final String _rpcUrl = "http://192.168.40.193:7545";
   // final String _wsUrl = "ws://192.168.40.193:7545/";
 
-  final String _rpcUrl = "http://127.0.0.1:8545";
-  final String _wsUrl = "ws://127.0.0.1:8545";
+  final String _rpcUrl = "http://127.0.0.1:7545";
+  final String _wsUrl = "ws://127.0.0.1:7545";
 
   late Web3Client _web3client;
   int? _chainId;
@@ -104,22 +104,32 @@ class ContractLinking extends GetxController
   late AnimationController animationController;
 
   Future<void> setup() async {
+    print("[DEBUG] ContractLinking: setup started.");
+    print("[DEBUG] ContractLinking: RPC URL: $_rpcUrl");
+    print("[DEBUG] ContractLinking: WS URL: $_wsUrl");
+    
     _web3client = Web3Client(
       _rpcUrl,
       Client(),
       socketConnector: () {
+        print("[DEBUG] ContractLinking: Connecting WebSocket...");
         return WebSocketChannel.connect(Uri.parse(_wsUrl)).cast<String>();
       },
     );
     try {
+      print("[DEBUG] ContractLinking: Fetching ChainId...");
       _chainId = (await _web3client.getChainId()).toInt();
-    } catch (_) {
+      print("[DEBUG] ContractLinking: ChainId: $_chainId");
+    } catch (e) {
+      print("[DEBUG] ContractLinking: Error fetching ChainId: $e");
       _chainId = null;
     }
     // await getAbi();
     // await getCredentials();
     // await getDeployedContractLotteryGenerator();
+    print("[DEBUG] ContractLinking: Loading users...");
     await loadUsers();
+    print("[DEBUG] ContractLinking: Generating SVG...");
     await generateSvg();
     // await getPlayers();
     // await getLotteryBalance();
@@ -131,6 +141,7 @@ class ContractLinking extends GetxController
     keyController.addListener(() {
       privateKey.value = keyController.text;
     });
+    print("[DEBUG] ContractLinking: setup completed.");
   }
 
   Future<void> getAbi() async {
@@ -678,8 +689,10 @@ class ContractLinking extends GetxController
 
   @override
   Future<void> onInit() async {
+    print("[DEBUG] ContractLinking: onInit started.");
     await setup();
     super.onInit();
+    print("[DEBUG] ContractLinking: onInit completed.");
   }
 
   @override

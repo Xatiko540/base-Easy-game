@@ -80,6 +80,9 @@
   "linkReferences": {},
   "deployedLinkReferences": {},
   "networks": {
+    "1337": {
+      "address": "0x33B14E944Ef6Ec98565915b04f21757815571c2D"
+    },
     "1734673288978": {
       "events": {},
       "links": {},
