@@ -3,7 +3,9 @@ import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/services/notifications_service.dart';
 import 'package:lottery_advance/app/services/contract_events_service.dart';
+import 'package:lottery_advance/app/services/language_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
+import 'package:lottery_advance/app/translations/app_translations.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
 import 'app/modules/controller/lotteries_controller.dart';
@@ -32,45 +34,42 @@ void main() async {
         fenix: true);
     print("[DEBUG] main: WalletConnectService lazyPut completed.");
 
-    NotificationsService? notifications;
-    ContractEventsService? contractEvents;
+    final languageService = Get.put(LanguageService(), permanent: true);
+    languageService.load();
 
-    if (!kIsWeb) {
-      print(
-          "[DEBUG] main: Non-web platform detected. Initializing mobile services...");
-      notifications = NotificationsService();
-      Get.put(notifications, permanent: true);
-      contractEvents = ContractEventsService(
-        walletService: Get.find<WalletConnectService>(),
-        notifications: notifications,
-      );
-      Get.put(contractEvents, permanent: true);
-      print("[DEBUG] main: Mobile services registered.");
-    } else {
-      print("[DEBUG] main: Web platform detected.");
-    }
+    final notifications = NotificationsService();
+    Get.put(notifications, permanent: true);
+    final contractEvents = ContractEventsService(
+      walletService: Get.find<WalletConnectService>(),
+      notifications: notifications,
+    );
+    Get.put(contractEvents, permanent: true);
+    print(kIsWeb
+        ? "[DEBUG] main: Web services registered."
+        : "[DEBUG] main: Mobile services registered.");
 
     print("[DEBUG] main: Running runApp...");
     runApp(
       GetMaterialApp(
-        title: "Easy game",
+        title: "Easy Games",
         initialRoute: ReferralLinkService.isReferralEntryUri(Uri.base)
             ? Routes.INVITE
             : AppPages.INITIAL,
         getPages: AppPages.routes,
+        translations: AppTranslations(),
+        locale: languageService.locale,
+        fallbackLocale: const Locale('en'),
         defaultTransition: Transition.fadeIn,
         theme: lightTheme,
         darkTheme: darkTheme,
         debugShowCheckedModeBanner: false,
-        themeMode: ThemeMode.system,
+        themeMode: ThemeMode.dark,
       ),
     );
     print("[DEBUG] main: runApp executed.");
 
-    if (!kIsWeb && notifications != null && contractEvents != null) {
-      print("[DEBUG] main: Initializing background services...");
-      _initializeBackgroundServices(notifications, contractEvents);
-    }
+    print("[DEBUG] main: Initializing background services...");
+    _initializeBackgroundServices(notifications, contractEvents);
   } catch (e, stacktrace) {
     print("[DEBUG] main: FATAL ERROR during initialization: $e");
     print("[DEBUG] main: Stacktrace: $stacktrace");

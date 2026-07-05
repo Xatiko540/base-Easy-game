@@ -39,13 +39,18 @@ function updateAppArtifact(contractName, chainId, address) {
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
   const network = await hre.ethers.provider.getNetwork();
+  const projectWallet = process.env.PROJECT_WALLET || deployer.address;
   const treasuryAddress = process.env.TREASURY_ADDRESS || deployer.address;
-  const operatorWallet = process.env.OPERATOR_WALLET || treasuryAddress;
+  const operatorWallet = process.env.OPERATOR_WALLET || deployer.address;
+  const usdcAddress =
+    process.env.USDC_ADDRESS || "0x0000000000000000000000000000000000000000";
 
   console.log(`Deploying with account: ${deployer.address}`);
   console.log(`Network: ${network.name} (${network.chainId})`);
+  console.log(`Project wallet: ${projectWallet}`);
   console.log(`Treasury: ${treasuryAddress}`);
   console.log(`Operator wallet: ${operatorWallet}`);
+  console.log(`USDC token: ${usdcAddress}`);
 
   const LotteryGenerator = await hre.ethers.getContractFactory(
     "LotteryGenerator"
@@ -58,20 +63,21 @@ async function main() {
 
   updateAppArtifact("LotteryGenerator", network.chainId, address);
 
-  const EasyGame = await hre.ethers.getContractFactory("EasyGame");
-  const easyGame = await EasyGame.deploy(treasuryAddress);
+  const EasyGameAdvance = await hre.ethers.getContractFactory(
+    "EasyGameAdvance"
+  );
+  const easyGame = await EasyGameAdvance.deploy(
+    projectWallet,
+    treasuryAddress,
+    operatorWallet,
+    usdcAddress
+  );
   await easyGame.waitForDeployment();
 
   const easyGameAddress = await easyGame.getAddress();
-  console.log(`EasyGame deployed to: ${easyGameAddress}`);
+  console.log(`EasyGameAdvance deployed to: ${easyGameAddress}`);
 
-  if (operatorWallet !== treasuryAddress) {
-    const tx = await easyGame.setOperatorWallet(operatorWallet);
-    await tx.wait();
-    console.log(`EasyGame operator wallet set to: ${operatorWallet}`);
-  }
-
-  updateAppArtifact("EasyGame", network.chainId, easyGameAddress);
+  updateAppArtifact("EasyGameAdvance", network.chainId, easyGameAddress);
 }
 
 main().catch((error) => {

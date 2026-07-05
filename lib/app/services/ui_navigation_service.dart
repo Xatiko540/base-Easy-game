@@ -1,8 +1,17 @@
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/modules/home/views/utility_screens.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UiNavigationService {
+  static void openLevels() {
+    Get.to(() => const LevelsScreen());
+  }
+
+  static void openMatrix() {
+    Get.to(() => MatrixArenaScreen());
+  }
+
   static void openStatistics() {
     Get.to(() => StatisticsScreen());
   }

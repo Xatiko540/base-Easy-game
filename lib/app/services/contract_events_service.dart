@@ -22,14 +22,14 @@ class ContractEventsService extends GetxController {
   Future<void> init({String? rpcUrl, String? wsUrl}) async {
     // Determine RPC URL - prefer provided, then env, then default
     final envRpc = const String.fromEnvironment('WEB3_RPC');
-    final rpc =
-        rpcUrl ?? (envRpc.isNotEmpty ? envRpc : 'http://127.0.0.1:7545');
+    final rpc = rpcUrl ??
+        (envRpc.isNotEmpty ? envRpc : walletService.targetNetwork.rpcUrl);
 
     _client = Web3Client(rpc, Client());
 
-    final artifact =
-        jsonDecode(await rootBundle.loadString('src/artifacts/EasyGame.json'))
-            as Map<String, dynamic>;
+    final artifact = jsonDecode(
+      await rootBundle.loadString('src/artifacts/EasyGameAdvance.json'),
+    ) as Map<String, dynamic>;
     final abi = artifact['abi'];
 
     // Resolve contract address via wallet service (falls back to artifact networks)
@@ -44,22 +44,31 @@ class ContractEventsService extends GetxController {
     }
 
     _contract = DeployedContract(
-        ContractAbi.fromJson(jsonEncode(abi), 'EasyGame'),
+        ContractAbi.fromJson(jsonEncode(abi), 'EasyGameAdvance'),
         EthereumAddress.fromHex(address.toString()));
 
     _eventSubscriptions = <String, StreamSubscription>{};
 
     const eventNames = <String>[
       'LevelActivated',
+      'PaymentSplit',
+      'ProjectFeeAccrued',
       'MatrixPlaced',
-      'MatrixRewardPaid',
-      'ReferralPaid',
+      'ReferralBonusAdded',
+      'SecondLineBonusAdded',
+      'ThirdLineBonusAdded',
+      'WeightUpdated',
       'Recycled',
+      'BoxTokenGranted',
+      'PrizePositionReached',
+      'DrawRequested',
+      'DrawWon',
+      'ReferralBonusClaimed',
+      'PrizeClaimed',
       'LevelFrozen',
       'LevelUnfrozen',
       'LevelPriceChanged',
-      'TreasuryChanged',
-      'OperatorWalletChanged',
+      'WalletsChanged',
     ];
 
     for (final name in eventNames) {
@@ -97,21 +106,25 @@ class ContractEventsService extends GetxController {
         return _formatLevelActivated(decoded);
       case 'MatrixPlaced':
         return _formatMatrixPlaced(decoded);
-      case 'MatrixRewardPaid':
-        return _formatMatrixRewardPaid(decoded);
-      case 'ReferralPaid':
+      case 'PaymentSplit':
+        return _formatPaymentSplit(decoded);
+      case 'ReferralBonusAdded':
+      case 'SecondLineBonusAdded':
+      case 'ThirdLineBonusAdded':
         return _formatReferralPaid(decoded);
       case 'Recycled':
         return _formatRecycled(decoded);
+      case 'PrizePositionReached':
+        return _formatPrizePosition(decoded);
+      case 'DrawWon':
+        return _formatDrawWon(decoded);
       case 'LevelFrozen':
       case 'LevelUnfrozen':
         return _formatStatusChange(decoded);
       case 'LevelPriceChanged':
         return _formatLevelPriceChanged(decoded);
-      case 'TreasuryChanged':
-        return _formatTreasuryChanged(decoded);
-      case 'OperatorWalletChanged':
-        return _formatOperatorWalletChanged(decoded);
+      case 'ProjectFeeAccrued':
+        return _formatProjectFeeAccrued(decoded);
       default:
         return decoded.map((item) => item.toString()).join(', ');
     }
@@ -122,8 +135,8 @@ class ContractEventsService extends GetxController {
     final player = decoded[0].toString();
     final level = _asInt(decoded[1]);
     final amount = _weiToEth(_asBigInt(decoded[2]));
-    final inviter = decoded[3].toString();
-    return 'Player $player activated level $level paying $amount ETH. Inviter: ${inviter.isNotEmpty ? inviter : 'none'}';
+    final cellId = _asInt(decoded[3]);
+    return 'Player $player activated level $level paying $amount ETH. Cell: $cellId';
   }
 
   String _formatMatrixPlaced(List<dynamic> decoded) {
@@ -135,22 +148,26 @@ class ContractEventsService extends GetxController {
     return 'Player $player placed in level $level at position $positionId under parent $parentId';
   }
 
-  String _formatMatrixRewardPaid(List<dynamic> decoded) {
-    if (decoded.length < 4) return decoded.join(', ');
-    final from = decoded[0].toString();
-    final to = decoded[1].toString();
-    final level = _asInt(decoded[2]);
-    final amount = _weiToEth(_asBigInt(decoded[3]));
-    return 'Reward from $from to $to for level $level: $amount ETH';
+  String _formatPaymentSplit(List<dynamic> decoded) {
+    if (decoded.length < 7) return decoded.join(', ');
+    final player = decoded[0].toString();
+    final level = _asInt(decoded[1]);
+    final pool = _weiToEth(_asBigInt(decoded[2]));
+    final direct = _weiToEth(_asBigInt(decoded[3]));
+    final second = _weiToEth(_asBigInt(decoded[4]));
+    final third = _weiToEth(_asBigInt(decoded[5]));
+    final fee = _weiToEth(_asBigInt(decoded[6]));
+    return 'Payment split for $player level $level: pool $pool, refs $direct/$second/$third, fee $fee ETH';
   }
 
   String _formatReferralPaid(List<dynamic> decoded) {
-    if (decoded.length < 4) return decoded.join(', ');
-    final player = decoded[0].toString();
-    final receiver = decoded[1].toString();
-    final line = _asInt(decoded[2]);
+    if (decoded.length < 5) return decoded.join(', ');
+    final inviter = decoded[0].toString();
+    final invitee = decoded[1].toString();
+    final level = _asInt(decoded[2]);
     final amount = _weiToEth(_asBigInt(decoded[3]));
-    return 'Referral payment for $player to $receiver line $line: $amount ETH';
+    final weight = _asBigInt(decoded[4]);
+    return 'Referral bonus to $inviter from $invitee on level $level: $amount ETH, +$weight weight';
   }
 
   String _formatRecycled(List<dynamic> decoded) {
@@ -160,6 +177,33 @@ class ContractEventsService extends GetxController {
     final cycle = _asInt(decoded[2]);
     final newPositionId = _asInt(decoded[3]);
     return 'Player $player recycled on level $level, cycle $cycle, new position $newPositionId';
+  }
+
+  String _formatPrizePosition(List<dynamic> decoded) {
+    if (decoded.length < 5) return decoded.join(', ');
+    final player = decoded[0].toString();
+    final level = _asInt(decoded[1]);
+    final cellId = _asInt(decoded[2]);
+    final amount = _weiToEth(_asBigInt(decoded[3]));
+    final pending = decoded[4].toString();
+    return 'Prize cell $cellId reached by $player on level $level: $amount ETH, pending: $pending';
+  }
+
+  String _formatDrawWon(List<dynamic> decoded) {
+    if (decoded.length < 4) return decoded.join(', ');
+    final winner = decoded[0].toString();
+    final level = _asInt(decoded[1]);
+    final amount = _weiToEth(_asBigInt(decoded[2]));
+    final pending = decoded[3].toString();
+    return 'Weighted draw winner $winner on level $level: $amount ETH, pending: $pending';
+  }
+
+  String _formatProjectFeeAccrued(List<dynamic> decoded) {
+    if (decoded.length < 3) return decoded.join(', ');
+    final level = _asInt(decoded[0]);
+    final amount = _weiToEth(_asBigInt(decoded[1]));
+    final total = _weiToEth(_asBigInt(decoded[2]));
+    return 'Project fee accrued on level $level: $amount ETH, total $total ETH';
   }
 
   String _formatStatusChange(List<dynamic> decoded) {
@@ -175,20 +219,6 @@ class ContractEventsService extends GetxController {
     final oldPrice = _weiToEth(_asBigInt(decoded[1]));
     final newPrice = _weiToEth(_asBigInt(decoded[2]));
     return 'Level $level price changed from $oldPrice ETH to $newPrice ETH';
-  }
-
-  String _formatTreasuryChanged(List<dynamic> decoded) {
-    if (decoded.length < 2) return decoded.join(', ');
-    final oldTreasury = decoded[0].toString();
-    final newTreasury = decoded[1].toString();
-    return 'Treasury changed from $oldTreasury to $newTreasury';
-  }
-
-  String _formatOperatorWalletChanged(List<dynamic> decoded) {
-    if (decoded.length < 2) return decoded.join(', ');
-    final oldOperatorWallet = decoded[0].toString();
-    final newOperatorWallet = decoded[1].toString();
-    return 'Operator wallet changed from $oldOperatorWallet to $newOperatorWallet';
   }
 
   BigInt _asBigInt(dynamic value) {

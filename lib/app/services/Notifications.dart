@@ -1,22 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 class NotificationsBottomSheet extends StatelessWidget {
   const NotificationsBottomSheet({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final currency = Get.isRegistered<WalletConnectService>()
+        ? Get.find<WalletConnectService>().nativeSymbol
+        : 'ETH';
     final notifications = [
       {
-        "title": "+ 0.1036 base received!",
-        "subtitle": "Easy Game , level 4 от ID 310375",
+        "title": "+ 0.1036 $currency received!",
+        "subtitle": "Easy Games , level 4 от ID 310375",
         "description": "Congratulations!",
         "time": "1 minute",
         "icon": Icons.card_giftcard,
         "iconColor": Colors.greenAccent,
       },
       {
-        "title": "+ 0.0182 Affiliate base bonus received!",
-        "subtitle": "Easy Game, level 4 от ID 310112",
+        "title": "+ 0.0182 Affiliate $currency bonus received!",
+        "subtitle": "Easy Games, level 4 от ID 310112",
         "description": "Congratulations!",
         "time": "about 1 hour",
         "icon": Icons.people,
@@ -66,7 +71,8 @@ class NotificationsBottomSheet extends StatelessWidget {
                     children: [
                       CircleAvatar(
                         backgroundColor: notification["iconColor"] as Color,
-                        child: Icon(notification["icon"] as IconData, color: Colors.white),
+                        child: Icon(notification["icon"] as IconData,
+                            color: Colors.white),
                       ),
                       SizedBox(width: 12),
                       Expanded(
@@ -84,12 +90,15 @@ class NotificationsBottomSheet extends StatelessWidget {
                             SizedBox(height: 4),
                             Text(
                               notification["subtitle"] as String,
-                              style: TextStyle(color: Colors.grey, fontSize: 14),
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 14),
                             ),
-                            if ((notification["description"] as String).isNotEmpty)
+                            if ((notification["description"] as String)
+                                .isNotEmpty)
                               Text(
                                 notification["description"] as String,
-                                style: TextStyle(color: Colors.grey, fontSize: 12),
+                                style:
+                                    TextStyle(color: Colors.grey, fontSize: 12),
                               ),
                           ],
                         ),

@@ -1,0 +1,119 @@
+part of '../views/start_page.dart';
+
+class _StartTimerStrip extends StatelessWidget {
+  const _StartTimerStrip();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: EasyGameTheme.purple.withValues(alpha: 0.58),
+          borderRadius: BorderRadius.circular(0),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.timer, color: Colors.white, size: 15),
+            SizedBox(width: 8),
+            Text(
+              'Level 1 available in: 04d 00h 00m',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FeatureGrid extends StatelessWidget {
+  const _FeatureGrid();
+
+  @override
+  Widget build(BuildContext context) {
+    const items = [
+      _FeatureItem(
+          Icons.shield_outlined, 'start.smartContract', 'start.onChain'),
+      _FeatureItem(
+          Icons.trending_up, 'start.levelsCount', 'start.weightedMatrix'),
+      _FeatureItem(Icons.groups_2_outlined, '67 000+', 'start.activeNetwork'),
+      _FeatureItem(Icons.bolt_outlined, '100%', 'start.walletPayouts'),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth < 640 ? 2 : 4;
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: items.length,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: constraints.maxWidth < 640 ? 1.45 : 1.7,
+          ),
+          itemBuilder: (context, index) => _FeatureCard(item: items[index]),
+        );
+      },
+    );
+  }
+}
+
+class _FeatureCard extends StatelessWidget {
+  final _FeatureItem item;
+
+  const _FeatureCard({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: EasyGameTheme.surface.withValues(alpha: 0.78),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: EasyGameTheme.purple.withValues(alpha: 0.22),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(item.icon, color: EasyGameTheme.tealSoft, size: 25),
+          ),
+          const SizedBox(height: 14),
+          Text(
+            item.title.tr,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            item.subtitle.tr,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white38,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

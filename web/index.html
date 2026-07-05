@@ -18,20 +18,94 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="Easy game">
+  <meta name="description" content="Easy Games">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="Easy game">
+  <meta name="apple-mobile-web-app-title" content="Easy Games">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>Lotter Advance DAap</title>
+  <title>Easy Games</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://unpkg.com/@base-org/account/dist/base-account.min.js"></script>
+  <script>
+    window.easyGameBaseAccount = {
+      provider: null,
+      pendingNonce: window.crypto.randomUUID().replace(/-/g, ''),
+      getProvider(chainId, appName, appLogoUrl) {
+        if (!window.createBaseAccountSDK) {
+          throw new Error('Base Account SDK is not loaded');
+        }
+        if (!this.provider) {
+          this.provider = window.createBaseAccountSDK({
+            appName: appName || 'Easy Games',
+            appLogoUrl: appLogoUrl || '',
+            appChainIds: [Number(chainId)],
+          }).getProvider();
+        }
+        return this.provider;
+      },
+      async signIn(chainId, appName, appLogoUrl) {
+        const targetChainId = Number(chainId);
+        const chainHex = `0x${targetChainId.toString(16)}`;
+        const provider = this.getProvider(targetChainId, appName, appLogoUrl);
+        try {
+          await provider.request({
+            method: 'wallet_switchEthereumChain',
+            params: [{ chainId: chainHex }],
+          });
+        } catch (_) {
+          // Base Account SDK is already scoped by appChainIds. Some providers
+          // do not need or support an explicit switch before wallet_connect.
+        }
+        const nonce = this.pendingNonce || window.crypto.randomUUID().replace(/-/g, '');
+        this.pendingNonce = window.crypto.randomUUID().replace(/-/g, '');
+        try {
+          const { accounts } = await provider.request({
+            method: 'wallet_connect',
+            params: [{
+              version: '1',
+              capabilities: {
+                signInWithEthereum: {
+                  nonce,
+                  chainId: chainHex,
+                },
+              },
+            }],
+          });
+          const account = accounts[0];
+          const auth = account.capabilities.signInWithEthereum;
+          return {
+            provider: 'base_account',
+            address: account.address,
+            message: auth.message,
+            signature: auth.signature,
+            nonce,
+            chainId: targetChainId,
+          };
+        } catch (error) {
+          const message = String(error && error.message ? error.message : error);
+          if (/Cross-Origin-Opener-Policy|COOP|popup/i.test(message)) {
+            throw new Error(
+              `${message}. Serve Easy Games with Cross-Origin-Opener-Policy: same-origin-allow-popups.`
+            );
+          }
+          throw error;
+        }
+      },
+      async request(method, params) {
+        if (!this.provider) {
+          throw new Error('Base Account is not connected');
+        }
+        return await this.provider.request({ method, params: params || [] });
+      },
+    };
+  </script>
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>

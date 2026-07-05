@@ -1,7 +1,13 @@
 const fs = require("fs");
 const path = require("path");
 
-const contracts = ["EasyGame", "Lottery", "LotteryGenerator", "Migrations"];
+const contracts = [
+  "EasyGame",
+  "EasyGameAdvance",
+  "Lottery",
+  "LotteryGenerator",
+  "Migrations",
+];
 
 for (const contractName of contracts) {
   const hardhatArtifactPath = path.join(

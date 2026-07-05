@@ -54,8 +54,8 @@ class HomeView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Connection via Wallet',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        title: Text('home.connectionViaWallet'.tr,
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
         centerTitle: true,
         // backgroundColor: Colors.blue,
         backgroundColor: primaryColor,
@@ -257,12 +257,14 @@ class HomeView extends StatelessWidget {
                     return Column(
                       children: [
                         Text(
-                            'Wallet address: ${_walletService.currentAddress.value}',
+                            'home.walletAddress'.trParams({
+                              'address': _walletService.currentAddress.value
+                            }),
                             textAlign: TextAlign.center),
                         const SizedBox(height: 20),
                         ElevatedButton(
                           onPressed: _walletService.disconnectWallet,
-                          child: const Text('Disable wallet'),
+                          child: Text('home.disableWallet'.tr),
                         ),
                       ],
                     );
@@ -270,12 +272,15 @@ class HomeView extends StatelessWidget {
                     return ElevatedButton(
                       onPressed: () async {
                         try {
-                          await _walletService.connectWallet();
+                          await _walletService.connectBaseAccount();
                         } catch (e) {
-                          Get.snackbar('Error', 'Failed to connect wallet');
+                          Get.snackbar(
+                            'common.error'.tr,
+                            'home.failedConnectWallet'.tr,
+                          );
                         }
                       },
-                      child: const Text('Connect wallet'),
+                      child: Text('top.signInBase'.tr),
                     );
                   }
                 }),

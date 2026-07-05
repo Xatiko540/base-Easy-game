@@ -45,6 +45,16 @@ dependencies:
   flutter_web3: ^2.1.9
   web_socket_channel: ^3.0.3
   flutter_local_notifications: ^12.0.4
+  qr: ^4.0.0
+  crypto: ^3.0.7
+  firebase_core: ^4.11.0
+  firebase_core_web: ^3.9.0
+  firebase_messaging: ^16.4.1
+  firebase_messaging_web: ^4.2.1
+  firebase_app_check: ^0.4.5
+  firebase_analytics: ^12.4.3
+  firebase_storage: ^13.4.3
+  cloud_functions: ^6.3.3
 
 
 dependency_overrides:
@@ -79,6 +89,7 @@ flutter:
     - src/artifacts/Lottery.json
     - src/artifacts/LotteryGenerator.json
     - src/artifacts/EasyGame.json
+    - assets/info/
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

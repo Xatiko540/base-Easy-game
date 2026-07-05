@@ -1,0 +1,276 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "./base/Types.sol";
+import "./base/Errors.sol";
+import "./base/Validation.sol";
+import "./base/Storage.sol";
+import "./base/GameLogic.sol";
+import "./base/AdminInterface.sol";
+
+contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface {
+
+    event LevelActivated(
+        address indexed player,
+        uint8 indexed level,
+        uint256 value,
+        uint256 cellId
+    );
+    event ProjectFeesWithdrawn(address indexed wallet, uint256 amount);
+    event TokenProjectFeesWithdrawn(address indexed token, address indexed wallet, uint256 amount);
+    event DrawRequested(
+        uint8 indexed level,
+        uint256 randomSeed,
+        uint256 totalWeight
+    );
+    event DrawWon(
+        address indexed winner,
+        uint8 indexed level,
+        uint256 amount,
+        bool pending
+    );
+    event TokenDrawWon(
+        address indexed winner,
+        uint8 indexed level,
+        address indexed token,
+        uint256 amount,
+        bool pending
+    );
+    event ReferralBonusClaimed(address indexed player, uint256 amount);
+    event PrizeClaimed(address indexed player, uint8 indexed level, uint256 amount);
+    event TokenReferralBonusClaimed(address indexed player, address indexed token, uint256 amount);
+    event TokenPrizeClaimed(address indexed player, address indexed token, uint8 indexed level, uint256 amount);
+    constructor(
+        address projectWallet_,
+        address treasuryWallet_,
+        address operatorWallet_,
+        address usdcToken_
+    ) {
+        if (projectWallet_ == address(0)) revert ZeroAddress();
+        if (treasuryWallet_ == address(0)) revert ZeroAddress();
+        if (operatorWallet_ == address(0)) revert ZeroAddress();
+        if (usdcToken_ == address(0)) revert ZeroAddress();
+
+        owner = msg.sender;
+        projectWallet = projectWallet_;
+        treasuryWallet = treasuryWallet_;
+        operatorWallet = operatorWallet_;
+        usdcToken = IERC20Minimal(usdcToken_);
+
+        levelPrices[1] = 0.05 ether;
+        levelPrices[2] = 0.07 ether;
+        levelPrices[3] = 0.1 ether;
+        levelPrices[4] = 0.14 ether;
+        levelPrices[5] = 0.2 ether;
+        levelPrices[6] = 0.28 ether;
+        levelPrices[7] = 0.4 ether;
+        levelPrices[8] = 0.55 ether;
+        levelPrices[9] = 0.8 ether;
+        levelPrices[10] = 1.1 ether;
+        levelPrices[11] = 1.6 ether;
+        levelPrices[12] = 2.2 ether;
+        levelPrices[13] = 3.2 ether;
+        levelPrices[14] = 4.4 ether;
+        levelPrices[15] = 6.5 ether;
+        levelPrices[16] = 8 ether;
+        levelPrices[17] = 12 ether;
+
+        levelPricesUsdc[1] = 50000;
+        levelPricesUsdc[2] = 70000;
+        levelPricesUsdc[3] = 100000;
+        levelPricesUsdc[4] = 140000;
+        levelPricesUsdc[5] = 200000;
+        levelPricesUsdc[6] = 280000;
+        levelPricesUsdc[7] = 400000;
+        levelPricesUsdc[8] = 550000;
+        levelPricesUsdc[9] = 800000;
+        levelPricesUsdc[10] = 1100000;
+        levelPricesUsdc[11] = 1600000;
+        levelPricesUsdc[12] = 2200000;
+        levelPricesUsdc[13] = 3200000;
+        levelPricesUsdc[14] = 4400000;
+        levelPricesUsdc[15] = 6500000;
+        levelPricesUsdc[16] = 8000000;
+        levelPricesUsdc[17] = 12000000;
+
+        for (uint8 level = 3; level <= LEVEL_COUNT; level++) {
+            levelAvailable[level] = true;
+        }
+    }
+
+    receive() external payable {
+        revert("Use activateLevel");
+    }
+
+    function activateLevel(uint8 level, address inviter) external payable nonReentrant {
+        _validateLevel(level);
+        require(levelAvailable[level], "Level is not available yet");
+        require(msg.value == levelPrices[level], "Incorrect payment amount");
+
+        uint256 cellId = _activateLevelState(level, msg.sender, inviter);
+        _splitPayment(level, msg.sender, msg.value);
+
+        emit LevelActivated(msg.sender, level, msg.value, cellId);
+    }
+
+    function activateLevelWithUSDC(uint8 level, address inviter) external nonReentrant {
+        _validateLevel(level);
+        require(levelAvailable[level], "Level is not available yet");
+        require(address(usdcToken) != address(0), "USDC token not configured");
+
+        uint256 amount = levelPricesUsdc[level];
+        require(amount > 0, "USDC price is not configured");
+        require(
+            usdcToken.transferFrom(msg.sender, address(this), amount),
+            "USDC transfer failed"
+        );
+
+        uint256 cellId = _activateLevelState(level, msg.sender, inviter);
+        _splitUsdcPayment(level, msg.sender, amount);
+
+        emit LevelActivated(msg.sender, level, amount, cellId);
+    }
+
+    function _activateLevelState(uint8 level, address playerAddress, address inviter)
+        private
+        returns (uint256 cellId)
+    {
+        Player storage player = players[playerAddress];
+        PlayerLevel storage state = playerLevels[playerAddress][level];
+        require(!state.active, "Level is already active");
+
+        _registerPlayer(player, playerAddress, inviter);
+
+        state.active = true;
+        state.frozen = false;
+        state.tickets += 1;
+        player.totalTickets += 1;
+        player.lastActiveAt = block.timestamp;
+
+        cellId = _placePlayer(level, playerAddress);
+        _addWeight(playerAddress, level, BASE_ACTIVATION_WEIGHT, 0);
+        _unfreezeLowerLevels(playerAddress, level);
+    }
+
+    function claimReferralBonus() external nonReentrant {
+        uint256 amount = players[msg.sender].claimableReferralBonus;
+        require(amount > 0, "No referral bonus");
+
+        players[msg.sender].claimableReferralBonus = 0;
+        _safeTransfer(payable(msg.sender), amount);
+
+        emit ReferralBonusClaimed(msg.sender, amount);
+    }
+
+    function claimReferralBonusUSDC() external nonReentrant {
+        uint256 amount = claimableReferralBonusUsdc[msg.sender];
+        require(amount > 0, "No USDC referral bonus");
+        require(address(usdcToken) != address(0), "USDC token not configured");
+
+        claimableReferralBonusUsdc[msg.sender] = 0;
+        _safeTransferToken(usdcToken, msg.sender, amount);
+
+        emit TokenReferralBonusClaimed(msg.sender, address(usdcToken), amount);
+    }
+
+    function claimPrize(uint8 level) external nonReentrant {
+        _validateLevel(level);
+        PlayerLevel storage state = playerLevels[msg.sender][level];
+        require(!state.frozen, "Level is frozen");
+
+        uint256 amount = state.claimablePrize;
+        require(amount > 0, "No prize");
+
+        state.claimablePrize = 0;
+        players[msg.sender].claimablePrize -= amount;
+        _safeTransfer(payable(msg.sender), amount);
+
+        emit PrizeClaimed(msg.sender, level, amount);
+    }
+
+    function claimPrizeUSDC(uint8 level) external nonReentrant {
+        _validateLevel(level);
+        require(address(usdcToken) != address(0), "USDC token not configured");
+        PlayerLevel storage state = playerLevels[msg.sender][level];
+        require(!state.frozen, "Level is frozen");
+
+        uint256 amount = claimablePrizeUsdcByLevel[msg.sender][level];
+        require(amount > 0, "No USDC prize");
+
+        claimablePrizeUsdcByLevel[msg.sender][level] = 0;
+        claimablePrizeUsdc[msg.sender] -= amount;
+        _safeTransferToken(usdcToken, msg.sender, amount);
+
+        emit TokenPrizeClaimed(msg.sender, address(usdcToken), level, amount);
+    }
+
+    function withdrawProjectFees() external onlyOwner nonReentrant {
+        uint256 amount = projectFeesAccrued;
+        require(amount > 0, "No project fees");
+
+        projectFeesAccrued = 0;
+        _safeTransfer(payable(projectWallet), amount);
+
+        emit ProjectFeesWithdrawn(projectWallet, amount);
+    }
+
+    function withdrawProjectFeesUSDC() external onlyOwner nonReentrant {
+        require(address(usdcToken) != address(0), "USDC token not configured");
+        uint256 amount = projectFeesAccruedUsdc;
+        require(amount > 0, "No USDC project fees");
+
+        projectFeesAccruedUsdc = 0;
+        _safeTransferToken(usdcToken, projectWallet, amount);
+
+        emit TokenProjectFeesWithdrawn(address(usdcToken), projectWallet, amount);
+    }
+
+    function requestDraw(uint8 level) external onlyOwner nonReentrant {
+        _validateLevel(level);
+
+        uint256 totalWeight = totalWeightByLevel[level];
+        require(totalWeight > 0, "No weight");
+
+        uint256 reward = (matrixPrizePools[level] * DRAW_REWARD_BPS) / BPS;
+        uint256 usdcReward = (matrixPrizePoolsUsdc[level] * DRAW_REWARD_BPS) / BPS;
+        require(reward > 0 || usdcReward > 0, "No draw reward");
+
+        uint256 randomSeed = uint256(
+            keccak256(
+                abi.encodePacked(
+                    block.prevrandao,
+                    block.timestamp,
+                    block.number,
+                    level,
+                    totalWeight,
+                    matrixPrizePools[level]
+                )
+            )
+        );
+        uint256 winningPoint = (randomSeed % totalWeight) + 1;
+        address winner = _weightedWinner(level, winningPoint);
+        require(winner != address(0), "Winner not found");
+
+        if (reward > 0) {
+            matrixPrizePools[level] -= reward;
+            _creditPrize(winner, level, reward);
+        }
+        if (usdcReward > 0) {
+            matrixPrizePoolsUsdc[level] -= usdcReward;
+            _creditPrizeUsdc(winner, level, usdcReward);
+        }
+
+        emit DrawRequested(level, randomSeed, totalWeight);
+        emit DrawWon(winner, level, reward, playerLevels[winner][level].frozen);
+        if (usdcReward > 0) {
+            emit TokenDrawWon(
+                winner,
+                level,
+                address(usdcToken),
+                usdcReward,
+                playerLevels[winner][level].frozen
+            );
+        }
+    }
+
+}

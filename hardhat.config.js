@@ -2,6 +2,7 @@ require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config(); // Загружаем переменные окружения из .env
 
 const MNEMONIC = process.env.MNEMONIC;
+const BASE_RPC_URL = process.env.BASE_RPC_URL || "https://mainnet.base.org";
 const BASE_SEPOLIA_RPC_URL = process.env.BASE_SEPOLIA_RPC_URL || "";
 const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || "";
 
@@ -9,6 +10,7 @@ module.exports = {
   solidity: {
     version: "0.8.24",
     settings: {
+      viaIR: true,
       optimizer: {
         enabled: true,
         runs: 200,
@@ -16,6 +18,11 @@ module.exports = {
     },
   },
   networks: {
+    base: {
+      url: BASE_RPC_URL,
+      accounts: MNEMONIC ? { mnemonic: MNEMONIC } : [],
+      chainId: 8453,
+    },
     baseSepolia: {
       url: BASE_SEPOLIA_RPC_URL,
       accounts: MNEMONIC ? { mnemonic: MNEMONIC } : [],
@@ -29,6 +36,7 @@ module.exports = {
   },
   etherscan: {
     apiKey: {
+      base: BASESCAN_API_KEY,
       baseSepolia: BASESCAN_API_KEY,
     },
   },

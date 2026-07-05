@@ -2,20 +2,19 @@
 pragma solidity ^0.8.24;
 
 contract EasyGame {
-    uint8 public constant LEVEL_COUNT = 17;
-    uint16 private constant MATRIX_REWARD_BPS = 8000;
-    uint16 private constant DIRECT_BONUS_BPS = 950;
-    uint16 private constant OPERATOR_FEE_BPS = 50;
-    uint16 private constant SECOND_LINE_BONUS_BPS = 600;
-    uint16 private constant THIRD_LINE_BONUS_BPS = 400;
+    uint8 public constant LEVEL_COUNT = 16;
+    uint16 private constant BASE_REWARD_BPS = 7400;
+    uint16 private constant FIRST_LINE_BONUS_BPS = 1300;
+    uint16 private constant SECOND_LINE_BONUS_BPS = 800;
+    uint16 private constant THIRD_LINE_BONUS_BPS = 500;
     uint16 private constant BPS_DENOMINATOR = 10000;
 
     address public owner;
     address payable public treasury;
-    address payable public operatorWallet;
 
     mapping(uint8 => uint256) public levelPrices;
     mapping(uint8 => uint256) public levelMatrixSize;
+    mapping(uint8 => bool) public levelAvailable;
 
     mapping(address => Player) private players;
     mapping(address => mapping(uint8 => PlayerLevel)) private playerLevels;
@@ -58,6 +57,12 @@ contract EasyGame {
         uint256 positionId,
         uint256 parentId
     );
+    event BaseRewardPaid(
+        address indexed from,
+        address indexed to,
+        uint8 indexed level,
+        uint256 amount
+    );
     event MatrixRewardPaid(
         address indexed from,
         address indexed to,
@@ -79,8 +84,8 @@ contract EasyGame {
     event LevelFrozen(address indexed player, uint8 indexed level);
     event LevelUnfrozen(address indexed player, uint8 indexed level);
     event LevelPriceChanged(uint8 indexed level, uint256 oldPrice, uint256 newPrice);
+    event LevelAvailabilityChanged(uint8 indexed level, bool available);
     event TreasuryChanged(address indexed oldTreasury, address indexed newTreasury);
-    event OperatorWalletChanged(address indexed oldOperatorWallet, address indexed newOperatorWallet);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function");
@@ -92,25 +97,27 @@ contract EasyGame {
 
         owner = msg.sender;
         treasury = treasuryAddress;
-        operatorWallet = treasuryAddress;
 
-        levelPrices[1] = 0.01 ether;
-        levelPrices[2] = 0.015 ether;
-        levelPrices[3] = 0.02 ether;
-        levelPrices[4] = 0.03 ether;
-        levelPrices[5] = 0.04 ether;
-        levelPrices[6] = 0.06 ether;
-        levelPrices[7] = 0.09 ether;
-        levelPrices[8] = 0.13 ether;
-        levelPrices[9] = 0.2 ether;
-        levelPrices[10] = 0.3 ether;
-        levelPrices[11] = 0.4 ether;
-        levelPrices[12] = 0.6 ether;
-        levelPrices[13] = 0.9 ether;
-        levelPrices[14] = 1.3 ether;
-        levelPrices[15] = 2 ether;
-        levelPrices[16] = 3 ether;
-        levelPrices[17] = 4 ether;
+        levelPrices[1] = 0.05 ether;
+        levelPrices[2] = 0.07 ether;
+        levelPrices[3] = 0.1 ether;
+        levelPrices[4] = 0.14 ether;
+        levelPrices[5] = 0.2 ether;
+        levelPrices[6] = 0.28 ether;
+        levelPrices[7] = 0.4 ether;
+        levelPrices[8] = 0.55 ether;
+        levelPrices[9] = 0.8 ether;
+        levelPrices[10] = 1.1 ether;
+        levelPrices[11] = 1.6 ether;
+        levelPrices[12] = 2.2 ether;
+        levelPrices[13] = 3.2 ether;
+        levelPrices[14] = 4.4 ether;
+        levelPrices[15] = 6.5 ether;
+        levelPrices[16] = 8 ether;
+
+        for (uint8 level = 3; level <= LEVEL_COUNT; level++) {
+            levelAvailable[level] = true;
+        }
     }
 
     receive() external payable {
@@ -119,15 +126,12 @@ contract EasyGame {
 
     function activateLevel(uint8 level, address inviter) external payable {
         _validateLevel(level);
+        require(levelAvailable[level], "Level is not available yet");
         require(msg.value == levelPrices[level], "Incorrect payment amount");
 
         Player storage player = players[msg.sender];
         PlayerLevel storage state = playerLevels[msg.sender][level];
         require(!state.active, "Level is already active");
-
-        if (level > 1) {
-            require(playerLevels[msg.sender][level - 1].active, "Previous level is not active");
-        }
 
         if (!player.exists) {
             player.exists = true;
@@ -149,7 +153,7 @@ contract EasyGame {
 
         uint256 positionId = _placePlayer(level, msg.sender);
         _distributePayment(msg.sender, level, msg.value, positionId);
-        _unfreezePreviousLevel(msg.sender, level);
+        _unfreezeLowerLevels(msg.sender, level);
 
         emit LevelActivated(msg.sender, level, msg.value, player.inviter);
     }
@@ -243,6 +247,12 @@ contract EasyGame {
         emit LevelPriceChanged(level, oldPrice, newPrice);
     }
 
+    function setLevelAvailable(uint8 level, bool available) external onlyOwner {
+        _validateLevel(level);
+        levelAvailable[level] = available;
+        emit LevelAvailabilityChanged(level, available);
+    }
+
     function setTreasury(address payable newTreasury) external onlyOwner {
         require(newTreasury != address(0), "Treasury address is required");
 
@@ -250,15 +260,6 @@ contract EasyGame {
         treasury = newTreasury;
 
         emit TreasuryChanged(oldTreasury, newTreasury);
-    }
-
-    function setOperatorWallet(address payable newOperatorWallet) external onlyOwner {
-        require(newOperatorWallet != address(0), "Operator wallet is required");
-
-        address oldOperatorWallet = operatorWallet;
-        operatorWallet = newOperatorWallet;
-
-        emit OperatorWalletChanged(oldOperatorWallet, newOperatorWallet);
     }
 
     function transferOwnership(address newOwner) external onlyOwner {
@@ -341,20 +342,9 @@ contract EasyGame {
             return;
         }
 
-        state.cycles += 1;
         uint256 newPositionId = _placePlayer(level, playerAddress);
 
         emit Recycled(playerAddress, level, state.cycles, newPositionId);
-
-        if (
-            level < LEVEL_COUNT &&
-            state.cycles >= 2 &&
-            !playerLevels[playerAddress][level + 1].active &&
-            !state.frozen
-        ) {
-            state.frozen = true;
-            emit LevelFrozen(playerAddress, level);
-        }
     }
 
     function _distributePayment(
@@ -363,33 +353,59 @@ contract EasyGame {
         uint256 amount,
         uint256 positionId
     ) private {
-        MatrixNode storage node = levelMatrix[level][positionId - 1];
-        address matrixReceiver = _matrixRewardReceiver(level, node.parentId);
+        uint256 paidReferrals = _payMatrixLines(playerAddress, level, positionId, amount);
+        uint256 baseReward = (amount * BASE_REWARD_BPS) / BPS_DENOMINATOR;
+        address baseReceiver = _baseRewardReceiver(level, positionId, playerAddress);
+        _payBaseReward(playerAddress, payable(baseReceiver), level, baseReward);
 
-        uint256 matrixReward = (amount * MATRIX_REWARD_BPS) / BPS_DENOMINATOR;
-        _payAndTrack(playerAddress, payable(matrixReceiver), level, matrixReward);
-
-        uint256 paidReferrals = _payReferralLine(playerAddress, amount);
-        uint256 paid = matrixReward + paidReferrals;
+        uint256 paid = baseReward + paidReferrals;
         if (amount > paid) {
             _safeTransfer(treasury, amount - paid);
         }
     }
 
-    function _matrixRewardReceiver(uint8 level, uint256 parentId) private view returns (address) {
-        if (parentId == 0) {
+    function _baseRewardReceiver(uint8 level, uint256 positionId, address playerAddress) private view returns (address) {
+        MatrixNode[] storage matrix = levelMatrix[level];
+        uint256 ancestorCount = _ancestorCount(level, positionId);
+        if (ancestorCount == 0) {
             return address(treasury);
         }
 
-        address parentPlayer = levelMatrix[level][parentId - 1].player;
-        if (playerLevels[parentPlayer][level].frozen) {
-            return address(treasury);
+        uint256 selected = uint256(
+            keccak256(
+                abi.encodePacked(
+                    block.prevrandao,
+                    block.timestamp,
+                    playerAddress,
+                    level,
+                    positionId,
+                    matrix.length
+                )
+            )
+        ) % ancestorCount;
+
+        uint256 currentId = matrix[positionId - 1].parentId;
+        for (uint256 index = 0; index < ancestorCount; index++) {
+            address candidate = matrix[currentId - 1].player;
+            if (index == selected && _canReceiveLevelReward(candidate, level)) {
+                return candidate;
+            }
+            currentId = matrix[currentId - 1].parentId;
         }
 
-        return parentPlayer;
+        currentId = matrix[positionId - 1].parentId;
+        while (currentId != 0) {
+            address fallbackCandidate = matrix[currentId - 1].player;
+            if (_canReceiveLevelReward(fallbackCandidate, level)) {
+                return fallbackCandidate;
+            }
+            currentId = matrix[currentId - 1].parentId;
+        }
+
+        return address(treasury);
     }
 
-    function _payAndTrack(
+    function _payBaseReward(
         address playerAddress,
         address payable receiver,
         uint8 level,
@@ -397,21 +413,35 @@ contract EasyGame {
     ) private {
         _safeTransfer(receiver, amount);
         playerLevels[receiver][level].earned += amount;
+        if (receiver != treasury && receiver != address(0)) {
+            PlayerLevel storage receiverState = playerLevels[receiver][level];
+            receiverState.cycles += 1;
+            _freezeAfterBaseRewards(receiver, level);
+        }
+        emit BaseRewardPaid(playerAddress, receiver, level, amount);
         emit MatrixRewardPaid(playerAddress, receiver, level, amount);
     }
 
-    function _payReferralLine(address playerAddress, uint256 amount) private returns (uint256) {
-        address firstLine = players[playerAddress].inviter;
+    function _payMatrixLines(
+        address playerAddress,
+        uint8 level,
+        uint256 positionId,
+        uint256 amount
+    ) private returns (uint256) {
+        MatrixNode[] storage matrix = levelMatrix[level];
+        uint256 firstParentId = matrix[positionId - 1].parentId;
         uint256 paid;
 
-        paid += _payReferral(playerAddress, firstLine, 1, amount, DIRECT_BONUS_BPS);
-        paid += _payReferral(playerAddress, operatorWallet, 0, amount, OPERATOR_FEE_BPS);
+        address firstLine = firstParentId == 0 ? address(0) : matrix[firstParentId - 1].player;
+        paid += _payReferral(playerAddress, _lineReceiver(firstLine, level), 1, amount, FIRST_LINE_BONUS_BPS);
 
-        address secondLine = firstLine == address(0) ? address(0) : players[firstLine].inviter;
-        paid += _payReferral(playerAddress, secondLine, 2, amount, SECOND_LINE_BONUS_BPS);
+        uint256 secondParentId = firstParentId == 0 ? 0 : matrix[firstParentId - 1].parentId;
+        address secondLine = secondParentId == 0 ? address(0) : matrix[secondParentId - 1].player;
+        paid += _payReferral(playerAddress, _lineReceiver(secondLine, level), 2, amount, SECOND_LINE_BONUS_BPS);
 
-        address thirdLine = secondLine == address(0) ? address(0) : players[secondLine].inviter;
-        paid += _payReferral(playerAddress, thirdLine, 3, amount, THIRD_LINE_BONUS_BPS);
+        uint256 thirdParentId = secondParentId == 0 ? 0 : matrix[secondParentId - 1].parentId;
+        address thirdLine = thirdParentId == 0 ? address(0) : matrix[thirdParentId - 1].player;
+        paid += _payReferral(playerAddress, _lineReceiver(thirdLine, level), 3, amount, THIRD_LINE_BONUS_BPS);
 
         return paid;
     }
@@ -431,15 +461,54 @@ contract EasyGame {
         return bonus;
     }
 
-    function _unfreezePreviousLevel(address playerAddress, uint8 level) private {
+    function _lineReceiver(address receiver, uint8 level) private view returns (address) {
+        if (!_canReceiveLevelReward(receiver, level)) {
+            return address(treasury);
+        }
+        return receiver;
+    }
+
+    function _canReceiveLevelReward(address receiver, uint8 level) private view returns (bool) {
+        return receiver != address(0) &&
+            playerLevels[receiver][level].active &&
+            !playerLevels[receiver][level].frozen;
+    }
+
+    function _ancestorCount(uint8 level, uint256 positionId) private view returns (uint256) {
+        MatrixNode[] storage matrix = levelMatrix[level];
+        uint256 count;
+        uint256 currentId = matrix[positionId - 1].parentId;
+        while (currentId != 0) {
+            count++;
+            currentId = matrix[currentId - 1].parentId;
+        }
+        return count;
+    }
+
+    function _freezeAfterBaseRewards(address playerAddress, uint8 level) private {
+        PlayerLevel storage state = playerLevels[playerAddress][level];
+        if (
+            level < LEVEL_COUNT &&
+            state.cycles >= 2 &&
+            !playerLevels[playerAddress][level + 1].active &&
+            !state.frozen
+        ) {
+            state.frozen = true;
+            emit LevelFrozen(playerAddress, level);
+        }
+    }
+
+    function _unfreezeLowerLevels(address playerAddress, uint8 level) private {
         if (level <= 1) {
             return;
         }
 
-        PlayerLevel storage previous = playerLevels[playerAddress][level - 1];
-        if (previous.frozen) {
-            previous.frozen = false;
-            emit LevelUnfrozen(playerAddress, level - 1);
+        for (uint8 lowerLevel = 1; lowerLevel < level; lowerLevel++) {
+            PlayerLevel storage previous = playerLevels[playerAddress][lowerLevel];
+            if (previous.frozen) {
+                previous.frozen = false;
+                emit LevelUnfrozen(playerAddress, lowerLevel);
+            }
         }
     }
 

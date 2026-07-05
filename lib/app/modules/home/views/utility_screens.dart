@@ -1,136 +1,154 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:lottery_advance/utils/theme.dart';
+
+part '../models/utility_screen_models.dart';
+part '../controllers/statistics_controller.dart';
+part '../controllers/matrix_arena_controller.dart';
+part '../controllers/member_preview_controller.dart';
+part '../widgets/utility_common_widgets.dart';
+part '../widgets/matrix_arena_widgets.dart';
+part '../widgets/matrix_stats_widgets.dart';
+part '../widgets/matrix_picker_widgets.dart';
+part '../widgets/matrix_tree_widgets.dart';
+part '../widgets/information_widgets.dart';
+part '../widgets/information_panels_widgets.dart';
+part '../widgets/information_diagram_widgets.dart';
+part '../widgets/information_common_widgets.dart';
 
 class StatisticsScreen extends StatelessWidget {
   StatisticsScreen({Key? key}) : super(key: key);
 
   final WalletConnectService walletService = Get.find<WalletConnectService>();
-
-  Future<_StatisticsSnapshot> _load() async {
-    final contractAddress = await walletService.resolveEasyGameAddress();
-    var activeLevels = 0;
-    var frozenLevels = 0;
-    var matrixNodes = BigInt.zero;
-    var totalLevelCostWei = BigInt.zero;
-
-    for (var level = 1; level <= 17; level++) {
-      try {
-        totalLevelCostWei +=
-            await walletService.getEasyGameLevelPriceWei(level);
-      } catch (_) {
-        totalLevelCostWei += BigInt.zero;
-      }
-
-      try {
-        final stats = await walletService.getEasyGameMatrixStats(level);
-        matrixNodes += stats.size;
-      } catch (_) {
-        matrixNodes += BigInt.zero;
-      }
-
-      if (walletService.isConnected.value) {
-        try {
-          final state = await walletService.getEasyGameLevel(level: level);
-          if (state.active) {
-            activeLevels++;
-          }
-          if (state.frozen) {
-            frozenLevels++;
-          }
-        } catch (_) {
-          // Individual level read failures should not hide the whole screen.
-        }
-      }
-    }
-
-    return _StatisticsSnapshot(
-      contractAddress: contractAddress,
-      activeLevels: activeLevels,
-      frozenLevels: frozenLevels,
-      matrixNodes: matrixNodes,
-      totalLevelCostWei: totalLevelCostWei,
-    );
-  }
+  late final _StatisticsController _statisticsController =
+      Get.isRegistered<_StatisticsController>()
+          ? Get.find<_StatisticsController>()
+          : Get.put(_StatisticsController(Get.find<WalletConnectService>()));
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_StatisticsSnapshot>(
-      future: _load(),
-      builder: (context, snapshot) {
-        final data = snapshot.data;
+    return Obx(
+      () {
+        final data = _statisticsController.snapshot.value;
+        final currency = walletService.nativeSymbol;
         return _UtilityScaffold(
-          title: 'Statistics',
+          title: 'nav.stats'.tr,
+          activeSection: 'Statistics',
           icon: Icons.bar_chart,
+          onRefresh: _statisticsController.refreshStats,
           children: [
-            _StatusCard(
-              title: 'Wallet',
-              value: walletService.isConnected.value
-                  ? walletService.shortAddress
-                  : 'Not connected',
-              icon: Icons.account_balance_wallet,
-            ),
-            Obx(
-              () => _StatusCard(
-                title: 'Network chain ID',
-                value: walletService.chainId.value?.toString() ?? 'Unknown',
-                icon: Icons.hub,
+            if (_statisticsController.isLoading.value)
+              const LinearProgressIndicator(
+                color: EasyGameTheme.teal,
+                backgroundColor: EasyGameTheme.border,
               ),
-            ),
-            _StatusCard(
-              title: 'EasyGame contract',
-              value: data == null
-                  ? snapshot.hasError
-                      ? 'Not loaded'
-                      : 'Loading...'
-                  : _shortAddress(data.contractAddress),
-              icon: Icons.description,
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: _MetricCard(
-                    title: 'Active levels',
-                    value: data?.activeLevels.toString() ?? '-',
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _MetricCard(
-                    title: 'Frozen levels',
-                    value: data?.frozenLevels.toString() ?? '-',
-                  ),
-                ),
-              ],
-            ),
-            Row(
-              children: [
-                Expanded(
-                  child: _MetricCard(
-                    title: 'Matrix nodes',
+            if (_statisticsController.isLoading.value)
+              const SizedBox(height: 18),
+            if (_statisticsController.errorMessage.value.isNotEmpty)
+              _InfoBlock(
+                title: 'common.notLoaded'.tr,
+                text: _statisticsController.errorMessage.value,
+              ),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final columns = constraints.maxWidth < 520
+                    ? 1
+                    : constraints.maxWidth < 900
+                        ? 2
+                        : 4;
+                final cards = [
+                  _ArenaStatCard(
+                    icon: Icons.groups_2_outlined,
+                    title: 'stats.participants'.tr,
                     value: data?.matrixNodes.toString() ?? '-',
+                    delta: '+ ${data?.activeLevels ?? 0}',
+                    color: EasyGameTheme.teal,
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _MetricCard(
-                    title: 'All levels cost',
+                  _ArenaStatCard(
+                    icon: Icons.account_balance_wallet_outlined,
+                    title: 'stats.prizeVolume'.tr,
                     value: data == null
                         ? '-'
-                        : '${_formatWei(data.totalLevelCostWei)} ETH',
+                        : '${_formatWei(data.totalPrizePoolWei)} $currency',
+                    delta: '75.5%',
+                    color: Colors.greenAccent,
                   ),
-                ),
-              ],
+                  _ArenaStatCard(
+                    icon: Icons.sync_alt,
+                    title: 'stats.transactions'.tr,
+                    value: data?.matrixNodes.toString() ?? '-',
+                    delta: '+${data?.frozenLevels ?? 0} frozen',
+                    color: EasyGameTheme.orange,
+                  ),
+                  _ArenaStatCard(
+                    icon: Icons.trending_up,
+                    title: 'stats.weight'.tr,
+                    value: data?.totalWeight.toString() ?? '-',
+                    delta: 'weighted draw',
+                    color: EasyGameTheme.purple,
+                  ),
+                ];
+                return GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: cards.length,
+                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: columns,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    mainAxisExtent: 170,
+                  ),
+                  itemBuilder: (context, index) => cards[index],
+                );
+              },
             ),
-            _ActionTile(
-              icon: Icons.grid_view,
-              title: 'Matrix levels',
-              subtitle: 'Open current Easy Game level status.',
-              onTap: () => Get.to(() => LevelsScreen()),
+            const SizedBox(height: 18),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final compact = constraints.maxWidth < 760;
+                final distribution = _PayoutDistributionPanel(
+                  totalPrizePoolWei: data?.totalPrizePoolWei ?? BigInt.zero,
+                  currency: currency,
+                );
+                final levels = _LevelVolumePanel(
+                  rows: data?.levelRows ?? const <_LevelArenaStat>[],
+                  currency: currency,
+                );
+                if (compact) {
+                  return Column(
+                    children: [
+                      distribution,
+                      levels,
+                    ],
+                  );
+                }
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(flex: 5, child: distribution),
+                    const SizedBox(width: 18),
+                    Expanded(flex: 7, child: levels),
+                  ],
+                );
+              },
+            ),
+            _InfoBlock(
+              title: 'stats.strategyTitle'.tr,
+              text: 'stats.strategyText'.tr,
+            ),
+            _StatusCard(
+              title: 'utility.easyGameContract'.tr,
+              value: data == null
+                  ? 'common.loading'.tr
+                  : _shortAddress(data.contractAddress),
+              icon: Icons.description,
             ),
           ],
         );
@@ -139,119 +157,220 @@ class StatisticsScreen extends StatelessWidget {
   }
 }
 
-class MemberPreviewScreen extends StatelessWidget {
+class MatrixArenaScreen extends StatelessWidget {
+  MatrixArenaScreen({Key? key}) : super(key: key);
+
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
+  late final _MatrixArenaController _matrixController =
+      Get.isRegistered<_MatrixArenaController>()
+          ? Get.find<_MatrixArenaController>()
+          : Get.put(_MatrixArenaController(Get.find<WalletConnectService>()));
+
+  @override
+  Widget build(BuildContext context) {
+    return Obx(
+      () {
+        final selectedLevel = _matrixController.selectedLevel.value;
+        final data = _matrixController.snapshot.value;
+        return ExpressAppShell(
+          title: 'matrix.title'.tr,
+          breadcrumb: '${'app.name'.tr} / ${'nav.matrix'.tr}',
+          activeSection: 'Matrix',
+          onRefresh: _matrixController.refreshArena,
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1280),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'matrix.subtitle'.tr,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  if (_matrixController.isLoading.value)
+                    const LinearProgressIndicator(
+                      color: EasyGameTheme.teal,
+                      backgroundColor: EasyGameTheme.border,
+                    ),
+                  if (_matrixController.isLoading.value)
+                    const SizedBox(height: 18),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxWidth < 900;
+                      final side = SizedBox(
+                        width: compact ? double.infinity : 360,
+                        child: Column(
+                          children: [
+                            _MatrixLevelPicker(
+                              selectedLevel: selectedLevel,
+                              onChanged: _matrixController.selectLevel,
+                            ),
+                            const SizedBox(height: 18),
+                            _MatrixLegend(),
+                          ],
+                        ),
+                      );
+                      final panel = _MatrixArenaPanel(
+                        data: data,
+                        currency: walletService.nativeSymbol,
+                      );
+                      if (compact) {
+                        return Column(
+                          children: [
+                            side,
+                            const SizedBox(height: 22),
+                            panel,
+                          ],
+                        );
+                      }
+                      return Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          side,
+                          const SizedBox(width: 22),
+                          Expanded(child: panel),
+                        ],
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class MemberPreviewScreen extends StatefulWidget {
   final String query;
 
-  MemberPreviewScreen({
+  const MemberPreviewScreen({
     Key? key,
     required this.query,
   }) : super(key: key);
 
+  @override
+  State<MemberPreviewScreen> createState() => _MemberPreviewScreenState();
+}
+
+class _MemberPreviewScreenState extends State<MemberPreviewScreen> {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
+  late final String controllerTag;
+  late final _MemberPreviewController previewController;
 
-  Future<List<EasyGameLevelState>> _loadLevels() async {
-    final normalized = ReferralLinkService.normalizeAddress(query);
-    if (normalized.isEmpty) {
-      return const [];
-    }
+  @override
+  void initState() {
+    super.initState();
+    controllerTag = 'member-preview-${widget.query}';
+    previewController = Get.put(
+      _MemberPreviewController(
+        walletService: walletService,
+        query: widget.query,
+      ),
+      tag: controllerTag,
+    );
+  }
 
-    final result = <EasyGameLevelState>[];
-    for (var level = 1; level <= 17; level++) {
-      try {
-        result.add(
-          await walletService.getEasyGameLevel(
-            playerAddress: normalized,
-            level: level,
-          ),
-        );
-      } catch (_) {
-        result.add(
-          EasyGameLevelState(
-            active: false,
-            frozen: false,
-            cycles: BigInt.zero,
-            positionId: BigInt.zero,
-            earnedWei: BigInt.zero,
-          ),
-        );
-      }
+  @override
+  void dispose() {
+    if (Get.isRegistered<_MemberPreviewController>(tag: controllerTag)) {
+      Get.delete<_MemberPreviewController>(tag: controllerTag);
     }
-    return result;
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final normalized = ReferralLinkService.normalizeAddress(query);
-    final isWallet = normalized.isNotEmpty;
-
-    return FutureBuilder<List<EasyGameLevelState>>(
-      future: _loadLevels(),
-      builder: (context, snapshot) {
-        final states = snapshot.data ?? const <EasyGameLevelState>[];
-        final activeCount = states.where((state) => state.active).length;
-        final frozenCount = states.where((state) => state.frozen).length;
-        final earnedWei = states.fold<BigInt>(
-          BigInt.zero,
-          (sum, state) => sum + state.earnedWei,
-        );
+    return Obx(
+      () {
+        final data = previewController.snapshot.value ??
+            _MemberPreviewSnapshot(
+              query: widget.query,
+              normalizedAddress: ReferralLinkService.normalizeAddress(
+                widget.query,
+              ),
+              levels: const [],
+            );
 
         return _UtilityScaffold(
-          title: 'Member preview',
+          title: 'utility.memberPreview'.tr,
           icon: Icons.manage_search,
+          onRefresh: previewController.refreshPreview,
           children: [
+            if (previewController.isLoading.value)
+              const LinearProgressIndicator(
+                color: EasyGameTheme.teal,
+                backgroundColor: EasyGameTheme.border,
+              ),
+            if (previewController.isLoading.value) const SizedBox(height: 18),
+            if (previewController.errorMessage.value.isNotEmpty)
+              _InfoBlock(
+                title: 'common.notLoaded'.tr,
+                text: previewController.errorMessage.value,
+              ),
             _StatusCard(
-              title: isWallet ? 'Wallet address' : 'Member ID',
-              value: isWallet ? normalized : query,
-              icon: isWallet ? Icons.account_balance_wallet : Icons.badge,
+              title: data.isWallet
+                  ? 'utility.walletAddress'.tr
+                  : 'utility.memberId'.tr,
+              value: data.isWallet ? data.normalizedAddress : widget.query,
+              icon: data.isWallet ? Icons.account_balance_wallet : Icons.badge,
             ),
-            if (!isWallet)
-              const _InfoBlock(
-                title: 'ID lookup',
-                text:
-                    'The contract does not expose a user ID registry yet. Wallet address preview is available now; ID search needs the user ID/indexer layer.',
+            if (!data.isWallet)
+              _InfoBlock(
+                title: 'utility.idLookup'.tr,
+                text: 'utility.idLookupText'.tr,
               ),
             Row(
               children: [
                 Expanded(
                   child: _MetricCard(
-                    title: 'Active levels',
-                    value: isWallet
-                        ? snapshot.hasData
-                            ? activeCount.toString()
-                            : '-'
-                        : 'N/A',
+                    title: 'utility.activeLevels'.tr,
+                    value: data.isWallet
+                        ? previewController.snapshot.value == null
+                            ? '-'
+                            : data.activeCount.toString()
+                        : 'common.notAvailable'.tr,
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: _MetricCard(
-                    title: 'Frozen levels',
-                    value: isWallet
-                        ? snapshot.hasData
-                            ? frozenCount.toString()
-                            : '-'
-                        : 'N/A',
+                    title: 'utility.frozenLevels'.tr,
+                    value: data.isWallet
+                        ? previewController.snapshot.value == null
+                            ? '-'
+                            : data.frozenCount.toString()
+                        : 'common.notAvailable'.tr,
                   ),
                 ),
               ],
             ),
             _StatusCard(
-              title: 'Earned on levels',
-              value: isWallet
-                  ? snapshot.hasData
-                      ? '${_formatWei(earnedWei)} ETH'
-                      : 'Loading...'
-                  : 'N/A',
+              title: 'utility.earnedOnLevels'.tr,
+              value: data.isWallet
+                  ? previewController.snapshot.value == null
+                      ? 'common.loading'.tr
+                      : '${_formatWei(data.earnedWei)} ${walletService.nativeSymbol}'
+                  : 'common.notAvailable'.tr,
               icon: Icons.payments,
             ),
             _ActionTile(
               icon: Icons.grid_view,
-              title: 'Open levels',
-              subtitle: isWallet
-                  ? 'Open program view filtered by this wallet.'
-                  : 'Open program view.',
+              title: 'utility.openLevels'.tr,
+              subtitle: data.isWallet
+                  ? 'utility.openFiltered'.tr
+                  : 'utility.openProgramView'.tr,
               onTap: () => Get.to(
-                () => LevelsScreen(walletAddress: isWallet ? normalized : null),
+                () => LevelsScreen(
+                  walletAddress: data.isWallet ? data.normalizedAddress : null,
+                ),
               ),
             ),
           ],
@@ -266,25 +385,32 @@ class InformationScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _UtilityScaffold(
-      title: 'Information',
+    return _UtilityScaffold(
+      title: 'nav.information'.tr,
+      activeSection: 'Information',
       icon: Icons.info_outline,
       children: [
-        _InfoBlock(
-          title: 'Easy Game matrix',
-          text:
-              'Each level uses a binary matrix. New activations are placed into the next open slot, and completed positions recycle into the same level.',
+        _InfoHeroCard(
+          title: 'info.advanceTitle'.tr,
+          text: 'info.advanceText'.tr,
         ),
         _InfoBlock(
-          title: 'Reward distribution',
-          text:
-              'Payments are split as 80% matrix reward, 9.5% direct referral, 0.5% operations, 6% second line, and 4% third line.',
+          title: 'info.matrixTitle'.tr,
+          text: 'info.matrixText'.tr,
         ),
+        const _InfoMatrixStructurePanel(),
         _InfoBlock(
-          title: 'Freeze rule',
-          text:
-              'After two cycles, a level can freeze until the player activates the next level.',
+          title: 'info.rewardTitle'.tr,
+          text: 'info.rewardText'.tr,
         ),
+        const _InfoPaymentSplitPanel(),
+        const _InfoRoundLifecyclePanel(),
+        const _InfoWinningCellsPanel(),
+        _InfoBlock(
+          title: 'info.freezeTitle'.tr,
+          text: 'info.freezeText'.tr,
+        ),
+        const _InfoGameResourcesPanel(),
       ],
     );
   }
@@ -296,25 +422,25 @@ class TelegramBotsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _UtilityScaffold(
-      title: 'Telegram bots',
+      title: 'nav.telegramBots'.tr,
+      activeSection: 'Telegram',
       icon: Icons.telegram,
       children: [
         _ActionTile(
           icon: Icons.notifications_active,
-          title: 'Notifier bot',
-          subtitle: 'Open the notifier setup screen.',
+          title: 'nav.notifierBot'.tr,
+          subtitle: 'utility.openNotifierSetup'.tr,
           onTap: () => Get.to(() => NotifierBotScreen()),
         ),
         _ActionTile(
           icon: Icons.support_agent,
-          title: 'Support',
-          subtitle: 'Open support channels.',
+          title: 'common.support'.tr,
+          subtitle: 'utility.openSupportChannels'.tr,
           onTap: () => Get.to(() => const SupportScreen()),
         ),
-        const _InfoBlock(
-          title: 'Configuration',
-          text:
-              'Production Telegram links are not configured yet. Add them through dart-define or app settings when they are ready.',
+        _InfoBlock(
+          title: 'utility.configuration'.tr,
+          text: 'utility.telegramConfigText'.tr,
         ),
       ],
     );
@@ -333,21 +459,22 @@ class PromoScreen extends StatelessWidget {
     );
 
     return _UtilityScaffold(
-      title: 'Promo',
+      title: 'nav.promo'.tr,
+      activeSection: 'Promo',
       icon: Icons.campaign,
       children: [
         _InfoBlock(
-          title: 'Partner link',
+          title: 'utility.partnerLink'.tr,
           text: link,
         ),
         _ActionTile(
           icon: Icons.copy,
-          title: 'Copy partner link',
-          subtitle: 'Copy your invite URL to clipboard.',
+          title: 'utility.copyPartnerLink'.tr,
+          subtitle: 'utility.copyInviteUrl'.tr,
           onTap: () {
             Clipboard.setData(ClipboardData(text: link));
             Get.snackbar(
-              'Copied',
+              'common.copied'.tr,
               link,
               snackPosition: SnackPosition.BOTTOM,
             );
@@ -355,8 +482,8 @@ class PromoScreen extends StatelessWidget {
         ),
         _ActionTile(
           icon: Icons.play_arrow,
-          title: 'Open levels',
-          subtitle: 'Go to Easy Game program view.',
+          title: 'utility.openLevels'.tr,
+          subtitle: 'utility.openProgramView'.tr,
           onTap: () => Get.to(() => LevelsScreen()),
         ),
       ],
@@ -372,27 +499,28 @@ class NotifierBotScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _UtilityScaffold(
-      title: 'Notifier Bot',
+      title: 'nav.notifierBot'.tr,
+      activeSection: 'Notifier',
       icon: Icons.notifications,
       children: [
         Obx(
           () => _StatusCard(
-            title: 'Wallet notifications',
+            title: 'utility.walletNotifications'.tr,
             value: walletService.isConnected.value
-                ? 'Ready for ${walletService.shortAddress}'
-                : 'Connect wallet first',
+                ? 'utility.readyFor'
+                    .trParams({'wallet': walletService.shortAddress})
+                : 'utility.connectWalletFirst'.tr,
             icon: Icons.account_circle,
           ),
         ),
-        const _InfoBlock(
-          title: 'Events to notify',
-          text:
-              'Level activation, matrix placement, referral reward, matrix reward, recycle, freeze, and unfreeze events.',
+        _InfoBlock(
+          title: 'utility.eventsToNotify'.tr,
+          text: 'utility.eventsToNotifyText'.tr,
         ),
         _ActionTile(
           icon: Icons.settings,
-          title: 'Notification settings',
-          subtitle: 'Open preferences for notification channels.',
+          title: 'utility.notificationSettings'.tr,
+          subtitle: 'utility.notificationSettingsText'.tr,
           onTap: () => Get.to(() => SettingsScreen()),
         ),
       ],
@@ -408,40 +536,42 @@ class SettingsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _UtilityScaffold(
-      title: 'Settings',
+      title: 'common.settings'.tr,
       icon: Icons.settings,
       children: [
         Obx(
           () => _StatusCard(
-            title: 'Connected wallet',
+            title: 'utility.connectedWallet'.tr,
             value: walletService.isConnected.value
                 ? walletService.currentAddress.value
-                : 'Not connected',
+                : 'common.notConnected'.tr,
             icon: Icons.account_balance_wallet,
           ),
         ),
         Obx(
           () => _StatusCard(
-            title: 'Chain ID',
-            value: walletService.chainId.value?.toString() ?? 'Unknown',
+            title: 'utility.chainId'.tr,
+            value:
+                walletService.chainId.value?.toString() ?? 'common.unknown'.tr,
             icon: Icons.language,
           ),
         ),
         _ActionTile(
           icon: Icons.network_check,
-          title: 'Check network',
-          subtitle: 'Validate Base Sepolia or Ganache.',
+          title: 'utility.checkNetwork'.tr,
+          subtitle: 'utility.checkNetworkText'.tr,
           onTap: () async {
             try {
-              await walletService.ensureBaseSepolia();
+              await walletService.ensureBaseNetwork();
               Get.snackbar(
-                'Network OK',
-                'Wallet is on a supported network.',
+                'utility.networkOk'.tr,
+                'utility.walletOnNetwork'
+                    .trParams({'network': walletService.networkLabel}),
                 snackPosition: SnackPosition.BOTTOM,
               );
             } catch (e) {
               Get.snackbar(
-                'Network failed',
+                'utility.networkFailed'.tr,
                 '$e',
                 snackPosition: SnackPosition.BOTTOM,
               );
@@ -450,8 +580,8 @@ class SettingsScreen extends StatelessWidget {
         ),
         _ActionTile(
           icon: Icons.logout,
-          title: 'Disconnect wallet',
-          subtitle: 'Clear app wallet state and return home.',
+          title: 'utility.disconnectWallet'.tr,
+          subtitle: 'utility.disconnectWalletText'.tr,
           onTap: () {
             walletService.disconnectWallet();
             Get.offAllNamed('/home');
@@ -468,25 +598,24 @@ class SupportScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _UtilityScaffold(
-      title: 'Support',
+      title: 'common.support'.tr,
       icon: Icons.support_agent,
       children: [
-        const _InfoBlock(
-          title: 'Support status',
-          text:
-              'Production support contacts are not configured in this build yet.',
+        _InfoBlock(
+          title: 'utility.supportStatus'.tr,
+          text: 'utility.supportStatusText'.tr,
         ),
         _ActionTile(
           icon: Icons.email,
-          title: 'Email support',
-          subtitle: 'Open a mail draft.',
-          onTap: () => _openUri('mailto:support@express.game'),
+          title: 'utility.emailSupport'.tr,
+          subtitle: 'utility.openMailDraft'.tr,
+          onTap: _showContactUnavailable,
         ),
         _ActionTile(
           icon: Icons.telegram,
-          title: 'Telegram channel',
-          subtitle: 'Open Telegram when the public channel is available.',
-          onTap: () => _openUri('https://t.me/expressgame'),
+          title: 'nav.telegramChannel'.tr,
+          subtitle: 'utility.telegramChannelText'.tr,
+          onTap: _showContactUnavailable,
         ),
       ],
     );
@@ -498,19 +627,17 @@ class ExpressInfoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _UtilityScaffold(
-      title: 'About Easy Game',
+    return _UtilityScaffold(
+      title: 'utility.about'.tr,
       icon: Icons.school,
       children: [
         _InfoBlock(
-          title: 'Smart contract game',
-          text:
-              'Easy Game is driven by the EasyGame contract. Activations, placements, referral payments, rewards, recycle, and freeze state are handled on-chain.',
+          title: 'utility.smartContractGame'.tr,
+          text: 'utility.smartContractGameText'.tr,
         ),
         _InfoBlock(
-          title: 'User flow',
-          text:
-              'Connect MetaMask, choose an available level, confirm the upline, and pay through the EasyGame contract.',
+          title: 'utility.userFlow'.tr,
+          text: 'utility.userFlowText'.tr,
         ),
       ],
     );
@@ -522,281 +649,19 @@ class RecentActivityScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const _UtilityScaffold(
-      title: 'Recent activity',
+    return _UtilityScaffold(
+      title: 'utility.recentActivity'.tr,
       icon: Icons.history,
       children: [
         _InfoBlock(
-          title: 'Current state',
-          text:
-              'The profile page shows demo recent activity. A full activity feed should read EasyGame events from an indexer or event service.',
+          title: 'utility.currentState'.tr,
+          text: 'utility.currentStateText'.tr,
         ),
         _InfoBlock(
-          title: 'Events',
-          text:
-              'MatrixPlaced, MatrixRewardPaid, ReferralPaid, Recycled, LevelFrozen, and LevelUnfrozen are the core activity events.',
+          title: 'utility.events'.tr,
+          text: 'utility.eventsText'.tr,
         ),
       ],
     );
   }
-}
-
-class _UtilityScaffold extends StatelessWidget {
-  final String title;
-  final IconData icon;
-  final List<Widget> children;
-
-  const _UtilityScaffold({
-    Key? key,
-    required this.title,
-    required this.icon,
-    required this.children,
-  }) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        leading: const BackButton(color: Colors.white),
-        title: Text(
-          title,
-          style: const TextStyle(color: Colors.white, fontSize: 18),
-        ),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.symmetric(
-          horizontal: MediaQuery.of(context).size.width * 0.08,
-          vertical: 24,
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(icon, color: Colors.blueAccent, size: 32),
-                const SizedBox(width: 12),
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            ...children,
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StatusCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-
-  const _StatusCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _Panel(
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.tealAccent, size: 28),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(color: Colors.grey, fontSize: 13),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: const TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MetricCard extends StatelessWidget {
-  final String title;
-  final String value;
-
-  const _MetricCard({
-    required this.title,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF121722),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF2A3145)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _InfoBlock extends StatelessWidget {
-  final String title;
-  final String text;
-
-  const _InfoBlock({
-    required this.title,
-    required this.text,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _Panel(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 17,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            text,
-            style: const TextStyle(color: Colors.grey, fontSize: 14),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ActionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _ActionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _Panel(
-      child: ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: Icon(icon, color: Colors.white),
-        title: Text(title, style: const TextStyle(color: Colors.white)),
-        subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey)),
-        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-        onTap: onTap,
-      ),
-    );
-  }
-}
-
-class _Panel extends StatelessWidget {
-  final Widget child;
-
-  const _Panel({required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1F2E),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFF2A3145)),
-      ),
-      child: child,
-    );
-  }
-}
-
-Future<void> _openUri(String value) async {
-  final uri = Uri.parse(value);
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-    return;
-  }
-  Get.snackbar('Link unavailable', value, snackPosition: SnackPosition.BOTTOM);
-}
-
-class _StatisticsSnapshot {
-  final String contractAddress;
-  final int activeLevels;
-  final int frozenLevels;
-  final BigInt matrixNodes;
-  final BigInt totalLevelCostWei;
-
-  const _StatisticsSnapshot({
-    required this.contractAddress,
-    required this.activeLevels,
-    required this.frozenLevels,
-    required this.matrixNodes,
-    required this.totalLevelCostWei,
-  });
-}
-
-String _shortAddress(String address) {
-  if (address.length <= 12) {
-    return address;
-  }
-  return '${address.substring(0, 6)}...${address.substring(address.length - 4)}';
-}
-
-String _formatWei(BigInt wei) {
-  final base = BigInt.from(10).pow(18);
-  final whole = wei ~/ base;
-  final fraction = (wei % base).toString().padLeft(18, '0');
-  final trimmedFraction =
-      fraction.substring(0, 4).replaceFirst(RegExp(r'0+$'), '');
-  if (trimmedFraction.isEmpty) {
-    return whole.toString();
-  }
-  return '$whole.$trimmedFraction';
 }
