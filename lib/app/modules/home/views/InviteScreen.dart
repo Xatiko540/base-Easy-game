@@ -4,6 +4,7 @@ import 'package:lottery_advance/app/modules/home/views/language_selector.dart';
 import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
+import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
@@ -153,6 +154,12 @@ class InviteScreen extends StatelessWidget {
   Future<void> _connectWallet() async {
     try {
       await walletService.connectBaseAccount();
+      if (Get.isRegistered<FirebaseBackendService>()) {
+        final backend = Get.find<FirebaseBackendService>();
+        if (backend.isReady.value) {
+          await backend.ensureCurrentWalletLinked();
+        }
+      }
     } catch (e) {
       Get.snackbar(
         'Failed to connect wallet',

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/services/notifications_service.dart';
-import 'package:lottery_advance/app/services/contract_events_service.dart';
+import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/language_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/translations/app_translations.dart';
@@ -39,11 +39,11 @@ void main() async {
 
     final notifications = NotificationsService();
     Get.put(notifications, permanent: true);
-    final contractEvents = ContractEventsService(
+    final firebaseBackend = FirebaseBackendService(
       walletService: Get.find<WalletConnectService>(),
       notifications: notifications,
     );
-    Get.put(contractEvents, permanent: true);
+    Get.put(firebaseBackend, permanent: true);
     print(kIsWeb
         ? "[DEBUG] main: Web services registered."
         : "[DEBUG] main: Mobile services registered.");
@@ -69,7 +69,7 @@ void main() async {
     print("[DEBUG] main: runApp executed.");
 
     print("[DEBUG] main: Initializing background services...");
-    _initializeBackgroundServices(notifications, contractEvents);
+    _initializeBackgroundServices(notifications, firebaseBackend);
   } catch (e, stacktrace) {
     print("[DEBUG] main: FATAL ERROR during initialization: $e");
     print("[DEBUG] main: Stacktrace: $stacktrace");
@@ -78,7 +78,7 @@ void main() async {
 
 Future<void> _initializeBackgroundServices(
   NotificationsService notifications,
-  ContractEventsService contractEvents,
+  FirebaseBackendService firebaseBackend,
 ) async {
   try {
     await notifications.init();
@@ -87,8 +87,8 @@ Future<void> _initializeBackgroundServices(
   }
 
   try {
-    await contractEvents.init();
+    await firebaseBackend.init();
   } catch (e, st) {
-    debugPrint('ContractEventsService init failed: $e\n$st');
+    debugPrint('FirebaseBackendService init failed: $e\n$st');
   }
 }

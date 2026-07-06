@@ -1081,6 +1081,17 @@ class WalletConnectService extends GetxController {
     return ethereum!.request<T>(method, params);
   }
 
+  Future<String> signMessage(String message) async {
+    if (!isConnected.value || currentAddress.value.isEmpty) {
+      await connectBaseAccount();
+    }
+    final encoded = '0x${utf8.encode(message).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join()}';
+    return _walletRequest<String>('personal_sign', [
+      encoded,
+      currentAddress.value,
+    ]);
+  }
+
   Future<void> _switchToNetwork(AppNetworkConfig network) async {
     final chainHex = _intToHex(network.chainId);
     try {

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/language_selector.dart';
 import 'package:lottery_advance/app/services/ui_navigation_service.dart';
+import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
@@ -300,6 +301,12 @@ class _ExpressTopBar extends StatelessWidget {
 
     try {
       await walletService.connectBaseAccount();
+      if (Get.isRegistered<FirebaseBackendService>()) {
+        final backend = Get.find<FirebaseBackendService>();
+        if (backend.isReady.value) {
+          await backend.ensureCurrentWalletLinked();
+        }
+      }
     } catch (e) {
       Get.snackbar(
         'common.error'.tr,
