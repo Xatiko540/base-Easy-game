@@ -1,0 +1,364 @@
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
+const { getMessaging } = require("firebase-admin/messaging");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
+const { onSchedule } = require("firebase-functions/v2/scheduler");
+const { defineSecret, defineString } = require("firebase-functions/params");
+const { logger } = require("firebase-functions");
+const { Contract, Interface, JsonRpcProvider, getAddress, isAddress, verifyMessage } = require("ethers");
+const crypto = require("crypto");
+const { GAME_ABI } = require("./game_abi");
+
+initializeApp();
+
+const db = getFirestore();
+const rpcUrl = defineSecret("BASE_RPC_URL");
+const contractAddress = defineString("EASY_GAME_CONTRACT_ADDRESS");
+const chainIdParam = defineString("EASY_GAME_CHAIN_ID", { default: "8453" });
+const confirmationsParam = defineString("EASY_GAME_CONFIRMATIONS", { default: "5" });
+const startBlockParam = defineString("EASY_GAME_START_BLOCK", { default: "0" });
+const region = "us-central1";
+const iface = new Interface(GAME_ABI);
+
+function runtime() {
+  const address = contractAddress.value();
+  if (!isAddress(address)) throw new Error("EASY_GAME_CONTRACT_ADDRESS is invalid");
+  const provider = new JsonRpcProvider(rpcUrl.value(), Number(chainIdParam.value()));
+  return {
+    provider,
+    contract: new Contract(address, GAME_ABI, provider),
+    address: getAddress(address),
+    chainId: Number(chainIdParam.value()),
+  };
+}
+
+function wallet(value) {
+  if (typeof value !== "string" || !isAddress(value)) return null;
+  return getAddress(value).toLowerCase();
+}
+
+function jsonValue(value) {
+  if (typeof value === "bigint") return value.toString();
+  if (Array.isArray(value)) return value.map(jsonValue);
+  if (value && typeof value === "object") {
+    const result = {};
+    for (const [key, item] of Object.entries(value)) {
+      if (!/^\d+$/.test(key)) result[key] = jsonValue(item);
+    }
+    return result;
+  }
+  return value;
+}
+
+function requireUser(request) {
+  if (!request.auth) throw new HttpsError("unauthenticated", "Anonymous Firebase session required");
+  return request.auth.uid;
+}
+
+function requireApp(request) {
+  if (!request.app) throw new HttpsError("failed-precondition", "Firebase App Check required");
+}
+
+function eventId(chainId, log) {
+  return `${chainId}_${log.transactionHash}_${log.index}`;
+}
+
+function eventWallets(name, args) {
+  const candidates = [];
+  for (const key of ["player", "winner", "inviter", "invitee"]) {
+    const normalized = wallet(args[key]);
+    if (normalized) candidates.push(normalized);
+  }
+  return [...new Set(candidates)];
+}
+
+async function pushToWallet(walletAddress, title, body, data = {}) {
+  const snapshot = await db.collection("walletDevices").doc(walletAddress).collection("tokens").limit(20).get();
+  const tokens = snapshot.docs.map((doc) => doc.get("token")).filter(Boolean);
+  if (tokens.length === 0) return;
+  const response = await getMessaging().sendEachForMulticast({
+    tokens,
+    notification: { title, body },
+    data: Object.fromEntries(Object.entries(data).map(([key, value]) => [key, String(value)])),
+  });
+  const invalid = [];
+  response.responses.forEach((item, index) => {
+    if (!item.success && ["messaging/invalid-registration-token", "messaging/registration-token-not-registered"].includes(item.error?.code)) {
+      invalid.push(snapshot.docs[index].ref.delete());
+    }
+  });
+  await Promise.all(invalid);
+}
+
+async function projectEvent(parsed, log, block, chainId) {
+  const name = parsed.name;
+  const args = jsonValue(parsed.args.toObject());
+  const id = eventId(chainId, log);
+  const ref = db.collection("events").doc(id);
+  if ((await ref.get()).exists) return;
+
+  const batch = db.batch();
+  batch.create(ref, {
+    chainId,
+    contract: log.address.toLowerCase(),
+    type: name,
+    args,
+    blockNumber: log.blockNumber,
+    blockHash: log.blockHash,
+    transactionHash: log.transactionHash,
+    logIndex: log.index,
+    blockTimestamp: Timestamp.fromMillis(Number(block.timestamp) * 1000),
+    indexedAt: FieldValue.serverTimestamp(),
+  });
+
+  const player = wallet(args.player || args.winner || args.inviter);
+  const level = args.level == null ? null : Number(args.level);
+  if (player) {
+    batch.set(db.collection("users").doc(`${chainId}_${player}`), {
+      wallet: player,
+      chainId,
+      exists: true,
+      lastEventType: name,
+      lastEventBlock: log.blockNumber,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+  if (player && level) {
+    batch.set(db.collection("users").doc(`${chainId}_${player}`).collection("levels").doc(String(level)), {
+      level,
+      lastEventType: name,
+      lastEventBlock: log.blockNumber,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+  if (level) {
+    batch.set(db.collection("levels").doc(`${chainId}_${level}`), {
+      chainId,
+      level,
+      lastEventType: name,
+      lastEventBlock: log.blockNumber,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+  await batch.commit();
+
+  const title = name.replace(/([A-Z])/g, " $1").trim();
+  for (const target of eventWallets(name, args)) {
+    await pushToWallet(target, title, `Easy Game event on level ${level || "-"}`, {
+      eventId: id,
+      type: name,
+      level: level || "",
+      transactionHash: log.transactionHash,
+    });
+  }
+}
+
+async function reconcilePlayer(contract, chainId, playerAddress, levels) {
+  const player = jsonValue(await contract.getPlayer(playerAddress));
+  const userRef = db.collection("users").doc(`${chainId}_${playerAddress}`);
+  await userRef.set({ ...player, wallet: playerAddress, chainId, syncedAt: FieldValue.serverTimestamp() }, { merge: true });
+  for (const level of levels.slice(0, 17)) {
+    const [state, tokenRewards] = await Promise.all([
+      contract.getPlayerLevelFull(playerAddress, level),
+      contract.getPlayerTokenRewards(playerAddress, level),
+    ]);
+    await userRef.collection("levels").doc(String(level)).set({
+      ...jsonValue(state),
+      tokenRewards: jsonValue(tokenRewards),
+      level,
+      syncedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  }
+}
+
+async function reconcileLevel(contract, chainId, level) {
+  const [stats, usdcStats, ethPrice, usdcPrice, available] = await Promise.all([
+    contract.getLevelStats(level),
+    contract.getLevelStatsUSDC(level),
+    contract.levelPrices(level),
+    contract.levelPricesUsdc(level),
+    contract.levelAvailable(level),
+  ]);
+  await db.collection("levels").doc(`${chainId}_${level}`).set({
+    chainId,
+    level,
+    available,
+    ethPriceWei: ethPrice.toString(),
+    usdcPrice: usdcPrice.toString(),
+    stats: jsonValue(stats),
+    usdcStats: jsonValue(usdcStats),
+    syncedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+}
+
+async function runIndexer() {
+  const { provider, contract, address, chainId } = runtime();
+  const checkpointRef = db.collection("system").doc(`indexer_${chainId}`);
+  const checkpoint = await checkpointRef.get();
+  const latest = await provider.getBlockNumber();
+  const safeHead = Math.max(0, latest - Number(confirmationsParam.value()));
+  const previous = checkpoint.exists ? Number(checkpoint.get("lastProcessedBlock")) : Number(startBlockParam.value()) - 1;
+  if (safeHead <= previous) return { processed: 0, from: previous + 1, to: safeHead };
+
+  const fromBlock = previous + 1;
+  const toBlock = Math.min(safeHead, fromBlock + 499);
+  const logs = await provider.getLogs({ address, fromBlock, toBlock });
+  const blocks = new Map();
+  const affectedPlayers = new Map();
+  const affectedLevels = new Set();
+  let processed = 0;
+
+  for (const log of logs) {
+    let parsed;
+    try { parsed = iface.parseLog(log); } catch (_) { continue; }
+    let block = blocks.get(log.blockNumber);
+    if (!block) {
+      block = await provider.getBlock(log.blockNumber);
+      blocks.set(log.blockNumber, block);
+    }
+    await projectEvent(parsed, log, block, chainId);
+    processed++;
+    const args = parsed.args.toObject();
+    const level = args.level == null ? null : Number(args.level);
+    if (level) affectedLevels.add(level);
+    for (const target of eventWallets(parsed.name, args)) {
+      if (!affectedPlayers.has(target)) affectedPlayers.set(target, new Set());
+      if (level) affectedPlayers.get(target).add(level);
+    }
+  }
+
+  for (const level of [...affectedLevels].slice(0, 17)) await reconcileLevel(contract, chainId, level);
+  for (const [playerAddress, levels] of [...affectedPlayers.entries()].slice(0, 20)) {
+    await reconcilePlayer(contract, chainId, playerAddress, [...levels]);
+  }
+
+  const lastBlock = await provider.getBlock(toBlock);
+  await checkpointRef.set({
+    chainId,
+    contract: address.toLowerCase(),
+    lastProcessedBlock: toBlock,
+    lastProcessedHash: lastBlock.hash,
+    safeHead,
+    latest,
+    processed,
+    status: "healthy",
+    updatedAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { processed, from: fromBlock, to: toBlock };
+}
+
+exports.syncGameEvents = onSchedule({
+  schedule: "every 1 minutes",
+  region,
+  timeoutSeconds: 120,
+  memory: "256MiB",
+  maxInstances: 1,
+  secrets: [rpcUrl],
+}, async () => {
+  try {
+    logger.info("Indexer completed", await runIndexer());
+  } catch (error) {
+    logger.error("Indexer failed", error);
+    throw error;
+  }
+});
+
+exports.requestWalletNonce = onCall({ region, enforceAppCheck: true }, async (request) => {
+  requireApp(request);
+  const uid = requireUser(request);
+  const playerAddress = wallet(request.data?.wallet);
+  if (!playerAddress) throw new HttpsError("invalid-argument", "Valid wallet required");
+  const nonce = crypto.randomBytes(24).toString("hex");
+  const expiresAt = Timestamp.fromMillis(Date.now() + 10 * 60 * 1000);
+  const message = [
+    "Easy Game wallet verification",
+    `Wallet: ${playerAddress}`,
+    `Chain ID: ${chainIdParam.value()}`,
+    `Firebase UID: ${uid}`,
+    `Nonce: ${nonce}`,
+    `Expires: ${expiresAt.toDate().toISOString()}`,
+  ].join("\n");
+  await db.collection("walletNonces").doc(uid).set({ uid, wallet: playerAddress, nonce, message, expiresAt, used: false });
+  return { message, expiresAt: expiresAt.toMillis() };
+});
+
+exports.linkWallet = onCall({ region, enforceAppCheck: true }, async (request) => {
+  requireApp(request);
+  const uid = requireUser(request);
+  const signature = request.data?.signature;
+  const nonceDoc = await db.collection("walletNonces").doc(uid).get();
+  if (!nonceDoc.exists) throw new HttpsError("failed-precondition", "Request nonce first");
+  const nonce = nonceDoc.data();
+  if (nonce.used || nonce.expiresAt.toMillis() < Date.now()) throw new HttpsError("deadline-exceeded", "Nonce expired");
+  let recovered;
+  try { recovered = verifyMessage(nonce.message, signature).toLowerCase(); } catch (_) {
+    throw new HttpsError("invalid-argument", "Invalid wallet signature");
+  }
+  if (recovered !== nonce.wallet) throw new HttpsError("permission-denied", "Signature does not match wallet");
+  const batch = db.batch();
+  batch.set(db.collection("walletLinks").doc(uid), { uid, wallet: recovered, chainId: Number(chainIdParam.value()), verifiedAt: FieldValue.serverTimestamp() });
+  batch.update(nonceDoc.ref, { used: true, usedAt: FieldValue.serverTimestamp() });
+  await batch.commit();
+  return { wallet: recovered, verified: true };
+});
+
+exports.registerDevice = onCall({ region, enforceAppCheck: true }, async (request) => {
+  requireApp(request);
+  const uid = requireUser(request);
+  const link = await db.collection("walletLinks").doc(uid).get();
+  if (!link.exists) throw new HttpsError("failed-precondition", "Link wallet first");
+  const token = request.data?.token;
+  if (typeof token !== "string" || token.length < 20) throw new HttpsError("invalid-argument", "FCM token required");
+  const tokenId = crypto.createHash("sha256").update(token).digest("hex");
+  await db.collection("walletDevices").doc(link.get("wallet")).collection("tokens").doc(tokenId).set({
+    token,
+    uid,
+    platform: String(request.data?.platform || "unknown"),
+    updatedAt: FieldValue.serverTimestamp(),
+  });
+  return { registered: true };
+});
+
+exports.trackTransaction = onCall({ region, enforceAppCheck: true }, async (request) => {
+  requireApp(request);
+  const uid = requireUser(request);
+  const hash = request.data?.transactionHash;
+  if (typeof hash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new HttpsError("invalid-argument", "Valid transaction hash required");
+  const link = await db.collection("walletLinks").doc(uid).get();
+  await db.collection("transactions").doc(`${chainIdParam.value()}_${hash.toLowerCase()}`).set({
+    chainId: Number(chainIdParam.value()),
+    transactionHash: hash.toLowerCase(),
+    uid,
+    wallet: link.exists ? link.get("wallet") : null,
+    status: "submitted",
+    createdAt: FieldValue.serverTimestamp(),
+  }, { merge: true });
+  return { tracked: true };
+});
+
+exports.confirmTransactions = onSchedule({
+  schedule: "every 2 minutes",
+  region,
+  timeoutSeconds: 60,
+  memory: "256MiB",
+  maxInstances: 1,
+  secrets: [rpcUrl],
+}, async () => {
+  const { provider, address, chainId } = runtime();
+  const snapshot = await db.collection("transactions").where("status", "==", "submitted").limit(50).get();
+  for (const doc of snapshot.docs) {
+    const receipt = await provider.getTransactionReceipt(doc.get("transactionHash"));
+    if (!receipt) continue;
+    const validContract = receipt.to?.toLowerCase() === address.toLowerCase();
+    const status = receipt.status === 1 && validContract ? "confirmed" : "failed";
+    await doc.ref.set({ status, blockNumber: receipt.blockNumber, confirmedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const target = doc.get("wallet");
+    if (target) await pushToWallet(target, status === "confirmed" ? "Transaction confirmed" : "Transaction failed", doc.get("transactionHash"), { status, chainId });
+  }
+});
+
+exports.health = onRequest({ region, cors: false }, async (_request, response) => {
+  const chainId = Number(chainIdParam.value());
+  const checkpoint = await db.collection("system").doc(`indexer_${chainId}`).get();
+  response.status(checkpoint.exists ? 200 : 503).json({ ok: checkpoint.exists, indexer: checkpoint.exists ? checkpoint.data() : null });
+});
