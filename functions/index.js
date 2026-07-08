@@ -19,6 +19,8 @@ const confirmationsParam = defineString("EASY_GAME_CONFIRMATIONS", { default: "5
 const startBlockParam = defineString("EASY_GAME_START_BLOCK", { default: "0" });
 const region = "us-central1";
 const iface = new Interface(GAME_ABI);
+const maxDeviceTokensPerWallet = 10;
+const allowedPlatforms = new Set(["web", "android", "ios", "macos", "windows", "linux"]);
 
 function runtime() {
   const address = contractAddress.value();
@@ -57,6 +59,33 @@ function requireUser(request) {
 
 function requireApp(request) {
   if (!request.app) throw new HttpsError("failed-precondition", "Firebase App Check required");
+}
+
+function hashId(value) {
+  return crypto.createHash("sha256").update(String(value)).digest("hex");
+}
+
+async function enforceRateLimit(name, subject, max, windowSeconds) {
+  const nowMs = Date.now();
+  const ref = db.collection("rateLimits").doc(hashId(`${name}:${subject}`));
+  await db.runTransaction(async (transaction) => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.exists ? snapshot.data() : null;
+    const resetAtMs = data?.resetAt?.toMillis?.() || 0;
+    const currentCount = resetAtMs > nowMs ? Number(data.count || 0) : 0;
+    if (currentCount >= max) {
+      throw new HttpsError("resource-exhausted", "Too many requests. Please try again later.");
+    }
+    transaction.set(ref, {
+      name,
+      subjectHash: hashId(subject),
+      count: currentCount + 1,
+      max,
+      windowSeconds,
+      resetAt: Timestamp.fromMillis(resetAtMs > nowMs ? resetAtMs : nowMs + windowSeconds * 1000),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
 }
 
 function eventId(chainId, log) {
@@ -266,8 +295,10 @@ exports.syncGameEvents = onSchedule({
 exports.requestWalletNonce = onCall({ region, enforceAppCheck: true }, async (request) => {
   requireApp(request);
   const uid = requireUser(request);
+  await enforceRateLimit("requestWalletNonce", uid, 5, 60);
   const playerAddress = wallet(request.data?.wallet);
   if (!playerAddress) throw new HttpsError("invalid-argument", "Valid wallet required");
+  await enforceRateLimit("requestWalletNonceWallet", playerAddress, 20, 60 * 60);
   const nonce = crypto.randomBytes(24).toString("hex");
   const expiresAt = Timestamp.fromMillis(Date.now() + 10 * 60 * 1000);
   const message = [
@@ -285,7 +316,11 @@ exports.requestWalletNonce = onCall({ region, enforceAppCheck: true }, async (re
 exports.linkWallet = onCall({ region, enforceAppCheck: true }, async (request) => {
   requireApp(request);
   const uid = requireUser(request);
+  await enforceRateLimit("linkWallet", uid, 10, 10 * 60);
   const signature = request.data?.signature;
+  if (typeof signature !== "string" || signature.length < 20 || signature.length > 1024) {
+    throw new HttpsError("invalid-argument", "Valid wallet signature required");
+  }
   const nonceDoc = await db.collection("walletNonces").doc(uid).get();
   if (!nonceDoc.exists) throw new HttpsError("failed-precondition", "Request nonce first");
   const nonce = nonceDoc.data();
@@ -295,41 +330,69 @@ exports.linkWallet = onCall({ region, enforceAppCheck: true }, async (request) =
     throw new HttpsError("invalid-argument", "Invalid wallet signature");
   }
   if (recovered !== nonce.wallet) throw new HttpsError("permission-denied", "Signature does not match wallet");
-  const batch = db.batch();
-  batch.set(db.collection("walletLinks").doc(uid), { uid, wallet: recovered, chainId: Number(chainIdParam.value()), verifiedAt: FieldValue.serverTimestamp() });
-  batch.update(nonceDoc.ref, { used: true, usedAt: FieldValue.serverTimestamp() });
-  await batch.commit();
+  await db.runTransaction(async (transaction) => {
+    const freshNonceDoc = await transaction.get(nonceDoc.ref);
+    if (!freshNonceDoc.exists) throw new HttpsError("failed-precondition", "Request nonce first");
+    const freshNonce = freshNonceDoc.data();
+    if (freshNonce.used || freshNonce.expiresAt.toMillis() < Date.now()) {
+      throw new HttpsError("deadline-exceeded", "Nonce expired");
+    }
+    if (freshNonce.wallet !== recovered || freshNonce.message !== nonce.message) {
+      throw new HttpsError("permission-denied", "Nonce no longer matches wallet");
+    }
+    transaction.set(db.collection("walletLinks").doc(uid), {
+      uid,
+      wallet: recovered,
+      chainId: Number(chainIdParam.value()),
+      verifiedAt: FieldValue.serverTimestamp(),
+    });
+    transaction.update(nonceDoc.ref, { used: true, usedAt: FieldValue.serverTimestamp() });
+  });
   return { wallet: recovered, verified: true };
 });
 
 exports.registerDevice = onCall({ region, enforceAppCheck: true }, async (request) => {
   requireApp(request);
   const uid = requireUser(request);
+  await enforceRateLimit("registerDevice", uid, 10, 60 * 60);
   const link = await db.collection("walletLinks").doc(uid).get();
   if (!link.exists) throw new HttpsError("failed-precondition", "Link wallet first");
   const token = request.data?.token;
-  if (typeof token !== "string" || token.length < 20) throw new HttpsError("invalid-argument", "FCM token required");
+  if (typeof token !== "string" || token.length < 20 || token.length > 4096 || !/^[A-Za-z0-9_:\-]+$/.test(token)) {
+    throw new HttpsError("invalid-argument", "Valid FCM token required");
+  }
+  const platform = String(request.data?.platform || "unknown").toLowerCase();
+  if (!allowedPlatforms.has(platform)) throw new HttpsError("invalid-argument", "Valid platform required");
   const tokenId = crypto.createHash("sha256").update(token).digest("hex");
-  await db.collection("walletDevices").doc(link.get("wallet")).collection("tokens").doc(tokenId).set({
+  const tokensRef = db.collection("walletDevices").doc(link.get("wallet")).collection("tokens");
+  await tokensRef.doc(tokenId).set({
     token,
     uid,
-    platform: String(request.data?.platform || "unknown"),
+    platform,
+    createdAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
-  });
+  }, { merge: true });
+  const tokenSnapshot = await tokensRef.orderBy("updatedAt", "desc").limit(maxDeviceTokensPerWallet + 10).get();
+  const staleDeletes = tokenSnapshot.docs
+    .slice(maxDeviceTokensPerWallet)
+    .map((doc) => doc.ref.delete());
+  await Promise.all(staleDeletes);
   return { registered: true };
 });
 
 exports.trackTransaction = onCall({ region, enforceAppCheck: true }, async (request) => {
   requireApp(request);
   const uid = requireUser(request);
+  await enforceRateLimit("trackTransaction", uid, 20, 60 * 60);
   const hash = request.data?.transactionHash;
   if (typeof hash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new HttpsError("invalid-argument", "Valid transaction hash required");
   const link = await db.collection("walletLinks").doc(uid).get();
+  if (!link.exists) throw new HttpsError("failed-precondition", "Link wallet first");
   await db.collection("transactions").doc(`${chainIdParam.value()}_${hash.toLowerCase()}`).set({
     chainId: Number(chainIdParam.value()),
     transactionHash: hash.toLowerCase(),
     uid,
-    wallet: link.exists ? link.get("wallet") : null,
+    wallet: link.get("wallet"),
     status: "submitted",
     createdAt: FieldValue.serverTimestamp(),
   }, { merge: true });
@@ -350,8 +413,20 @@ exports.confirmTransactions = onSchedule({
     const receipt = await provider.getTransactionReceipt(doc.get("transactionHash"));
     if (!receipt) continue;
     const validContract = receipt.to?.toLowerCase() === address.toLowerCase();
-    const status = receipt.status === 1 && validContract ? "confirmed" : "failed";
-    await doc.ref.set({ status, blockNumber: receipt.blockNumber, confirmedAt: FieldValue.serverTimestamp() }, { merge: true });
+    const walletAddress = wallet(doc.get("wallet"));
+    const validSender = walletAddress && receipt.from?.toLowerCase() === walletAddress;
+    const status = receipt.status === 1 && validContract && validSender
+      ? "confirmed"
+      : validContract && !validSender
+        ? "rejected_owner_mismatch"
+        : "failed";
+    await doc.ref.set({
+      status,
+      blockNumber: receipt.blockNumber,
+      receiptFrom: receipt.from?.toLowerCase() || null,
+      receiptTo: receipt.to?.toLowerCase() || null,
+      resolvedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
     const target = doc.get("wallet");
     if (target) await pushToWallet(target, status === "confirmed" ? "Transaction confirmed" : "Transaction failed", doc.get("transactionHash"), { status, chainId });
   }
@@ -360,5 +435,9 @@ exports.confirmTransactions = onSchedule({
 exports.health = onRequest({ region, cors: false }, async (_request, response) => {
   const chainId = Number(chainIdParam.value());
   const checkpoint = await db.collection("system").doc(`indexer_${chainId}`).get();
-  response.status(checkpoint.exists ? 200 : 503).json({ ok: checkpoint.exists, indexer: checkpoint.exists ? checkpoint.data() : null });
+  response.status(checkpoint.exists ? 200 : 503).json({
+    ok: checkpoint.exists,
+    status: checkpoint.exists ? checkpoint.get("status") || "unknown" : "missing",
+    updatedAt: checkpoint.exists ? checkpoint.get("updatedAt") || null : null,
+  });
 });

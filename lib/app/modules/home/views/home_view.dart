@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_shimmer/flutter_shimmer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
@@ -24,26 +25,26 @@ class HomeView extends StatelessWidget {
 
   Widget _avatarPreview() {
     return GetBuilder<ContractLinking>(
-      builder: (_) => Container(
+      builder: (controller) => Container(
         height: avatarSize,
         width: avatarSize,
-        child: _.svgCode == null
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          shape: BoxShape.circle,
+        ),
+        child: controller.svgCode == null
             ? const SizedBox.shrink()
             : Material(
                 elevation: 8,
                 shape: const CircleBorder(),
                 clipBehavior: Clip.antiAlias,
                 child: SvgPicture.string(
-                  _.svgCode!,
+                  controller.svgCode!,
                   width: avatarSize,
                   height: avatarSize,
                   fit: BoxFit.cover,
                 ),
               ),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
       ),
     );
   }
@@ -296,248 +297,306 @@ class HomeView extends StatelessWidget {
             behavior: RemoveScrollGlow(),
             child: ListView(
               children: [
-                const ListTile(
-                  contentPadding: EdgeInsets.all(0),
-                  title: Text(
-                    'Enter your private key',
-                    style: bodySemiBold,
-                  ),
-                ).paddingOnly(top: 16),
-                TextField(
-                  controller: contractLink.keyController,
-                  decoration: borderedInputDecoration(
-                    fillColor: primaryColor,
-                    hint: 'Copy private key from Metamask and paste here',
-                    icon: const FaIcon(
-                      FontAwesomeIcons.userLock,
-                      color: primaryColor,
+                if (!kDebugMode)
+                  Card(
+                    elevation: 4,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    suffixIcon: IconButton(
-                      onPressed: contractLink.keyController.clear,
-                      icon: const Icon(
-                        Icons.clear,
+                    child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Column(
+                        children: [
+                          const FaIcon(
+                            FontAwesomeIcons.wallet,
+                            color: primaryColor,
+                            size: 36,
+                          ),
+                          const SizedBox(height: 16),
+                          const Text(
+                            'Private key login is disabled',
+                            style: bodySemiBoldBig,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          const Text(
+                            'For your safety, Easy Game only uses wallet signing through MetaMask or Base Account. Never paste a private key into any website.',
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          Obx(
+                            () => _walletService.isConnected.value
+                                ? Text(
+                                    _walletService.shortAddress,
+                                    style: bodySemiBoldSmall,
+                                    textAlign: TextAlign.center,
+                                  )
+                                : ElevatedButton(
+                                    onPressed: () async {
+                                      try {
+                                        await _walletService
+                                            .connectBaseAccount();
+                                      } catch (e) {
+                                        Get.snackbar(
+                                          'common.error'.tr,
+                                          'home.failedConnectWallet'.tr,
+                                        );
+                                      }
+                                    },
+                                    child: Text('top.signInBase'.tr),
+                                  ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ).paddingOnly(top: 16),
+                if (kDebugMode) ...[
+                  const ListTile(
+                    contentPadding: EdgeInsets.all(0),
+                    title: Text(
+                      'Enter your private key',
+                      style: bodySemiBold,
+                    ),
+                  ).paddingOnly(top: 16),
+                  TextField(
+                    controller: contractLink.keyController,
+                    decoration: borderedInputDecoration(
+                      fillColor: primaryColor,
+                      hint: 'Copy private key from Metamask and paste here',
+                      icon: const FaIcon(
+                        FontAwesomeIcons.userLock,
                         color: primaryColor,
+                      ),
+                      suffixIcon: IconButton(
+                        onPressed: contractLink.keyController.clear,
+                        icon: const Icon(
+                          Icons.clear,
+                          color: primaryColor,
+                        ),
                       ),
                     ),
                   ),
-                ),
-                MaterialButton(
-                  onPressed: contractLink.initWallet,
-                  splashColor: splashColor,
-                  child: Text(
-                    'Fetch account details',
-                    style: bodySemiBoldSmall.copyWith(color: primaryColor),
+                  MaterialButton(
+                    onPressed: contractLink.initWallet,
+                    splashColor: splashColor,
+                    child: Text(
+                      'Fetch account details',
+                      style: bodySemiBoldSmall.copyWith(color: primaryColor),
+                    ),
+                  ).paddingSymmetric(vertical: 2),
+                  Obx(
+                    () => contractLink.isLoading.value &&
+                            contractLink.userAddress.value.isEmpty
+                        ? const ListTileShimmer(
+                            padding: EdgeInsets.all(0),
+                            margin: EdgeInsets.symmetric(vertical: 8),
+                          )
+                        : const SizedBox.shrink(),
                   ),
-                ).paddingSymmetric(vertical: 2),
-                Obx(
-                  () => contractLink.isLoading.value &&
-                          contractLink.userAddress.value.isEmpty
-                      ? const ListTileShimmer(
-                          padding: EdgeInsets.all(0),
-                          margin: EdgeInsets.symmetric(vertical: 8),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                Obx(
-                  () => contractLink.userAddress.value.isNotEmpty
-                      ? ListTile(
-                          contentPadding: const EdgeInsets.all(0),
-                          leading: const FaIcon(
-                            FontAwesomeIcons.user,
-                            color: primaryColor,
-                          ),
-                          title: const Text(
-                            'Account Address',
-                            style: bodySemiBold,
-                          ),
-                          subtitle: Text(
-                            contractLink.userAddress.value,
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                Obx(
-                  () => contractLink.isLoading.value &&
-                          contractLink.userBalance.value.isEmpty
-                      ? const ListTileShimmer(
-                          padding: EdgeInsets.all(0),
-                          margin: EdgeInsets.symmetric(vertical: 8),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                Obx(
-                  () => contractLink.userBalance.value.isNotEmpty
-                      ? ListTile(
-                          contentPadding: const EdgeInsets.all(0),
-                          leading: const FaIcon(
-                            FontAwesomeIcons.ethereum,
-                            color: primaryColor,
-                          ),
-                          title: const Text(
-                            'Account Balance',
-                            style: bodySemiBold,
-                          ),
-                          subtitle: Text(
-                            contractLink.userBalance.value,
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                Obx(
-                  () => contractLink.isLoading.value
-                      ? const ListTileShimmer(
-                          padding: EdgeInsets.all(0),
-                          margin: EdgeInsets.symmetric(vertical: 8),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                Obx(
-                  () => contractLink.userBalance.value.isNotEmpty &&
-                          !contractLink.isLoading.value
-                      ? const ListTile(
-                          contentPadding: EdgeInsets.all(0),
-                          title: Text(
-                            'Enter Account Name',
-                            style: bodySemiBold,
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                Obx(
-                  () => contractLink.userBalance.value.isNotEmpty &&
-                          !contractLink.isLoading.value
-                      ? TextField(
-                          controller: contractLink.nameController,
-                          decoration: borderedInputDecoration(
-                              fillColor: primaryColor,
-                              hint: 'Enter name of account to save',
-                              icon: const FaIcon(
-                                FontAwesomeIcons.userAstronaut,
-                                color: primaryColor,
-                              )),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                Obx(
-                  () => contractLink.isLoading.value
-                      ? const ProfileShimmer(
-                          padding: EdgeInsets.all(0),
-                          margin: EdgeInsets.symmetric(vertical: 8),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-                Obx(
-                  () => contractLink.userAddress.value.isNotEmpty &&
-                          contractLink.userBalance.value.isNotEmpty &&
-                          !contractLink.isLoading.value
-                      ? Card(
-                          elevation: 4,
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8)),
-                          child: Row(
-                            mainAxisAlignment: contractLink.check.value
-                                ? MainAxisAlignment.start
-                                : MainAxisAlignment.spaceAround,
-                            children: [
-                              if (!contractLink.check.value)
-                                IconButton(
-                                  onPressed: () =>
-                                      contractLink.generateSvg(force: true),
-                                  icon: const Icon(Icons.refresh),
-                                ),
-                              GestureDetector(
-                                onTap: contractLink.check.toggle,
-                                child: _avatarPreview(),
-                              ),
-                              if (!contractLink.check.value)
-                                IconButton(
-                                    onPressed: () {
-                                      contractLink.check.value = true;
-                                    },
-                                    icon: const Icon(Icons.check)),
-                              if (contractLink.check.value)
-                                const SizedBox(
-                                  width: 32,
-                                ),
-                              if (contractLink.check.value)
-                                Expanded(
-                                  child: Column(
-                                    children: [
-                                      ListTile(
-                                        contentPadding: const EdgeInsets.all(0),
-                                        title: const Text(
-                                          'Address',
-                                          style: bodySemiBold,
-                                        ),
-                                        subtitle: Text(
-                                          contractLink.userAddress.value,
-                                        ),
-                                      ),
-                                      ListTile(
-                                        contentPadding: const EdgeInsets.all(0),
-                                        title: const Text(
-                                          'Balance',
-                                          style: bodySemiBold,
-                                        ),
-                                        subtitle: Text(
-                                          contractLink.userBalance.value,
-                                        ),
-                                      ),
-                                      ListTile(
-                                        contentPadding: const EdgeInsets.all(0),
-                                        title: const Text(
-                                          'Account Name',
-                                          style: bodySemiBold,
-                                        ),
-                                        subtitle: Text(
-                                          contractLink.name.value,
-                                        ),
-                                      ),
-                                    ],
+                  Obx(
+                    () => contractLink.userAddress.value.isNotEmpty
+                        ? ListTile(
+                            contentPadding: const EdgeInsets.all(0),
+                            leading: const FaIcon(
+                              FontAwesomeIcons.user,
+                              color: primaryColor,
+                            ),
+                            title: const Text(
+                              'Account Address',
+                              style: bodySemiBold,
+                            ),
+                            subtitle: Text(
+                              contractLink.userAddress.value,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  Obx(
+                    () => contractLink.isLoading.value &&
+                            contractLink.userBalance.value.isEmpty
+                        ? const ListTileShimmer(
+                            padding: EdgeInsets.all(0),
+                            margin: EdgeInsets.symmetric(vertical: 8),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  Obx(
+                    () => contractLink.userBalance.value.isNotEmpty
+                        ? ListTile(
+                            contentPadding: const EdgeInsets.all(0),
+                            leading: const FaIcon(
+                              FontAwesomeIcons.ethereum,
+                              color: primaryColor,
+                            ),
+                            title: const Text(
+                              'Account Balance',
+                              style: bodySemiBold,
+                            ),
+                            subtitle: Text(
+                              contractLink.userBalance.value,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  Obx(
+                    () => contractLink.isLoading.value
+                        ? const ListTileShimmer(
+                            padding: EdgeInsets.all(0),
+                            margin: EdgeInsets.symmetric(vertical: 8),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  Obx(
+                    () => contractLink.userBalance.value.isNotEmpty &&
+                            !contractLink.isLoading.value
+                        ? const ListTile(
+                            contentPadding: EdgeInsets.all(0),
+                            title: Text(
+                              'Enter Account Name',
+                              style: bodySemiBold,
+                            ),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  Obx(
+                    () => contractLink.userBalance.value.isNotEmpty &&
+                            !contractLink.isLoading.value
+                        ? TextField(
+                            controller: contractLink.nameController,
+                            decoration: borderedInputDecoration(
+                                fillColor: primaryColor,
+                                hint: 'Enter name of account to save',
+                                icon: const FaIcon(
+                                  FontAwesomeIcons.userAstronaut,
+                                  color: primaryColor,
+                                )),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  Obx(
+                    () => contractLink.isLoading.value
+                        ? const ProfileShimmer(
+                            padding: EdgeInsets.all(0),
+                            margin: EdgeInsets.symmetric(vertical: 8),
+                          )
+                        : const SizedBox.shrink(),
+                  ),
+                  Obx(
+                    () => contractLink.userAddress.value.isNotEmpty &&
+                            contractLink.userBalance.value.isNotEmpty &&
+                            !contractLink.isLoading.value
+                        ? Card(
+                            elevation: 4,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8)),
+                            child: Row(
+                              mainAxisAlignment: contractLink.check.value
+                                  ? MainAxisAlignment.start
+                                  : MainAxisAlignment.spaceAround,
+                              children: [
+                                if (!contractLink.check.value)
+                                  IconButton(
+                                    onPressed: () =>
+                                        contractLink.generateSvg(force: true),
+                                    icon: const Icon(Icons.refresh),
                                   ),
-                                )
-                            ],
-                          ).paddingAll(16),
-                        )
-                      : const SizedBox.shrink(),
-                ).paddingOnly(top: 16),
-                Obx(() => (!contractLink.isLoading.value &&
-                        contractLink.userAddress.value.isNotEmpty &&
-                        !contractLink.isLoading.value)
-                    ? MaterialButton(
-                        onPressed: contractLink.saveAccount,
-                        color: primaryColor,
-                        textColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(32)),
-                        child: const Text(
-                          'Save Account',
-                          style: bodySemiBold,
-                        ).paddingAll(12),
-                      ).paddingSymmetric(vertical: 16, horizontal: 8)
-                    : const SizedBox.shrink()),
-                Obx(() => (!contractLink.isLoading.value &&
-                        contractLink.userAddress.value.isNotEmpty &&
-                        !contractLink.isLoading.value)
-                    ? MaterialButton(
-                        // onPressed: () => Get.to(() => LotteriesView()),
-                        onPressed: () => Get.to(() => LevelsScreen()),
-                        color: Colors.green,
-                        textColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(32)),
-                        child: const Text(
-                          'Proceed to Lottery',
-                          style: bodySemiBold,
-                        ).paddingAll(12),
-                      ).paddingSymmetric(vertical: 4, horizontal: 8)
-                    : const SizedBox.shrink()),
-                ListTile(
-                  title: Text(
-                    contractLink.message.value,
-                    style: bodySemiBold,
-                  ),
-                )
+                                GestureDetector(
+                                  onTap: contractLink.check.toggle,
+                                  child: _avatarPreview(),
+                                ),
+                                if (!contractLink.check.value)
+                                  IconButton(
+                                      onPressed: () {
+                                        contractLink.check.value = true;
+                                      },
+                                      icon: const Icon(Icons.check)),
+                                if (contractLink.check.value)
+                                  const SizedBox(
+                                    width: 32,
+                                  ),
+                                if (contractLink.check.value)
+                                  Expanded(
+                                    child: Column(
+                                      children: [
+                                        ListTile(
+                                          contentPadding:
+                                              const EdgeInsets.all(0),
+                                          title: const Text(
+                                            'Address',
+                                            style: bodySemiBold,
+                                          ),
+                                          subtitle: Text(
+                                            contractLink.userAddress.value,
+                                          ),
+                                        ),
+                                        ListTile(
+                                          contentPadding:
+                                              const EdgeInsets.all(0),
+                                          title: const Text(
+                                            'Balance',
+                                            style: bodySemiBold,
+                                          ),
+                                          subtitle: Text(
+                                            contractLink.userBalance.value,
+                                          ),
+                                        ),
+                                        ListTile(
+                                          contentPadding:
+                                              const EdgeInsets.all(0),
+                                          title: const Text(
+                                            'Account Name',
+                                            style: bodySemiBold,
+                                          ),
+                                          subtitle: Text(
+                                            contractLink.name.value,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                              ],
+                            ).paddingAll(16),
+                          )
+                        : const SizedBox.shrink(),
+                  ).paddingOnly(top: 16),
+                  Obx(() => (!contractLink.isLoading.value &&
+                          contractLink.userAddress.value.isNotEmpty &&
+                          !contractLink.isLoading.value)
+                      ? MaterialButton(
+                          onPressed: contractLink.saveAccount,
+                          color: primaryColor,
+                          textColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(32)),
+                          child: const Text(
+                            'Save Account',
+                            style: bodySemiBold,
+                          ).paddingAll(12),
+                        ).paddingSymmetric(vertical: 16, horizontal: 8)
+                      : const SizedBox.shrink()),
+                  Obx(() => (!contractLink.isLoading.value &&
+                          contractLink.userAddress.value.isNotEmpty &&
+                          !contractLink.isLoading.value)
+                      ? MaterialButton(
+                          // onPressed: () => Get.to(() => LotteriesView()),
+                          onPressed: () => Get.to(() => LevelsScreen()),
+                          color: Colors.green,
+                          textColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(32)),
+                          child: const Text(
+                            'Proceed to Lottery',
+                            style: bodySemiBold,
+                          ).paddingAll(12),
+                        ).paddingSymmetric(vertical: 4, horizontal: 8)
+                      : const SizedBox.shrink()),
+                  ListTile(
+                    title: Text(
+                      contractLink.message.value,
+                      style: bodySemiBold,
+                    ),
+                  )
+                ],
               ],
             ).paddingSymmetric(horizontal: 16),
           ),
