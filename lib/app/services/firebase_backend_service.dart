@@ -14,16 +14,21 @@ import 'notifications_service.dart';
 import 'wallet_connect_service.dart';
 
 class FirebaseBackendService extends GetxService {
-  static const _region = 'us-central1';
+  FirebaseBackendService({
+    required this.walletService,
+    required this.notifications,
+  });
 
-  final WalletConnectService walletService = Get.find<WalletConnectService>();
-  final NotificationsService notifications = Get.find<NotificationsService>();
+  static const _region = 'us-central1';
+  static const _recaptchaSiteKey =
+      String.fromEnvironment('FIREBASE_RECAPTCHA_V3_SITE_KEY');
+  static const _vapidKey = String.fromEnvironment('FIREBASE_VAPID_KEY');
+
+  final WalletConnectService walletService;
+  final NotificationsService notifications;
   final RxBool isReady = false.obs;
   final RxBool walletLinked = false.obs;
   final RxString errorMessage = ''.obs;
-
-  String _recaptchaSiteKey = '';
-  String _vapidKey = '';
 
   FirebaseFunctions? _functions;
   StreamSubscription<RemoteMessage>? _messageSubscription;
@@ -36,9 +41,6 @@ class FirebaseBackendService extends GetxService {
         options: DefaultFirebaseOptions.currentPlatform,
       );
     }
-
-    _functions = FirebaseFunctions.instanceFor(region: _region);
-    await _fetchConfig();
 
     if (!kDebugMode || _recaptchaSiteKey.isNotEmpty) {
       await FirebaseAppCheck.instance.activate(
@@ -55,6 +57,7 @@ class FirebaseBackendService extends GetxService {
       await FirebaseAuth.instance.signInAnonymously();
     }
 
+    _functions = FirebaseFunctions.instanceFor(region: _region);
     await _configureMessaging();
     await _loadWalletLink();
     _paymentWorker = ever<String>(walletService.lastPaymentTxHash, (hash) {
@@ -67,19 +70,6 @@ class FirebaseBackendService extends GetxService {
       walletLinked.value = false;
     });
     isReady.value = true;
-  }
-
-  Future<void> _fetchConfig() async {
-    try {
-      final result = await _functions!
-          .httpsCallable('getAppConfig')
-          .call();
-      final data = Map<String, dynamic>.from(result.data as Map);
-      _recaptchaSiteKey = (data['recaptchaSiteKey'] as String?) ?? '';
-      _vapidKey = (data['vapidKey'] as String?) ?? '';
-    } catch (e) {
-      debugPrint('Firebase config fetch failed (non-critical): $e');
-    }
   }
 
   Future<void> _configureMessaging() async {
