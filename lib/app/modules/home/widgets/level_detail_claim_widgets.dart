@@ -4,25 +4,24 @@ class _LevelClaimPanel extends StatelessWidget {
   final int level;
   final EasyGamePlayerSummary? player;
   final bool isFrozen;
-  final WalletConnectService walletService;
 
   const _LevelClaimPanel({
     required this.level,
     required this.player,
     required this.isFrozen,
-    required this.walletService,
   });
 
   @override
   Widget build(BuildContext context) {
+    final walletService = Get.find<WalletConnectService>();
     final data = player;
     if (data == null) {
       return _LevelDetailPanel(
         title: 'levelDetail.rewardsWallet'.tr,
         rows: [
-          _DetailRow('common.status'.tr, 'common.notConnected'.tr),
-          _DetailRow('levelDetail.claimablePrize'.tr, '0'),
-          _DetailRow('levelDetail.referralBonus'.tr, '0'),
+          DetailRow('common.status'.tr, 'common.notConnected'.tr),
+          DetailRow('levelDetail.claimablePrize'.tr, '0'),
+          DetailRow('levelDetail.referralBonus'.tr, '0'),
         ],
       );
     }
@@ -54,19 +53,19 @@ class _LevelClaimPanel extends StatelessWidget {
           const SizedBox(height: 12),
           _LevelStatsStrip(
             stats: [
-              _DetailRow(
+              DetailRow(
                 'levelDetail.claimablePrize'.tr,
                 '${formatWeiToEth(data.claimablePrizeWei)} $currency',
               ),
-              _DetailRow(
+              DetailRow(
                 'levelDetail.pendingPrize'.tr,
                 '${formatWeiToEth(data.pendingPrizeWei)} $currency',
               ),
-              _DetailRow(
+              DetailRow(
                 'levelDetail.referralBonus'.tr,
                 '${formatWeiToEth(data.claimableReferralBonusWei)} $currency',
               ),
-              _DetailRow(
+              DetailRow(
                 'levelDetail.recycleCount'.tr,
                 data.recycleCount.toString(),
               ),
@@ -170,7 +169,7 @@ class _ClaimActionButton extends StatelessWidget {
 }
 
 class _LevelStatsStrip extends StatelessWidget {
-  final List<_DetailRow> stats;
+  final List<DetailRow> stats;
 
   const _LevelStatsStrip({required this.stats});
 

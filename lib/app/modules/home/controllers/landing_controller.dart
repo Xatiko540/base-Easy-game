@@ -1,9 +1,15 @@
-part of '../views/start_page.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/views/levels.dart';
+import 'package:lottery_advance/app/services/firebase_backend_service.dart';
+import 'package:lottery_advance/app/services/ui_navigation_service.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
-class _LandingController extends GetxController {
-  final WalletConnectService walletService;
+class LandingController extends GetxController {
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
 
-  _LandingController(this.walletService);
+  LandingController();
 
   final previewSearchController = TextEditingController();
 
@@ -22,7 +28,7 @@ class _LandingController extends GetxController {
     try {
       await walletService.connectBaseAccount();
       if (walletService.isConnected.value) {
-        await _linkFirebaseWallet();
+        await linkFirebaseWallet();
         Get.to(() => const LevelsScreen());
       }
     } catch (e) {
@@ -34,7 +40,7 @@ class _LandingController extends GetxController {
     }
   }
 
-  Future<void> _linkFirebaseWallet() async {
+  Future<void> linkFirebaseWallet() async {
     if (!Get.isRegistered<FirebaseBackendService>()) return;
     final backend = Get.find<FirebaseBackendService>();
     if (!backend.isReady.value) return;

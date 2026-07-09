@@ -10,14 +10,13 @@ import 'package:http/http.dart';
 import 'wallet_connect_service.dart';
 import 'notifications_service.dart';
 
-class ContractEventsService extends GetxController {
-  final WalletConnectService walletService;
-  final NotificationsService notifications;
+class ContractEventsService extends GetxService {
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final NotificationsService notifications = Get.find<NotificationsService>();
   Web3Client? _client;
   DeployedContract? _contract;
 
-  ContractEventsService(
-      {required this.walletService, required this.notifications});
+  ContractEventsService();
 
   Future<void> init({String? rpcUrl, String? wsUrl}) async {
     // Determine RPC URL - prefer provided, then env, then default

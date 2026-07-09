@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -5,9 +6,11 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/modules/home/views/levels.dart';
+import 'package:lottery_advance/app/services/firebase_data_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
+import '../models/levels_models.dart';
 
 part '../models/utility_screen_models.dart';
 part '../controllers/statistics_controller.dart';
@@ -24,133 +27,134 @@ part '../widgets/information_diagram_widgets.dart';
 part '../widgets/information_common_widgets.dart';
 
 class StatisticsScreen extends StatelessWidget {
-  StatisticsScreen({Key? key}) : super(key: key);
-
-  final WalletConnectService walletService = Get.find<WalletConnectService>();
-  late final _StatisticsController _statisticsController =
-      Get.isRegistered<_StatisticsController>()
-          ? Get.find<_StatisticsController>()
-          : Get.put(_StatisticsController(Get.find<WalletConnectService>()));
+  const StatisticsScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () {
-        final data = _statisticsController.snapshot.value;
-        final currency = walletService.nativeSymbol;
-        return _UtilityScaffold(
-          title: 'nav.stats'.tr,
-          activeSection: 'Statistics',
-          icon: Icons.bar_chart,
-          onRefresh: _statisticsController.refreshStats,
-          children: [
-            if (_statisticsController.isLoading.value)
-              const LinearProgressIndicator(
-                color: EasyGameTheme.teal,
-                backgroundColor: EasyGameTheme.border,
-              ),
-            if (_statisticsController.isLoading.value)
-              const SizedBox(height: 18),
-            if (_statisticsController.errorMessage.value.isNotEmpty)
-              _InfoBlock(
-                title: 'common.notLoaded'.tr,
-                text: _statisticsController.errorMessage.value,
-              ),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final columns = constraints.maxWidth < 520
-                    ? 1
-                    : constraints.maxWidth < 900
-                        ? 2
-                        : 4;
-                final cards = [
-                  _ArenaStatCard(
-                    icon: Icons.groups_2_outlined,
-                    title: 'stats.participants'.tr,
-                    value: data?.matrixNodes.toString() ?? '-',
-                    delta: '+ ${data?.activeLevels ?? 0}',
+    return GetX<_StatisticsController>(
+      init: _StatisticsController(),
+      dispose: (_) => Get.delete<_StatisticsController>(),
+      builder: (statisticsController) {
+        final walletService = Get.find<WalletConnectService>();
+        return Obx(
+          () {
+            final data = statisticsController.snapshot.value;
+            final currency = walletService.nativeSymbol;
+            return _UtilityScaffold(
+              title: 'nav.stats'.tr,
+              activeSection: 'Statistics',
+              icon: Icons.bar_chart,
+              onRefresh: statisticsController.refreshStats,
+              children: [
+                if (statisticsController.isLoading.value)
+                  const LinearProgressIndicator(
                     color: EasyGameTheme.teal,
+                    backgroundColor: EasyGameTheme.border,
                   ),
-                  _ArenaStatCard(
-                    icon: Icons.account_balance_wallet_outlined,
-                    title: 'stats.prizeVolume'.tr,
-                    value: data == null
-                        ? '-'
-                        : '${_formatWei(data.totalPrizePoolWei)} $currency',
-                    delta: '75.5%',
-                    color: Colors.greenAccent,
+                if (statisticsController.isLoading.value)
+                  const SizedBox(height: 18),
+                if (statisticsController.errorMessage.value.isNotEmpty)
+                  _InfoBlock(
+                    title: 'common.notLoaded'.tr,
+                    text: statisticsController.errorMessage.value,
                   ),
-                  _ArenaStatCard(
-                    icon: Icons.sync_alt,
-                    title: 'stats.transactions'.tr,
-                    value: data?.matrixNodes.toString() ?? '-',
-                    delta: '+${data?.frozenLevels ?? 0} frozen',
-                    color: EasyGameTheme.orange,
-                  ),
-                  _ArenaStatCard(
-                    icon: Icons.trending_up,
-                    title: 'stats.weight'.tr,
-                    value: data?.totalWeight.toString() ?? '-',
-                    delta: 'weighted draw',
-                    color: EasyGameTheme.purple,
-                  ),
-                ];
-                return GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: cards.length,
-                  gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: columns,
-                    mainAxisSpacing: 14,
-                    crossAxisSpacing: 14,
-                    mainAxisExtent: 170,
-                  ),
-                  itemBuilder: (context, index) => cards[index],
-                );
-              },
-            ),
-            const SizedBox(height: 18),
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final compact = constraints.maxWidth < 760;
-                final distribution = _PayoutDistributionPanel(
-                  totalPrizePoolWei: data?.totalPrizePoolWei ?? BigInt.zero,
-                  currency: currency,
-                );
-                final levels = _LevelVolumePanel(
-                  rows: data?.levelRows ?? const <_LevelArenaStat>[],
-                  currency: currency,
-                );
-                if (compact) {
-                  return Column(
-                    children: [
-                      distribution,
-                      levels,
-                    ],
-                  );
-                }
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(flex: 5, child: distribution),
-                    const SizedBox(width: 18),
-                    Expanded(flex: 7, child: levels),
-                  ],
-                );
-              },
-            ),
-            _InfoBlock(
-              title: 'stats.strategyTitle'.tr,
-              text: 'stats.strategyText'.tr,
-            ),
-            _StatusCard(
-              title: 'utility.easyGameContract'.tr,
-              value: data == null
-                  ? 'common.loading'.tr
-                  : _shortAddress(data.contractAddress),
-              icon: Icons.description,
-            ),
-          ],
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final columns = constraints.maxWidth < 520
+                        ? 1
+                        : constraints.maxWidth < 900
+                            ? 2
+                            : 4;
+                    final cards = [
+                      _ArenaStatCard(
+                        icon: Icons.groups_2_outlined,
+                        title: 'stats.participants'.tr,
+                        value: data?.matrixNodes.toString() ?? '-',
+                        delta: '+ ${data?.activeLevels ?? 0}',
+                        color: EasyGameTheme.teal,
+                      ),
+                      _ArenaStatCard(
+                        icon: Icons.account_balance_wallet_outlined,
+                        title: 'stats.prizeVolume'.tr,
+                        value: data == null
+                            ? '-'
+                            : '${_formatWei(data.totalPrizePoolWei)} $currency',
+                        delta: '75.5%',
+                        color: Colors.greenAccent,
+                      ),
+                      _ArenaStatCard(
+                        icon: Icons.sync_alt,
+                        title: 'stats.transactions'.tr,
+                        value: data?.matrixNodes.toString() ?? '-',
+                        delta: '+${data?.frozenLevels ?? 0} frozen',
+                        color: EasyGameTheme.orange,
+                      ),
+                      _ArenaStatCard(
+                        icon: Icons.trending_up,
+                        title: 'stats.weight'.tr,
+                        value: data?.totalWeight.toString() ?? '-',
+                        delta: 'weighted draw',
+                        color: EasyGameTheme.purple,
+                      ),
+                    ];
+                    return GridView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: cards.length,
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        mainAxisSpacing: 14,
+                        crossAxisSpacing: 14,
+                        mainAxisExtent: 170,
+                      ),
+                      itemBuilder: (context, index) => cards[index],
+                    );
+                  },
+                ),
+                const SizedBox(height: 18),
+                LayoutBuilder(
+                  builder: (context, constraints) {
+                    final compact = constraints.maxWidth < 760;
+                    final distribution = _PayoutDistributionPanel(
+                      totalPrizePoolWei: data?.totalPrizePoolWei ?? BigInt.zero,
+                      currency: currency,
+                    );
+                    final levels = _LevelVolumePanel(
+                      rows: data?.levelRows ?? const <_LevelArenaStat>[],
+                      currency: currency,
+                    );
+                    if (compact) {
+                      return Column(
+                        children: [
+                          distribution,
+                          levels,
+                        ],
+                      );
+                    }
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(flex: 5, child: distribution),
+                        const SizedBox(width: 18),
+                        Expanded(flex: 7, child: levels),
+                      ],
+                    );
+                  },
+                ),
+                _InfoBlock(
+                  title: 'stats.strategyTitle'.tr,
+                  text: 'stats.strategyText'.tr,
+                ),
+                _StatusCard(
+                  title: 'utility.easyGameContract'.tr,
+                  value: data == null
+                      ? 'common.loading'.tr
+                      : _shortAddress(data.contractAddress),
+                  icon: Icons.description,
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -158,97 +162,98 @@ class StatisticsScreen extends StatelessWidget {
 }
 
 class MatrixArenaScreen extends StatelessWidget {
-  MatrixArenaScreen({Key? key}) : super(key: key);
-
-  final WalletConnectService walletService = Get.find<WalletConnectService>();
-  late final _MatrixArenaController _matrixController =
-      Get.isRegistered<_MatrixArenaController>()
-          ? Get.find<_MatrixArenaController>()
-          : Get.put(_MatrixArenaController(Get.find<WalletConnectService>()));
+  const MatrixArenaScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () {
-        final selectedLevel = _matrixController.selectedLevel.value;
-        final data = _matrixController.snapshot.value;
-        return ExpressAppShell(
-          title: 'matrix.title'.tr,
-          breadcrumb: '${'app.name'.tr} / ${'nav.matrix'.tr}',
-          activeSection: 'Matrix',
-          onRefresh: _matrixController.refreshArena,
-          child: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1280),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'matrix.subtitle'.tr,
-                    style: const TextStyle(
-                      color: Colors.white54,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  if (_matrixController.isLoading.value)
-                    const LinearProgressIndicator(
-                      color: EasyGameTheme.teal,
-                      backgroundColor: EasyGameTheme.border,
-                    ),
-                  if (_matrixController.isLoading.value)
-                    const SizedBox(height: 18),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final compact = constraints.maxWidth < 900;
-                      final side = SizedBox(
-                        width: compact ? double.infinity : 360,
-                        child: Column(
-                          children: [
-                            _MatrixLevelPicker(
-                              selectedLevel: selectedLevel,
-                              onChanged: _matrixController.selectLevel,
-                            ),
-                            const SizedBox(height: 18),
-                            _MatrixLegend(),
-                          ],
+    return GetX<_MatrixArenaController>(
+      init: _MatrixArenaController(),
+      dispose: (_) => Get.delete<_MatrixArenaController>(),
+      builder: (matrixController) {
+        final walletService = Get.find<WalletConnectService>();
+        return Obx(
+          () {
+            final selectedLevel = matrixController.selectedLevel.value;
+            final data = matrixController.snapshot.value;
+            return ExpressAppShell(
+              title: 'matrix.title'.tr,
+              breadcrumb: '${'app.name'.tr} / ${'nav.matrix'.tr}',
+              activeSection: 'Matrix',
+              onRefresh: matrixController.refreshArena,
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1280),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'matrix.subtitle'.tr,
+                        style: const TextStyle(
+                          color: Colors.white54,
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
                         ),
-                      );
-                      final panel = _MatrixArenaPanel(
-                        data: data,
-                        currency: walletService.nativeSymbol,
-                      );
-                      if (compact) {
-                        return Column(
-                          children: [
-                            side,
-                            const SizedBox(height: 22),
-                            panel,
-                          ],
-                        );
-                      }
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          side,
-                          const SizedBox(width: 22),
-                          Expanded(child: panel),
-                        ],
-                      );
-                    },
+                      ),
+                      const SizedBox(height: 24),
+                      if (matrixController.isLoading.value)
+                        const LinearProgressIndicator(
+                          color: EasyGameTheme.teal,
+                          backgroundColor: EasyGameTheme.border,
+                        ),
+                      if (matrixController.isLoading.value)
+                        const SizedBox(height: 18),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 900;
+                          final side = SizedBox(
+                            width: compact ? double.infinity : 360,
+                            child: Column(
+                              children: [
+                                _MatrixLevelPicker(
+                                  selectedLevel: selectedLevel,
+                                  onChanged: matrixController.selectLevel,
+                                ),
+                                const SizedBox(height: 18),
+                                _MatrixLegend(),
+                              ],
+                            ),
+                          );
+                          final panel = _MatrixArenaPanel(
+                            data: data,
+                            currency: walletService.nativeSymbol,
+                          );
+                          if (compact) {
+                            return Column(
+                              children: [
+                                side,
+                                const SizedBox(height: 22),
+                                panel,
+                              ],
+                            );
+                          }
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              side,
+                              const SizedBox(width: 22),
+                              Expanded(child: panel),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ),
-          ),
+            );
+          },
         );
       },
     );
   }
 }
 
-class MemberPreviewScreen extends StatefulWidget {
+class MemberPreviewScreen extends StatelessWidget {
   final String query;
 
   const MemberPreviewScreen({
@@ -257,123 +262,102 @@ class MemberPreviewScreen extends StatefulWidget {
   }) : super(key: key);
 
   @override
-  State<MemberPreviewScreen> createState() => _MemberPreviewScreenState();
-}
-
-class _MemberPreviewScreenState extends State<MemberPreviewScreen> {
-  final WalletConnectService walletService = Get.find<WalletConnectService>();
-  late final String controllerTag;
-  late final _MemberPreviewController previewController;
-
-  @override
-  void initState() {
-    super.initState();
-    controllerTag = 'member-preview-${widget.query}';
-    previewController = Get.put(
-      _MemberPreviewController(
-        walletService: walletService,
-        query: widget.query,
-      ),
-      tag: controllerTag,
-    );
-  }
-
-  @override
-  void dispose() {
-    if (Get.isRegistered<_MemberPreviewController>(tag: controllerTag)) {
-      Get.delete<_MemberPreviewController>(tag: controllerTag);
-    }
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Obx(
-      () {
-        final data = previewController.snapshot.value ??
-            _MemberPreviewSnapshot(
-              query: widget.query,
-              normalizedAddress: ReferralLinkService.normalizeAddress(
-                widget.query,
-              ),
-              levels: const [],
-            );
-
-        return _UtilityScaffold(
-          title: 'utility.memberPreview'.tr,
-          icon: Icons.manage_search,
-          onRefresh: previewController.refreshPreview,
-          children: [
-            if (previewController.isLoading.value)
-              const LinearProgressIndicator(
-                color: EasyGameTheme.teal,
-                backgroundColor: EasyGameTheme.border,
-              ),
-            if (previewController.isLoading.value) const SizedBox(height: 18),
-            if (previewController.errorMessage.value.isNotEmpty)
-              _InfoBlock(
-                title: 'common.notLoaded'.tr,
-                text: previewController.errorMessage.value,
-              ),
-            _StatusCard(
-              title: data.isWallet
-                  ? 'utility.walletAddress'.tr
-                  : 'utility.memberId'.tr,
-              value: data.isWallet ? data.normalizedAddress : widget.query,
-              icon: data.isWallet ? Icons.account_balance_wallet : Icons.badge,
-            ),
-            if (!data.isWallet)
-              _InfoBlock(
-                title: 'utility.idLookup'.tr,
-                text: 'utility.idLookupText'.tr,
-              ),
-            Row(
-              children: [
-                Expanded(
-                  child: _MetricCard(
-                    title: 'utility.activeLevels'.tr,
-                    value: data.isWallet
-                        ? previewController.snapshot.value == null
-                            ? '-'
-                            : data.activeCount.toString()
-                        : 'common.notAvailable'.tr,
+    final tag = 'member-preview-$query';
+    return GetX<_MemberPreviewController>(
+      init: _MemberPreviewController(query: query),
+      tag: tag,
+      dispose: (_) => Get.delete<_MemberPreviewController>(tag: tag),
+      builder: (previewController) {
+        final walletService = Get.find<WalletConnectService>();
+        return Obx(
+          () {
+            final data = previewController.snapshot.value ??
+                _MemberPreviewSnapshot(
+                  query: query,
+                  normalizedAddress: ReferralLinkService.normalizeAddress(
+                    query,
                   ),
+                  levels: const [],
+                );
+
+            return _UtilityScaffold(
+              title: 'utility.memberPreview'.tr,
+              icon: Icons.manage_search,
+              onRefresh: previewController.refreshPreview,
+              children: [
+                if (previewController.isLoading.value)
+                  const LinearProgressIndicator(
+                    color: EasyGameTheme.teal,
+                    backgroundColor: EasyGameTheme.border,
+                  ),
+                if (previewController.isLoading.value) const SizedBox(height: 18),
+                if (previewController.errorMessage.value.isNotEmpty)
+                  _InfoBlock(
+                    title: 'common.notLoaded'.tr,
+                    text: previewController.errorMessage.value,
+                  ),
+                _StatusCard(
+                  title: data.isWallet
+                      ? 'utility.walletAddress'.tr
+                      : 'utility.memberId'.tr,
+                  value: data.isWallet ? data.normalizedAddress : query,
+                  icon: data.isWallet ? Icons.account_balance_wallet : Icons.badge,
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _MetricCard(
-                    title: 'utility.frozenLevels'.tr,
-                    value: data.isWallet
-                        ? previewController.snapshot.value == null
-                            ? '-'
-                            : data.frozenCount.toString()
-                        : 'common.notAvailable'.tr,
+                if (!data.isWallet)
+                  _InfoBlock(
+                    title: 'utility.idLookup'.tr,
+                    text: 'utility.idLookupText'.tr,
+                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _MetricCard(
+                        title: 'utility.activeLevels'.tr,
+                        value: data.isWallet
+                            ? previewController.snapshot.value == null
+                                ? '-'
+                                : data.activeCount.toString()
+                            : 'common.notAvailable'.tr,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _MetricCard(
+                        title: 'utility.frozenLevels'.tr,
+                        value: data.isWallet
+                            ? previewController.snapshot.value == null
+                                ? '-'
+                                : data.frozenCount.toString()
+                            : 'common.notAvailable'.tr,
+                      ),
+                    ),
+                  ],
+                ),
+                _StatusCard(
+                  title: 'utility.earnedOnLevels'.tr,
+                  value: data.isWallet
+                      ? previewController.snapshot.value == null
+                          ? 'common.loading'.tr
+                          : '${_formatWei(data.earnedWei)} ${walletService.nativeSymbol}'
+                      : 'common.notAvailable'.tr,
+                  icon: Icons.payments,
+                ),
+                _ActionTile(
+                  icon: Icons.grid_view,
+                  title: 'utility.openLevels'.tr,
+                  subtitle: data.isWallet
+                      ? 'utility.openFiltered'.tr
+                      : 'utility.openProgramView'.tr,
+                  onTap: () => Get.to(
+                    () => LevelsScreen(
+                      walletAddress: data.isWallet ? data.normalizedAddress : null,
+                    ),
                   ),
                 ),
               ],
-            ),
-            _StatusCard(
-              title: 'utility.earnedOnLevels'.tr,
-              value: data.isWallet
-                  ? previewController.snapshot.value == null
-                      ? 'common.loading'.tr
-                      : '${_formatWei(data.earnedWei)} ${walletService.nativeSymbol}'
-                  : 'common.notAvailable'.tr,
-              icon: Icons.payments,
-            ),
-            _ActionTile(
-              icon: Icons.grid_view,
-              title: 'utility.openLevels'.tr,
-              subtitle: data.isWallet
-                  ? 'utility.openFiltered'.tr
-                  : 'utility.openProgramView'.tr,
-              onTap: () => Get.to(
-                () => LevelsScreen(
-                  walletAddress: data.isWallet ? data.normalizedAddress : null,
-                ),
-              ),
-            ),
-          ],
+            );
+          },
         );
       },
     );

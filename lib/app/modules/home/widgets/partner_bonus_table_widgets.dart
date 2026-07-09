@@ -1,12 +1,11 @@
 part of '../views/partner_bonus_screen.dart';
 
 class _BonusTable extends StatelessWidget {
-  final WalletConnectService walletService;
-
-  const _BonusTable({required this.walletService});
+  const _BonusTable();
 
   @override
   Widget build(BuildContext context) {
+    final walletService = Get.find<WalletConnectService>();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(18),

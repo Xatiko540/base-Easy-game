@@ -1,24 +1,56 @@
-part of '../views/levels.dart';
+import 'dart:async';
+import 'package:get/get.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/services/firebase_data_service.dart';
+import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 
-class _LevelDetailController extends GetxController {
-  final WalletConnectService walletService;
+class LevelDetailController extends GetxController {
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
   final int level;
+  late final FirebaseDataService _firebaseData;
 
-  _LevelDetailController({
-    required this.walletService,
+  LevelDetailController({
     required this.level,
   });
 
-  final snapshot = Rxn<_LevelDetailSnapshot>();
+  final snapshot = Rxn<LevelDetailSnapshot>();
   final isLoading = false.obs;
   final errorMessage = ''.obs;
 
   Worker? _connectionWorker;
   Worker? _addressWorker;
+  StreamSubscription<FirebaseLevelData?>? _levelSub;
 
   @override
   void onInit() {
     super.onInit();
+    _firebaseData = Get.find<FirebaseDataService>();
+    _firebaseData.init();
+
+    _levelSub = _firebaseData.watchLevel(level).listen((fbLevel) {
+      if (fbLevel != null && snapshot.value != null) {
+        final prev = snapshot.value!;
+        snapshot.value = LevelDetailSnapshot(
+          state: prev.state,
+          stats: EasyGameMatrixStats(
+            size: fbLevel.activeCells,
+            nextOpenParentId: fbLevel.nextOpenParent,
+          ),
+          advanceStats: EasyGameAdvanceLevelStats(
+            prizePoolWei: fbLevel.prizePoolWei,
+            totalWeight: fbLevel.totalWeight,
+            activeCells: fbLevel.activeCells,
+            nextOpenParentId: fbLevel.nextOpenParent,
+            nextCellId: fbLevel.nextCell,
+          ),
+          priceWei: fbLevel.ethPriceWei,
+          player: prev.player,
+          playerWeight: prev.playerWeight,
+          playerChanceBps: prev.playerChanceBps,
+        );
+      }
+    });
+
     refreshDetail();
     _connectionWorker = ever<bool>(
       walletService.isConnected,
@@ -34,6 +66,7 @@ class _LevelDetailController extends GetxController {
   void onClose() {
     _connectionWorker?.dispose();
     _addressWorker?.dispose();
+    _levelSub?.cancel();
     super.onClose();
   }
 
@@ -50,12 +83,34 @@ class _LevelDetailController extends GetxController {
     }
   }
 
-  Future<_LevelDetailSnapshot> _load() async {
+  Future<LevelDetailSnapshot> _load() async {
+    EasyGameMatrixStats? stats;
+    EasyGameAdvanceLevelStats? advanceStats;
+    BigInt priceWei;
+
+    // Try Firebase first for public data
+    final fb = await _firebaseData.getLevel(level);
+    if (fb != null) {
+      stats = EasyGameMatrixStats(
+        size: fb.activeCells,
+        nextOpenParentId: fb.nextOpenParent,
+      );
+      advanceStats = EasyGameAdvanceLevelStats(
+        prizePoolWei: fb.prizePoolWei,
+        totalWeight: fb.totalWeight,
+        activeCells: fb.activeCells,
+        nextOpenParentId: fb.nextOpenParent,
+        nextCellId: fb.nextCell,
+      );
+      priceWei = fb.ethPriceWei;
+    } else {
+      // Fallback to contract
+      stats = await walletService.getEasyGameMatrixStats(level);
+      advanceStats = await walletService.getEasyGameAdvanceLevelStats(level);
+      priceWei = await walletService.getEasyGameLevelPriceWei(level);
+    }
+
     final state = await walletService.getEasyGameLevel(level: level);
-    final stats = await walletService.getEasyGameMatrixStats(level);
-    final advanceStats =
-        await walletService.getEasyGameAdvanceLevelStats(level);
-    final priceWei = await walletService.getEasyGameLevelPriceWei(level);
     EasyGamePlayerSummary? player;
     var playerWeight = BigInt.zero;
     var playerChanceBps = BigInt.zero;
@@ -70,7 +125,7 @@ class _LevelDetailController extends GetxController {
         player = null;
       }
     }
-    return _LevelDetailSnapshot(
+    return LevelDetailSnapshot(
       state: state,
       stats: stats,
       advanceStats: advanceStats,
@@ -81,7 +136,7 @@ class _LevelDetailController extends GetxController {
     );
   }
 
-  double fillPercent(_LevelDetailSnapshot data) {
+  double fillPercent(LevelDetailSnapshot data) {
     if (data.stats.size == BigInt.zero ||
         data.state.positionId == BigInt.zero) {
       return 0;
@@ -92,13 +147,9 @@ class _LevelDetailController extends GetxController {
         .toDouble();
   }
 
-  String stateLabel(_LevelDetailSnapshot data) {
-    if (data.state.frozen) {
-      return 'common.frozen'.tr;
-    }
-    if (data.state.active) {
-      return 'common.active'.tr;
-    }
+  String stateLabel(LevelDetailSnapshot data) {
+    if (data.state.frozen) return 'common.frozen'.tr;
+    if (data.state.active) return 'common.active'.tr;
     return 'levels.availableActivation'.tr;
   }
 }

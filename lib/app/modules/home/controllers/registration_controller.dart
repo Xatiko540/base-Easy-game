@@ -1,9 +1,9 @@
 part of '../views/registrationlevel.dart';
 
 class _RegistrationController extends GetxController {
-  final WalletConnectService walletService;
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
 
-  _RegistrationController(this.walletService);
+  _RegistrationController();
 
   final uplineController = TextEditingController();
   final selectedLevel = 3.obs;

@@ -3,12 +3,13 @@ import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/services/notifications_service.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
+import 'package:lottery_advance/app/services/firebase_data_service.dart';
 import 'package:lottery_advance/app/services/language_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/translations/app_translations.dart';
+import 'package:lottery_advance/core/binary_matrix.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
-import 'app/modules/controller/lotteries_controller.dart';
 import 'app/routes/app_pages.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get_storage/get_storage.dart';
@@ -37,13 +38,9 @@ void main() async {
     final languageService = Get.put(LanguageService(), permanent: true);
     languageService.load();
 
-    final notifications = NotificationsService();
-    Get.put(notifications, permanent: true);
-    final firebaseBackend = FirebaseBackendService(
-      walletService: Get.find<WalletConnectService>(),
-      notifications: notifications,
-    );
-    Get.put(firebaseBackend, permanent: true);
+    Get.put(NotificationsService(), permanent: true);
+    Get.put(FirebaseBackendService(), permanent: true);
+    Get.put(FirebaseDataService(), permanent: true);
     print(kIsWeb
         ? "[DEBUG] main: Web services registered."
         : "[DEBUG] main: Mobile services registered.");
@@ -69,25 +66,22 @@ void main() async {
     print("[DEBUG] main: runApp executed.");
 
     print("[DEBUG] main: Initializing background services...");
-    _initializeBackgroundServices(notifications, firebaseBackend);
+    _initializeBackgroundServices();
   } catch (e, stacktrace) {
     print("[DEBUG] main: FATAL ERROR during initialization: $e");
     print("[DEBUG] main: Stacktrace: $stacktrace");
   }
 }
 
-Future<void> _initializeBackgroundServices(
-  NotificationsService notifications,
-  FirebaseBackendService firebaseBackend,
-) async {
+Future<void> _initializeBackgroundServices() async {
   try {
-    await notifications.init();
+    await Get.find<NotificationsService>().init();
   } catch (e, st) {
     debugPrint('NotificationsService init failed: $e\n$st');
   }
 
   try {
-    await firebaseBackend.init();
+    await Get.find<FirebaseBackendService>().init();
   } catch (e, st) {
     debugPrint('FirebaseBackendService init failed: $e\n$st');
   }

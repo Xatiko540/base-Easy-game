@@ -1,12 +1,10 @@
 part of '../views/profilescreen.dart';
 
 class _AboutContractsRow extends StatelessWidget {
-  final WalletConnectService walletService;
   final _ProfileController controller;
   final _ProfileDashboardSnapshot data;
 
   const _AboutContractsRow({
-    required this.walletService,
     required this.controller,
     required this.data,
   });
@@ -17,13 +15,12 @@ class _AboutContractsRow extends StatelessWidget {
       builder: (context, constraints) {
         final stacked = constraints.maxWidth < 920;
         final about = _AboutEasyGamePanel(
-          walletService: walletService,
           data: data,
         );
         final contracts = _ContractsStatsPanel(
           onCopyContract: controller.copyContractAddress,
           data: data,
-          currency: walletService.nativeSymbol,
+          currency: Get.find<WalletConnectService>().nativeSymbol,
         );
 
         if (stacked) {
@@ -50,16 +47,15 @@ class _AboutContractsRow extends StatelessWidget {
 }
 
 class _AboutEasyGamePanel extends StatelessWidget {
-  final WalletConnectService walletService;
   final _ProfileDashboardSnapshot data;
 
   const _AboutEasyGamePanel({
-    required this.walletService,
     required this.data,
   });
 
   @override
   Widget build(BuildContext context) {
+    final walletService = Get.find<WalletConnectService>();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),

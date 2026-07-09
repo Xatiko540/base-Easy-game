@@ -29,7 +29,7 @@ class _CardHeader extends StatelessWidget {
         const _CoinIcon(size: 14),
         const SizedBox(width: 5),
         Text(
-          _formatLevelPrice(coin),
+          formatLevelPrice(coin),
           style: const TextStyle(
             color: Colors.white,
             fontSize: 14,

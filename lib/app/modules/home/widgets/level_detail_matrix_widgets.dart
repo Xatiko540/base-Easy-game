@@ -51,15 +51,15 @@ class _LevelMatrixPanel extends StatelessWidget {
           final details = _LevelDetailPanel(
             title: 'levelDetail.matrixSnapshot'.tr,
             rows: [
-              _DetailRow('common.level'.tr, '$level'),
-              _DetailRow('levelDetail.currentCell'.tr, positionId.toString()),
-              _DetailRow(
+              DetailRow('common.level'.tr, '$level'),
+              DetailRow('levelDetail.currentCell'.tr, positionId.toString()),
+              DetailRow(
                 'levelDetail.nextOpenParent'.tr,
                 nextOpenParentId.toString(),
               ),
-              _DetailRow('levelDetail.nextCell'.tr, nextCellId.toString()),
-              _DetailRow('levelDetail.activeCells'.tr, activeCells.toString()),
-              _DetailRow(
+              DetailRow('levelDetail.nextCell'.tr, nextCellId.toString()),
+              DetailRow('levelDetail.activeCells'.tr, activeCells.toString()),
+              DetailRow(
                 'common.frozen'.tr,
                 isFrozen ? 'common.yes'.tr : 'common.no'.tr,
               ),

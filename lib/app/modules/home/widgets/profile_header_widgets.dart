@@ -1,7 +1,6 @@
 part of '../views/profilescreen.dart';
 
 class _ProfileHeader extends StatelessWidget {
-  final WalletConnectService walletService;
   final String profileId;
   final _ProfileDashboardSnapshot data;
   final String referralLink;
@@ -9,7 +8,6 @@ class _ProfileHeader extends StatelessWidget {
   final VoidCallback onShare;
 
   const _ProfileHeader({
-    required this.walletService,
     required this.profileId,
     required this.data,
     required this.referralLink,
@@ -23,7 +21,6 @@ class _ProfileHeader extends StatelessWidget {
       builder: (context, constraints) {
         final stacked = constraints.maxWidth < 760;
         final profile = _UserIdentity(
-          walletService: walletService,
           profileId: profileId,
           data: data,
         );
@@ -57,18 +54,17 @@ class _ProfileHeader extends StatelessWidget {
 }
 
 class _UserIdentity extends StatelessWidget {
-  final WalletConnectService walletService;
   final String profileId;
   final _ProfileDashboardSnapshot data;
 
   const _UserIdentity({
-    required this.walletService,
     required this.profileId,
     required this.data,
   });
 
   @override
   Widget build(BuildContext context) {
+    final walletService = Get.find<WalletConnectService>();
     return Obx(
       () => Container(
         padding: const EdgeInsets.all(18),

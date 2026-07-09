@@ -2,7 +2,7 @@ part of '../views/levels.dart';
 
 class _LevelDetailPanel extends StatelessWidget {
   final String title;
-  final List<_DetailRow> rows;
+  final List<DetailRow> rows;
 
   const _LevelDetailPanel({
     required this.title,

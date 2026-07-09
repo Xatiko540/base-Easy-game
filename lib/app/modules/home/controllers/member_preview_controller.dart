@@ -1,11 +1,11 @@
 part of '../views/utility_screens.dart';
 
 class _MemberPreviewController extends GetxController {
-  final WalletConnectService walletService;
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
   final String query;
+  late final FirebaseDataService _firebaseData;
 
   _MemberPreviewController({
-    required this.walletService,
     required this.query,
   });
 
@@ -13,28 +13,18 @@ class _MemberPreviewController extends GetxController {
   final isLoading = false.obs;
   final errorMessage = ''.obs;
 
-  Worker? _connectionWorker;
-  Worker? _addressWorker;
-
   @override
   void onInit() {
     super.onInit();
+    _firebaseData = Get.find<FirebaseDataService>();
+    _firebaseData.init();
     refreshPreview();
-    _connectionWorker = ever<bool>(
-      walletService.isConnected,
-      (_) => refreshPreview(),
-    );
-    _addressWorker = ever<String>(
-      walletService.currentAddress,
-      (_) => refreshPreview(),
-    );
   }
 
   @override
   void onClose() {
-    _connectionWorker?.dispose();
-    _addressWorker?.dispose();
     super.onClose();
+    // _firebaseData is shared, not owned by this controller
   }
 
   Future<void> refreshPreview() async {
@@ -65,6 +55,8 @@ class _MemberPreviewController extends GetxController {
     }
 
     final result = <EasyGameLevelState>[];
+    // Try to read from Firebase levels/events first
+    // Fallback to direct contract call for each level
     for (var level = 1; level <= easyGameLevelCount; level++) {
       try {
         result.add(
@@ -74,15 +66,13 @@ class _MemberPreviewController extends GetxController {
           ),
         );
       } catch (_) {
-        result.add(
-          EasyGameLevelState(
-            active: false,
-            frozen: false,
-            cycles: BigInt.zero,
-            positionId: BigInt.zero,
-            earnedWei: BigInt.zero,
-          ),
-        );
+        result.add(EasyGameLevelState(
+          active: false,
+          frozen: false,
+          cycles: BigInt.zero,
+          positionId: BigInt.zero,
+          earnedWei: BigInt.zero,
+        ));
       }
     }
 

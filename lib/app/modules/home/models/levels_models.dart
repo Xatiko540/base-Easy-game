@@ -1,4 +1,4 @@
-part of '../views/levels.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 const int easyGameLevelCount = 17;
 
@@ -153,7 +153,7 @@ class Level {
       );
 }
 
-class _LevelDetailSnapshot {
+class LevelDetailSnapshot {
   final EasyGameLevelState state;
   final EasyGameMatrixStats stats;
   final EasyGameAdvanceLevelStats advanceStats;
@@ -162,7 +162,7 @@ class _LevelDetailSnapshot {
   final BigInt playerWeight;
   final BigInt playerChanceBps;
 
-  const _LevelDetailSnapshot({
+  const LevelDetailSnapshot({
     required this.state,
     required this.stats,
     required this.advanceStats,
@@ -173,14 +173,14 @@ class _LevelDetailSnapshot {
   });
 }
 
-class _DetailRow {
+class DetailRow {
   final String label;
   final String value;
 
-  const _DetailRow(this.label, this.value);
+  const DetailRow(this.label, this.value);
 }
 
-String _formatLevelPrice(double value) {
+String formatLevelPrice(double value) {
   final fixed = value.toStringAsFixed(3);
   return fixed.replaceFirst(RegExp(r'\.?0+$'), '');
 }

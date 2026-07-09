@@ -24,28 +24,31 @@ class HomeView extends StatelessWidget {
   // var contractLink;
 
   Widget _avatarPreview() {
-    return GetBuilder<ContractLinking>(
-      builder: (controller) => Container(
-        height: avatarSize,
-        width: avatarSize,
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          shape: BoxShape.circle,
-        ),
-        child: controller.svgCode == null
-            ? const SizedBox.shrink()
-            : Material(
-                elevation: 8,
-                shape: const CircleBorder(),
-                clipBehavior: Clip.antiAlias,
-                child: SvgPicture.string(
-                  controller.svgCode!,
-                  width: avatarSize,
-                  height: avatarSize,
-                  fit: BoxFit.cover,
+    return Obx(
+      () {
+        final controller = Get.find<ContractLinking>();
+        return Container(
+          height: avatarSize,
+          width: avatarSize,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            shape: BoxShape.circle,
+          ),
+          child: controller.svgCode == null
+              ? const SizedBox.shrink()
+              : Material(
+                  elevation: 8,
+                  shape: const CircleBorder(),
+                  clipBehavior: Clip.antiAlias,
+                  child: SvgPicture.string(
+                    controller.svgCode!,
+                    width: avatarSize,
+                    height: avatarSize,
+                    fit: BoxFit.cover,
+                  ),
                 ),
-              ),
-      ),
+        );
+      },
     );
   }
 
@@ -590,10 +593,12 @@ class HomeView extends StatelessWidget {
                           ).paddingAll(12),
                         ).paddingSymmetric(vertical: 4, horizontal: 8)
                       : const SizedBox.shrink()),
-                  ListTile(
-                    title: Text(
-                      contractLink.message.value,
-                      style: bodySemiBold,
+                  Obx(
+                    () => ListTile(
+                      title: Text(
+                        contractLink.message.value,
+                        style: bodySemiBold,
+                      ),
                     ),
                   )
                 ],

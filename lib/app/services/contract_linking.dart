@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -102,6 +103,9 @@ class ContractLinking extends GetxController
   final keyController = TextEditingController();
   final nameController = TextEditingController();
   late AnimationController animationController;
+  Timer? _participateTimer;
+  Timer? _messageTimer1;
+  Timer? _messageTimer2;
 
   Future<void> setup() async {
     print("[DEBUG] ContractLinking: setup started.");
@@ -579,14 +583,17 @@ class ContractLinking extends GetxController
         chainId: _chainId,
       );
       message.value = "You've been entered, updating values may take sometime";
-      await Future.delayed(const Duration(seconds: 5));
-      await reloadContractOnParticipate();
+      _participateTimer?.cancel();
+      _participateTimer = Timer(const Duration(seconds: 5), () {
+        unawaited(reloadContractOnParticipate());
+      });
     } catch (e) {
       message.value = 'An error occurred: $e';
       Get.rawSnackbar(message: 'Error: $e');
     }
     isLoadingParticipate.value = false;
-    await Future.delayed(const Duration(seconds: 5), () {
+    _messageTimer1?.cancel();
+    _messageTimer1 = Timer(const Duration(seconds: 5), () {
       message.value = '';
     });
   }
@@ -612,7 +619,8 @@ class ContractLinking extends GetxController
       Get.rawSnackbar(message: 'Error: $e');
     }
     isLoadingDeclareWinner.value = false;
-    await Future.delayed(const Duration(seconds: 10), () => message.value = '');
+    _messageTimer2?.cancel();
+    _messageTimer2 = Timer(const Duration(seconds: 10), () => message.value = '');
   }
 
   void selectAccount(User u) {
@@ -701,5 +709,17 @@ class ContractLinking extends GetxController
         AnimationController(duration: const Duration(seconds: 5), vsync: this);
     animationController.repeat();
     super.onReady();
+  }
+
+  @override
+  void onClose() {
+    _participateTimer?.cancel();
+    _messageTimer1?.cancel();
+    _messageTimer2?.cancel();
+    animationController.stop();
+    animationController.dispose();
+    keyController.dispose();
+    nameController.dispose();
+    super.onClose();
   }
 }

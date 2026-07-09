@@ -6,7 +6,7 @@ import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
-import '../../../services/Notifications.dart';
+import '../widgets/notifications/notifications_bottom_sheet.dart';
 
 class ExpressAppShell extends StatelessWidget {
   final Widget child;
