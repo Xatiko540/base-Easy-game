@@ -1,16 +1,15 @@
 part of '../views/start_page.dart';
 
 class _HeroPanel extends StatelessWidget {
-  final WalletConnectService walletService;
   final VoidCallback onConnect;
 
   const _HeroPanel({
-    required this.walletService,
     required this.onConnect,
   });
 
   @override
   Widget build(BuildContext context) {
+    final walletService = Get.find<WalletConnectService>();
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(minHeight: 260),

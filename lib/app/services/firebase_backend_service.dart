@@ -14,18 +14,12 @@ import 'notifications_service.dart';
 import 'wallet_connect_service.dart';
 
 class FirebaseBackendService extends GetxService {
-  FirebaseBackendService({
-    required this.walletService,
-    required this.notifications,
-  });
-
   static const _region = 'us-central1';
-  static const _recaptchaSiteKey =
-      String.fromEnvironment('FIREBASE_RECAPTCHA_V3_SITE_KEY');
-  static const _vapidKey = String.fromEnvironment('FIREBASE_VAPID_KEY');
+  static const _recaptchaSiteKey = '6LdRN0stAAAAACWYDKXE4PoqinAdR1g4er9T-DtN';
+  static const _vapidKey = 'BJhPXWhCcLgm0sWQEfcQhcpBfKjEOBVYhMpChtprC7l2qVpFw4zjIrGg2gDClxA2-hMRkcrkCJLfaLHhj--toaQ';
 
-  final WalletConnectService walletService;
-  final NotificationsService notifications;
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final NotificationsService notifications = Get.find<NotificationsService>();
   final RxBool isReady = false.obs;
   final RxBool walletLinked = false.obs;
   final RxString errorMessage = ''.obs;

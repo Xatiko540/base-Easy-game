@@ -1,9 +1,9 @@
 part of '../views/utility_screens.dart';
 
 class _MatrixArenaController extends GetxController {
-  final WalletConnectService walletService;
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
 
-  _MatrixArenaController(this.walletService);
+  _MatrixArenaController();
 
   final selectedLevel = 5.obs;
   final snapshot = _MatrixArenaSnapshot.empty(5).obs;

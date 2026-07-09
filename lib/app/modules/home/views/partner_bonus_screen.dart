@@ -18,93 +18,94 @@ part '../widgets/partner_bonus_table_widgets.dart';
 class PartnerBonusScreen extends StatelessWidget {
   PartnerBonusScreen({Key? key}) : super(key: key);
 
-  final WalletConnectService walletService = Get.find<WalletConnectService>();
-  late final _PartnerBonusController _partnerController =
-      Get.isRegistered<_PartnerBonusController>()
-          ? Get.find<_PartnerBonusController>()
-          : Get.put(_PartnerBonusController(Get.find<WalletConnectService>()));
-
   @override
   Widget build(BuildContext context) {
-    return Obx(
-      () {
-        final data = _partnerController.snapshot.value;
-        return ExpressAppShell(
-          title: 'nav.partnerBonus'.tr,
-          breadcrumb: '${'app.name'.tr} / ${'nav.partnerBonus'.tr}',
-          activeSection: 'Partner',
-          onRefresh: _partnerController.refreshSnapshot,
-          child: SingleChildScrollView(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1240),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Obx(
-                    () => Text(
-                      walletService.isConnected.value
-                          ? 'partner.structure'.trParams({
-                              'wallet': walletService.shortAddress,
-                            })
-                          : 'partner.connectToSee'.tr,
-                      style:
-                          const TextStyle(color: Colors.white60, fontSize: 14),
-                    ),
+    final walletService = Get.find<WalletConnectService>();
+    return GetX<_PartnerBonusController>(
+      init: _PartnerBonusController(),
+      dispose: (_) => Get.delete<_PartnerBonusController>(),
+      builder: (_partnerController) {
+        return Obx(
+          () {
+            final data = _partnerController.snapshot.value;
+            return ExpressAppShell(
+              title: 'nav.partnerBonus'.tr,
+              breadcrumb: '${'app.name'.tr} / ${'nav.partnerBonus'.tr}',
+              activeSection: 'Partner',
+              onRefresh: _partnerController.refreshSnapshot,
+              child: SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1240),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Obx(
+                        () => Text(
+                          walletService.isConnected.value
+                              ? 'partner.structure'.trParams({
+                                  'wallet': walletService.shortAddress,
+                                })
+                              : 'partner.connectToSee'.tr,
+                          style:
+                              const TextStyle(color: Colors.white60, fontSize: 14),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      if (_partnerController.isLoading.value)
+                        const LinearProgressIndicator(
+                          color: EasyGameTheme.teal,
+                          backgroundColor: EasyGameTheme.border,
+                        ),
+                      if (_partnerController.isLoading.value)
+                        const SizedBox(height: 14),
+                      _PartnerMetricGrid(
+                        data: data,
+                        currency: walletService.nativeSymbol,
+                      ),
+                      const SizedBox(height: 22),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          final compact = constraints.maxWidth < 860;
+                          final left = Column(
+                            children: [
+                              _PersonalReferralPanel(
+                                controller: _partnerController,
+                              ),
+                              const SizedBox(height: 22),
+                              _ClaimableReferralPanel(
+                                controller: _partnerController,
+                              ),
+                              const SizedBox(height: 22),
+                              const _BonusTable(),
+                            ],
+                          );
+                          final right = Column(
+                            children: [
+                              _ReferralRulesPanel(data: data),
+                              const SizedBox(height: 22),
+                              const _ReferralFlowPanel(),
+                            ],
+                          );
+                          if (compact) {
+                            return Column(children: [left, right]);
+                          }
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Expanded(flex: 6, child: left),
+                              const SizedBox(width: 22),
+                              Expanded(flex: 6, child: right),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 18),
-                  if (_partnerController.isLoading.value)
-                    const LinearProgressIndicator(
-                      color: EasyGameTheme.teal,
-                      backgroundColor: EasyGameTheme.border,
-                    ),
-                  if (_partnerController.isLoading.value)
-                    const SizedBox(height: 14),
-                  _PartnerMetricGrid(
-                    data: data,
-                    currency: walletService.nativeSymbol,
-                  ),
-                  const SizedBox(height: 22),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final compact = constraints.maxWidth < 860;
-                      final left = Column(
-                        children: [
-                          _PersonalReferralPanel(
-                            controller: _partnerController,
-                          ),
-                          const SizedBox(height: 22),
-                          _ClaimableReferralPanel(
-                            controller: _partnerController,
-                          ),
-                          const SizedBox(height: 22),
-                          _BonusTable(walletService: walletService),
-                        ],
-                      );
-                      final right = Column(
-                        children: [
-                          _ReferralRulesPanel(data: data),
-                          const SizedBox(height: 22),
-                          const _ReferralFlowPanel(),
-                        ],
-                      );
-                      if (compact) {
-                        return Column(children: [left, right]);
-                      }
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(flex: 6, child: left),
-                          const SizedBox(width: 22),
-                          Expanded(flex: 6, child: right),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+                ),
               ),
-            ),
-          ),
-        );
+            );
+      },
+    );
       },
     );
   }

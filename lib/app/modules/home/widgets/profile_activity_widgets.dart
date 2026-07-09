@@ -1,11 +1,9 @@
 part of '../views/profilescreen.dart';
 
 class _RecentActivityTable extends StatelessWidget {
-  final WalletConnectService walletService;
   final _ProfileDashboardSnapshot data;
 
   const _RecentActivityTable({
-    required this.walletService,
     required this.data,
   });
 
@@ -52,7 +50,6 @@ class _RecentActivityTable extends StatelessWidget {
           else
             ...activeLevels.map(
               (entry) => _ActivityRow(
-                walletService: walletService,
                 entry: entry,
                 profileId: data.player?.totalTickets.toString() ?? '0',
               ),
@@ -101,18 +98,17 @@ class _HeaderText extends StatelessWidget {
 }
 
 class _ActivityRow extends StatelessWidget {
-  final WalletConnectService walletService;
   final _ProfileLevelState entry;
   final String profileId;
 
   const _ActivityRow({
-    required this.walletService,
     required this.entry,
     required this.profileId,
   });
 
   @override
   Widget build(BuildContext context) {
+    final walletService = Get.find<WalletConnectService>();
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
       decoration: const BoxDecoration(

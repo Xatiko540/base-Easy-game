@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/language_selector.dart';
-import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
+import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 

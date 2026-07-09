@@ -1,9 +1,9 @@
 part of '../views/profilescreen.dart';
 
 class _ProfileController extends GetxController {
-  final WalletConnectService walletService;
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
 
-  _ProfileController(this.walletService);
+  _ProfileController();
 
   final dashboard = _ProfileDashboardSnapshot.empty().obs;
   final isLoading = false.obs;

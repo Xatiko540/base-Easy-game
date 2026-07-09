@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
-import 'package:lottery_advance/app/modules/controller/lotteries_controller.dart';
 import 'package:lottery_advance/app/modules/lottery/lottery_detail.dart';
 import 'package:lottery_advance/app/services/contract_linking.dart';
 import 'package:lottery_advance/utils/font_styles.dart';
@@ -12,7 +11,6 @@ import 'package:lottery_advance/utils/constants.dart';
 
 class LotteriesView extends StatelessWidget {
   LotteriesView({Key? key}) : super(key: key);
-  final lotteriesController = Get.put(LotteriesController(), permanent: true);
   final contractLink = Get.find<ContractLinking>();
   final lotteryNameController = TextEditingController();
 

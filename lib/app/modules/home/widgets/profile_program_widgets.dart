@@ -1,16 +1,15 @@
 part of '../views/profilescreen.dart';
 
 class _ProgramPanel extends StatelessWidget {
-  final WalletConnectService walletService;
   final _ProfileDashboardSnapshot data;
 
   const _ProgramPanel({
-    required this.walletService,
     required this.data,
   });
 
   @override
   Widget build(BuildContext context) {
+    final walletService = Get.find<WalletConnectService>();
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),

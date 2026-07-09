@@ -1,9 +1,9 @@
 part of '../views/partner_bonus_screen.dart';
 
 class _PartnerBonusController extends GetxController {
-  final WalletConnectService walletService;
+  final WalletConnectService walletService = Get.find<WalletConnectService>();
 
-  _PartnerBonusController(this.walletService);
+  _PartnerBonusController();
 
   final snapshot = _PartnerArenaSnapshot.empty().obs;
   final isLoading = false.obs;

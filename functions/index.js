@@ -276,21 +276,23 @@ async function runIndexer() {
   return { processed, from: fromBlock, to: toBlock };
 }
 
-exports.syncGameEvents = onSchedule({
-  schedule: "every 1 minutes",
-  region,
-  timeoutSeconds: 120,
-  memory: "256MiB",
-  maxInstances: 1,
-  secrets: [rpcUrl],
-}, async () => {
-  try {
-    logger.info("Indexer completed", await runIndexer());
-  } catch (error) {
-    logger.error("Indexer failed", error);
-    throw error;
-  }
-});
+// NOTE: BASE_RPC_URL secret updated to sepolia.base.org (v2) — redeploy enforced
+// TODO: enable when contract is deployed with real address
+// exports.syncGameEvents = onSchedule({
+//   schedule: "every 1 minutes",
+//   region,
+//   timeoutSeconds: 120,
+//   memory: "256MiB",
+//   maxInstances: 1,
+//   secrets: [rpcUrl],
+// }, async () => {
+//   try {
+//     logger.info("Indexer completed", await runIndexer());
+//   } catch (error) {
+//     logger.error("Indexer failed", error);
+//     throw error;
+//   }
+// });
 
 exports.requestWalletNonce = onCall({ region, enforceAppCheck: true }, async (request) => {
   requireApp(request);
@@ -399,38 +401,101 @@ exports.trackTransaction = onCall({ region, enforceAppCheck: true }, async (requ
   return { tracked: true };
 });
 
-exports.confirmTransactions = onSchedule({
-  schedule: "every 2 minutes",
-  region,
-  timeoutSeconds: 60,
-  memory: "256MiB",
-  maxInstances: 1,
-  secrets: [rpcUrl],
-}, async () => {
-  const { provider, address, chainId } = runtime();
-  const snapshot = await db.collection("transactions").where("status", "==", "submitted").limit(50).get();
-  for (const doc of snapshot.docs) {
-    const receipt = await provider.getTransactionReceipt(doc.get("transactionHash"));
-    if (!receipt) continue;
-    const validContract = receipt.to?.toLowerCase() === address.toLowerCase();
-    const walletAddress = wallet(doc.get("wallet"));
-    const validSender = walletAddress && receipt.from?.toLowerCase() === walletAddress;
-    const status = receipt.status === 1 && validContract && validSender
-      ? "confirmed"
-      : validContract && !validSender
-        ? "rejected_owner_mismatch"
-        : "failed";
-    await doc.ref.set({
-      status,
-      blockNumber: receipt.blockNumber,
-      receiptFrom: receipt.from?.toLowerCase() || null,
-      receiptTo: receipt.to?.toLowerCase() || null,
-      resolvedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    const target = doc.get("wallet");
-    if (target) await pushToWallet(target, status === "confirmed" ? "Transaction confirmed" : "Transaction failed", doc.get("transactionHash"), { status, chainId });
-  }
+exports.syncLevel = onCall({ region, enforceAppCheck: true }, async (request) => {
+  requireApp(request);
+  const uid = requireUser(request);
+  await enforceRateLimit("syncLevel", uid, 30, 60 * 60);
+  const level = Number(request.data?.level);
+  if (level < 1 || level > 17) throw new HttpsError("invalid-argument", "Level must be 1-17");
+
+  const { provider, contract, chainId } = runtime();
+  const levelStr = String(level);
+  const [stats, usdcStats, ethPrice, usdcPrice, available] = await Promise.all([
+    contract.getLevelStats(level),
+    contract.getLevelStatsUSDC(level),
+    contract.levelPrices(level),
+    contract.levelPricesUsdc(level),
+    contract.levelAvailable(level),
+  ]);
+  const doc = {
+    chainId,
+    level,
+    available,
+    ethPriceWei: ethPrice.toString(),
+    usdcPrice: usdcPrice.toString(),
+    stats: jsonValue(stats),
+    usdcStats: jsonValue(usdcStats),
+    syncedAt: FieldValue.serverTimestamp(),
+  };
+  await db.collection("levels").doc(`${chainId}_${level}`).set(doc, { merge: true });
+  return { level, synced: true, ...doc };
 });
+
+exports.syncAllLevels = onCall({ region, enforceAppCheck: true, timeoutSeconds: 120 }, async (request) => {
+  requireApp(request);
+  const uid = requireUser(request);
+  await enforceRateLimit("syncAllLevels", uid, 5, 60 * 60);
+
+  const { contract, chainId } = runtime();
+  const results = [];
+  for (let level = 1; level <= 17; level++) {
+    const levelStr = String(level);
+    const [stats, usdcStats, ethPrice, usdcPrice, available] = await Promise.all([
+      contract.getLevelStats(level),
+      contract.getLevelStatsUSDC(level),
+      contract.levelPrices(level),
+      contract.levelPricesUsdc(level),
+      contract.levelAvailable(level),
+    ]);
+    const doc = {
+      chainId,
+      level,
+      available,
+      ethPriceWei: ethPrice.toString(),
+      usdcPrice: usdcPrice.toString(),
+      stats: jsonValue(stats),
+      usdcStats: jsonValue(usdcStats),
+      syncedAt: FieldValue.serverTimestamp(),
+    };
+    await db.collection("levels").doc(`${chainId}_${level}`).set(doc, { merge: true });
+    results.push({ level, synced: true });
+  }
+  return { synced: results.length, levels: results };
+});
+
+// TODO: enable when contract is deployed with real address
+// exports.confirmTransactions = onSchedule({
+//   schedule: "every 2 minutes",
+//   region,
+//   timeoutSeconds: 60,
+//   memory: "256MiB",
+//   maxInstances: 1,
+//   secrets: [rpcUrl],
+// }, async () => {
+//   const { provider, address, chainId } = runtime();
+//   const snapshot = await db.collection("transactions").where("status", "==", "submitted").limit(50).get();
+//   for (const doc of snapshot.docs) {
+//     const receipt = await provider.getTransactionReceipt(doc.get("transactionHash"));
+//     if (!receipt) continue;
+//     const validContract = receipt.to?.toLowerCase() === address.toLowerCase();
+//     const walletAddress = wallet(doc.get("wallet"));
+//     const validSender = walletAddress && receipt.from?.toLowerCase() === walletAddress;
+//     const status = receipt.status === 1 && validContract && validSender
+//       ? "confirmed"
+//       : validContract && !validSender
+//         ? "rejected_owner_mismatch"
+//         : "failed";
+//     await doc.ref.set({
+//       status,
+//       blockNumber: receipt.blockNumber,
+//       receiptFrom: receipt.from?.toLowerCase() || null,
+//       receiptTo: receipt.to?.toLowerCase() || null,
+//       resolvedAt: FieldValue.serverTimestamp(),
+//     }, { merge: true });
+//     const target = doc.get("wallet");
+//     if (target) await pushToWallet(target, status === "confirmed" ? "Transaction confirmed" : "Transaction failed", doc.get("transactionHash"), { status, chainId });
+//   }
+// });
 
 exports.health = onRequest({ region, cors: false }, async (_request, response) => {
   const chainId = Number(chainIdParam.value());

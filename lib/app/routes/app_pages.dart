@@ -2,6 +2,7 @@
 
 import 'package:get/get.dart';
 
+import '../modules/home/models/levels_models.dart';
 import '../modules/home/views/ActivateExpressGameScreen.dart';
 import '../modules/home/views/InviteScreen.dart';
 import '../modules/home/views/partner_bonus_screen.dart';

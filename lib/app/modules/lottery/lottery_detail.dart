@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/lottery/controllers/lottery_detail_controller.dart';
 import 'package:lottery_advance/app/services/contract_linking.dart';
 import 'package:lottery_advance/utils/constants.dart';
 import 'package:lottery_advance/utils/font_styles.dart';
@@ -8,50 +9,17 @@ import 'package:lottery_advance/utils/input_decorations.dart';
 import 'package:lottery_advance/utils/remove_scroll_glow.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
-class LotteryDetail extends StatefulWidget {
+class LotteryDetail extends StatelessWidget {
   final String lotteryAddress;
   const LotteryDetail({Key? key, required this.lotteryAddress})
       : super(key: key);
 
   @override
-  State<LotteryDetail> createState() => _LotteryDetailState();
-}
-
-class _LotteryDetailState extends State<LotteryDetail> {
-  final contractLink = Get.find<ContractLinking>();
-  final lotteryMaxEntryController = TextEditingController();
-  final lotteryETHRequiredController = TextEditingController();
-  bool _isLoading = true;
-  // String weiToethereum = "";
-
-  @override
-  void didChangeDependencies() async {
-    // TODO: implement didChangeDependencies
-    super.didChangeDependencies();
-    await contractLink.getDeployedContractLottery(widget.lotteryAddress);
-    Future.delayed(
-      Duration.zero,
-      () => setState(() {
-        _isLoading = false;
-      }),
-    );
-
-    contractLink.listenPalyerParticipate().listen((event) async {
-      await contractLink.reloadContractOnParticipate();
-    });
-
-    // lotteryETHRequiredController.addListener(() {
-    //   setState(() {
-    //     weiToethereum =
-    //         (int.parse(lotteryETHRequiredController.text) * pow(10, -18))
-    //             .toString();
-    //   });
-    // });
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Container(
+    return GetX<LotteryDetailController>(
+      init: LotteryDetailController()..init(lotteryAddress),
+      dispose: (_) => Get.delete<LotteryDetailController>(),
+      builder: (_) => Container(
       decoration: BoxDecoration(
         color: Get.theme.scaffoldBackgroundColor,
         borderRadius: const BorderRadius.only(
@@ -62,7 +30,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
       height: Get.height * 0.88,
       child: ScrollConfiguration(
         behavior: RemoveScrollGlow(),
-        child: _isLoading == true
+        child: Obx(() => Get.find<LotteryDetailController>().isLoading.value
             ? const Center(child: CircularProgressIndicator())
             : Obx(
                 () => ListView(
@@ -94,9 +62,9 @@ class _LotteryDetailState extends State<LotteryDetail> {
                               onPressed: Get.back,
                               icon: const Icon(Icons.arrow_back),
                             ),
-                            (contractLink.managerAddress.value ==
-                                        contractLink.userAddress.value &&
-                                    contractLink.lotteryLive.value == false)
+                            (Get.find<ContractLinking>().managerAddress.value ==
+                                        Get.find<ContractLinking>().userAddress.value &&
+                                    Get.find<ContractLinking>().lotteryLive.value == false)
                                 ? PopupMenuButton(
                                     itemBuilder: (context) => [
                                       PopupMenuItem(
@@ -106,8 +74,8 @@ class _LotteryDetailState extends State<LotteryDetail> {
                                         ),
                                         onTap: () async {
                                           Get.back();
-                                          await contractLink.deleteLotteryFunc(
-                                              widget.lotteryAddress);
+                                          await Get.find<ContractLinking>().deleteLotteryFunc(
+                                              lotteryAddress);
                                         },
                                       )
                                     ],
@@ -119,7 +87,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                     ),
                     Center(
                       child: Text(
-                        contractLink.lotryname.value,
+                        Get.find<ContractLinking>().lotryname.value,
                         style: headingStyleSemiBold,
                       ),
                     ),
@@ -131,7 +99,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                     ).marginSymmetric(vertical: 5),
                     Center(
                       child: Text(
-                        contractLink.managerAddress.value,
+                        Get.find<ContractLinking>().managerAddress.value,
                         style: bodySemiBoldSmall,
                       ),
                     ),
@@ -146,7 +114,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                               size: 22,
                             ).marginOnly(bottom: 5),
                             Text(
-                              contractLink.contractBalance.value,
+                              Get.find<ContractLinking>().contractBalance.value,
                               style: bodySemiBold,
                             ),
                           ],
@@ -159,7 +127,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                               size: 22,
                             ).marginOnly(bottom: 5),
                             Text(
-                              '${contractLink.players.length}',
+                              '${Get.find<ContractLinking>().players.length}',
                               style: bodySemiBold,
                             ),
                           ],
@@ -167,14 +135,14 @@ class _LotteryDetailState extends State<LotteryDetail> {
                         Column(
                           children: [
                             FaIcon(
-                              contractLink.lotteryLive.value
+                              Get.find<ContractLinking>().lotteryLive.value
                                   ? FontAwesomeIcons.toggleOn
                                   : FontAwesomeIcons.toggleOff,
                               color: primaryColor,
                               size: 22,
                             ).marginOnly(bottom: 5),
                             Text(
-                              contractLink.lotteryLive.value
+                              Get.find<ContractLinking>().lotteryLive.value
                                   ? "Active"
                                   : "Inactive",
                               style: bodySemiBold,
@@ -194,7 +162,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                       ),
                       subtitle: Obx(
                         () => Text(
-                          '${contractLink.lastWinner.value.isEmpty ? defaultHex : contractLink.lastWinner.value} ',
+                          '${Get.find<ContractLinking>().lastWinner.value.isEmpty ? defaultHex : Get.find<ContractLinking>().lastWinner.value} ',
                         ),
                       ),
                     ),
@@ -204,17 +172,17 @@ class _LotteryDetailState extends State<LotteryDetail> {
                         color: primaryColor,
                       ),
                       title: Text(
-                        'Tickets Buy ( Max : ${contractLink.lotteryLimit.value} )',
+                        'Tickets Buy ( Max : ${Get.find<ContractLinking>().lotteryLimit.value} )',
                         style: bodySemiBold,
                       ),
                       subtitle: Obx(
                         () => Text(
-                          '${contractLink.lotteryBuyCount.value}',
+                          '${Get.find<ContractLinking>().lotteryBuyCount.value}',
                         ),
                       ),
                     ),
-                    if (contractLink.managerAddress.value ==
-                        contractLink.userAddress.value)
+                    if (Get.find<ContractLinking>().managerAddress.value ==
+                        Get.find<ContractLinking>().userAddress.value)
                       ListTile(
                         leading: const FaIcon(
                           FontAwesomeIcons.clipboardCheck,
@@ -226,7 +194,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                         ),
                         subtitle: Obx(
                           () => Text(
-                            '${contractLink.lotterySold.value}',
+                            '${Get.find<ContractLinking>().lotterySold.value}',
                           ),
                         ),
                       ),
@@ -234,11 +202,11 @@ class _LotteryDetailState extends State<LotteryDetail> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Obx(
-                          () => contractLink.isLoadingParticipate.value
+                          () => Get.find<ContractLinking>().isLoadingParticipate.value
                               ? Center(
                                   child: CircularProgressIndicator.adaptive(
                                     valueColor:
-                                        contractLink.animationController.drive(
+                                        Get.find<ContractLinking>().animationController.drive(
                                       ColorTween(
                                         begin: primaryColor,
                                         end: Colors.green,
@@ -246,33 +214,33 @@ class _LotteryDetailState extends State<LotteryDetail> {
                                     ),
                                   ),
                                 )
-                              : contractLink.lotteryLive.value
-                                  ? contractLink.lotteryBuyCount.value == 0
+                              : Get.find<ContractLinking>().lotteryLive.value
+                                  ? Get.find<ContractLinking>().lotteryBuyCount.value == 0
                                       ? MaterialButton(
                                           onPressed:
-                                              contractLink.participateInLottery,
+                                              Get.find<ContractLinking>().participateInLottery,
                                           color: primaryColor,
                                           textColor: Colors.white,
                                           shape: RoundedRectangleBorder(
                                               borderRadius:
                                                   BorderRadius.circular(32)),
                                           child: Text(
-                                            '${contractLink.lotteryETH} ETH \n Participate',
+                                            '${Get.find<ContractLinking>().lotteryETH} ETH \n Participate',
                                             style: bodySemiBold,
                                             textAlign: TextAlign.center,
                                           ).paddingAll(12),
                                         ).paddingSymmetric(
                                           vertical: 4, horizontal: 16)
-                                      : (contractLink.players.contains(
-                                                  contractLink
+                                      : (Get.find<ContractLinking>().players.contains(
+                                                  Get.find<ContractLinking>()
                                                       .userAddress.value) &&
-                                              contractLink
+                                              Get.find<ContractLinking>()
                                                       .lotteryBuyCount.value <
-                                                  contractLink
+                                                  Get.find<ContractLinking>()
                                                       .lotteryLimit.value)
                                           ? MaterialButton(
-                                              onPressed: contractLink
-                                                  .participateInLottery,
+                                              onPressed:
+                                                  Get.find<ContractLinking>().participateInLottery,
                                               color: primaryColor,
                                               textColor: Colors.white,
                                               shape: RoundedRectangleBorder(
@@ -280,7 +248,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                                                       BorderRadius.circular(
                                                           32)),
                                               child: Text(
-                                                '${contractLink.lotteryETH} ETH \n Buy more',
+                                                '${Get.find<ContractLinking>().lotteryETH} ETH \n Buy more',
                                                 style: bodySemiBold,
                                                 textAlign: TextAlign.center,
                                               ).paddingAll(12),
@@ -294,11 +262,11 @@ class _LotteryDetailState extends State<LotteryDetail> {
                                   : const SizedBox.shrink(),
                         ),
                         Obx(
-                          () => contractLink.isLoadingDeclareWinner.value
+                          () => Get.find<ContractLinking>().isLoadingDeclareWinner.value
                               ? Center(
                                   child: CircularProgressIndicator.adaptive(
                                     valueColor:
-                                        contractLink.animationController.drive(
+                                        Get.find<ContractLinking>().animationController.drive(
                                       ColorTween(
                                         begin: primaryColor,
                                         end: Colors.green,
@@ -306,11 +274,11 @@ class _LotteryDetailState extends State<LotteryDetail> {
                                     ),
                                   ),
                                 )
-                              : (contractLink.userAddress.value ==
-                                          contractLink.managerAddress.value &&
-                                      contractLink.lotteryLive.value)
+                              : (Get.find<ContractLinking>().userAddress.value ==
+                                          Get.find<ContractLinking>().managerAddress.value &&
+                                      Get.find<ContractLinking>().lotteryLive.value)
                                   ? MaterialButton(
-                                      onPressed: contractLink.pickWinner,
+                                      onPressed: Get.find<ContractLinking>().pickWinner,
                                       color: secondaryColor,
                                       textColor: Colors.white,
                                       shape: RoundedRectangleBorder(
@@ -325,11 +293,11 @@ class _LotteryDetailState extends State<LotteryDetail> {
                                   : Container(),
                         ),
                         Obx(
-                          () => contractLink.isLoadingActivateLottery.value
+                          () => Get.find<ContractLinking>().isLoadingActivateLottery.value
                               ? Center(
                                   child: CircularProgressIndicator.adaptive(
                                     valueColor:
-                                        contractLink.animationController.drive(
+                                        Get.find<ContractLinking>().animationController.drive(
                                       ColorTween(
                                         begin: primaryColor,
                                         end: Colors.green,
@@ -337,9 +305,9 @@ class _LotteryDetailState extends State<LotteryDetail> {
                                     ),
                                   ),
                                 )
-                              : (contractLink.lotteryLive.value == false &&
-                                      contractLink.managerAddress.value ==
-                                          contractLink.userAddress.value)
+                              : (Get.find<ContractLinking>().lotteryLive.value == false &&
+                                      Get.find<ContractLinking>().managerAddress.value ==
+                                          Get.find<ContractLinking>().userAddress.value)
                                   ? MaterialButton(
                                       onPressed: () {
                                         activateLotteryDialog();
@@ -363,10 +331,10 @@ class _LotteryDetailState extends State<LotteryDetail> {
                     ListTile(
                       title: Obx(
                         () => Text(
-                          "${contractLink.message.value}",
+                          "${Get.find<ContractLinking>().message.value}",
                           textAlign: TextAlign.center,
                           style: bodySemiBold.copyWith(
-                              color: contractLink.message.contains('error')
+                              color: Get.find<ContractLinking>().message.contains('error')
                                   ? Colors.red
                                   : Colors.green),
                         ),
@@ -376,10 +344,12 @@ class _LotteryDetailState extends State<LotteryDetail> {
                 ),
               ),
       ),
-    );
+      ),
+      ));
   }
 
   void activateLotteryDialog() {
+    final controller = Get.find<LotteryDetailController>();
     Get.back();
     Get.defaultDialog(
         title: "Activate Lottery",
@@ -390,7 +360,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
           child: Column(
             children: [
               TextField(
-                controller: lotteryMaxEntryController,
+                controller: controller.lotteryMaxEntryController,
                 decoration: borderedInputDecoration(
                   fillColor: primaryColor,
                   hint: 'Ex: 10',
@@ -399,7 +369,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                     color: primaryColor,
                   ),
                   suffixIcon: IconButton(
-                    onPressed: lotteryMaxEntryController.clear,
+                    onPressed: controller.lotteryMaxEntryController.clear,
                     icon: const Icon(
                       Icons.clear,
                       color: primaryColor,
@@ -409,7 +379,7 @@ class _LotteryDetailState extends State<LotteryDetail> {
                 keyboardType: TextInputType.number,
               ).marginOnly(bottom: 10),
               TextField(
-                controller: lotteryETHRequiredController,
+                controller: controller.lotteryETHRequiredController,
                 decoration: borderedInputDecoration(
                   fillColor: primaryColor,
                   hint: 'Ex: 1',
@@ -418,39 +388,30 @@ class _LotteryDetailState extends State<LotteryDetail> {
                     color: primaryColor,
                   ),
                   suffixIcon: IconButton(
-                    onPressed: lotteryETHRequiredController.clear,
+                    onPressed: controller.lotteryETHRequiredController.clear,
                     icon: const Icon(
                       Icons.clear,
                       color: primaryColor,
                     ),
                   ),
                 ),
-                // onChanged: (msg) {
-                //   setState(() {
-                //     weiToethereum = (int.parse(msg) * pow(10, -18)).toString();
-                //   });
-                // },
                 keyboardType: TextInputType.number,
               ),
-              // Text(
-              //   "Value in Ethereum : ${weiToethereum}",
-              //   style: bodySemiBoldSmall,
-              // ).marginOnly(top: 5),
             ],
           ),
         ),
         actions: [
           Obx(
-            () => contractLink.isLoadingActivateLottery.value
+            () => Get.find<ContractLinking>().isLoadingActivateLottery.value
                 ? const Center(child: CircularProgressIndicator())
                 : MaterialButton(
                     onPressed: () async {
-                      await contractLink.activateLotteryFunc(
-                        int.parse(lotteryMaxEntryController.text.trim()),
-                        int.parse(lotteryETHRequiredController.text.trim()),
+                      await Get.find<ContractLinking>().activateLotteryFunc(
+                        int.parse(controller.lotteryMaxEntryController.text.trim()),
+                        int.parse(controller.lotteryETHRequiredController.text.trim()),
                       );
-                      lotteryMaxEntryController.clear();
-                      lotteryETHRequiredController.clear();
+                      controller.lotteryMaxEntryController.clear();
+                      controller.lotteryETHRequiredController.clear();
                       Get.back();
                     },
                     splashColor: splashColor,

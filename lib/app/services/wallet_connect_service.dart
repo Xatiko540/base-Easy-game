@@ -30,7 +30,7 @@ class AppNetworkConfig {
   });
 }
 
-class WalletConnectService extends GetxController {
+class WalletConnectService extends GetxService {
   static const int baseMainnetChainId = 8453;
   static const int baseSepoliaChainId = 84532;
   static const int ganacheChainId = 5777;
@@ -46,8 +46,7 @@ class WalletConnectService extends GetxController {
   static const String usdcTokenAddress = String.fromEnvironment('USDC_ADDRESS');
   static const String easyGameInviter =
       String.fromEnvironment('EASY_GAME_INVITER');
-  static const String baseBuilderDataSuffix =
-      String.fromEnvironment('BASE_BUILDER_DATA_SUFFIX');
+  static const String baseBuilderDataSuffix = '0x62635f68336c356a6c69790b0080218021802180218021802180218021';
   static const bool allowLocalChains = bool.fromEnvironment(
     'EASY_GAME_ALLOW_LOCAL_CHAINS',
     defaultValue: false,
@@ -969,22 +968,39 @@ class WalletConnectService extends GetxController {
     return balance;
   }
 
+  Timer? _receiptPollTimer;
+
   Future<EasyGameTransactionReceipt> waitForTransactionReceipt(
     String txHash, {
     Duration pollInterval = const Duration(seconds: 2),
     int maxAttempts = 90,
   }) async {
-    for (var attempt = 0; attempt < maxAttempts; attempt++) {
-      final receipt = await getTransactionReceipt(txHash);
-      if (receipt != null) {
-        return receipt;
-      }
-      await Future<void>.delayed(pollInterval);
-    }
+    final completer = Completer<EasyGameTransactionReceipt>();
+    var attempt = 0;
 
-    throw Exception(
-      'Transaction receipt was not available after ${maxAttempts * pollInterval.inSeconds}s: $txHash',
-    );
+    _receiptPollTimer?.cancel();
+    _receiptPollTimer = Timer.periodic(pollInterval, (timer) async {
+      if (completer.isCompleted) return;
+      attempt++;
+      try {
+        final receipt = await getTransactionReceipt(txHash);
+        if (receipt != null) {
+          timer.cancel();
+          completer.complete(receipt);
+          return;
+        }
+      } catch (_) {
+        // Ignore intermediate errors, keep polling
+      }
+      if (attempt >= maxAttempts) {
+        timer.cancel();
+        completer.completeError(Exception(
+          'Transaction receipt was not available after ${maxAttempts * pollInterval.inSeconds}s: $txHash',
+        ));
+      }
+    });
+
+    return completer.future;
   }
 
   Future<EasyGameTransactionReceipt?> getTransactionReceipt(
@@ -1389,6 +1405,12 @@ class WalletConnectService extends GetxController {
       throw Exception('Invalid inviter address');
     }
     return normalized;
+  }
+
+  @override
+  void onClose() {
+    _receiptPollTimer?.cancel();
+    super.onClose();
   }
 }
 

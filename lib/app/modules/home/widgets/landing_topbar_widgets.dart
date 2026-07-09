@@ -1,16 +1,15 @@
 part of '../views/start_page.dart';
 
 class _LandingTopBar extends StatelessWidget {
-  final WalletConnectService walletService;
   final VoidCallback onConnect;
 
   const _LandingTopBar({
-    required this.walletService,
     required this.onConnect,
   });
 
   @override
   Widget build(BuildContext context) {
+    final walletService = Get.find<WalletConnectService>();
     return Row(
       children: [
         const _EasyLogo(),
