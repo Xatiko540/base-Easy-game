@@ -12,11 +12,11 @@ class _PaymentSummary extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final rows = [
-      _SplitRow('registration.matrixPrizePool'.tr, 75.5, amount * 0.755),
-      _SplitRow('registration.directReferral'.tr, 9.5, amount * 0.095),
-      _SplitRow('registration.secondReferral'.tr, 6.0, amount * 0.06),
-      _SplitRow('registration.thirdReferral'.tr, 4.0, amount * 0.04),
-      _SplitRow('registration.projectFee'.tr, 5.0, amount * 0.05),
+      SplitRow('registration.matrixPrizePool'.tr, 75.5, amount * 0.755),
+      SplitRow('registration.directReferral'.tr, 9.5, amount * 0.095),
+      SplitRow('registration.secondReferral'.tr, 6.0, amount * 0.06),
+      SplitRow('registration.thirdReferral'.tr, 4.0, amount * 0.04),
+      SplitRow('registration.projectFee'.tr, 5.0, amount * 0.05),
     ];
     return Container(
       padding: const EdgeInsets.all(16),

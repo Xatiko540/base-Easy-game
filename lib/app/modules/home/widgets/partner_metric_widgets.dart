@@ -1,7 +1,7 @@
 part of '../views/partner_bonus_screen.dart';
 
 class _PartnerMetricGrid extends StatelessWidget {
-  final _PartnerArenaSnapshot data;
+  final PartnerArenaSnapshot data;
   final String currency;
 
   const _PartnerMetricGrid({
@@ -38,7 +38,7 @@ class _PartnerMetricGrid extends StatelessWidget {
       _PartnerMetricCard(
         icon: Icons.monetization_on_outlined,
         title: 'partner.profits'.tr,
-        value: '${_formatWei(data.claimableReferralBonusWei)} $currency',
+        value: '${formatPartnerWei(data.claimableReferralBonusWei)} $currency',
         delta: '+ claimable',
         color: EasyGameTheme.orange,
       ),

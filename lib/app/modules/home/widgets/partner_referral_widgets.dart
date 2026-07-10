@@ -1,7 +1,7 @@
 part of '../views/partner_bonus_screen.dart';
 
 class _PersonalReferralPanel extends StatelessWidget {
-  final _PartnerBonusController controller;
+  final PartnerBonusController controller;
 
   const _PersonalReferralPanel({required this.controller});
 
@@ -112,7 +112,7 @@ class _PersonalReferralPanel extends StatelessWidget {
 }
 
 class _ReferralRulesPanel extends StatelessWidget {
-  final _PartnerArenaSnapshot data;
+  final PartnerArenaSnapshot data;
 
   const _ReferralRulesPanel({required this.data});
 

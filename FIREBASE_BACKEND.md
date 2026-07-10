@@ -13,22 +13,33 @@ transactions, and send FCM notifications. Flutter signs all user transactions.
 5. Register Web, Android, and iOS apps as required.
 6. Upgrade to Blaze. Firebase does not deploy Cloud Functions on Spark.
 
-## Function configuration
+## Secure configuration
 
-Set the production Base RPC as a Firebase secret:
+Sensitive values must live in Firebase/Google Secret Manager, not in Flutter,
+Firestore, or committed `.env` files.
 
 ```bash
 firebase functions:secrets:set BASE_RPC_URL
+firebase functions:secrets:set FIREBASE_RECAPTCHA_V3_SITE_KEY
+firebase functions:secrets:set FIREBASE_VAPID_KEY
 ```
 
-Set non-secret deployment parameters when prompted by `firebase deploy`:
+Public runtime values are Firebase Functions params. They are safe to return to
+the Flutter app through `getAppConfig`:
 
 ```text
 EASY_GAME_CONTRACT_ADDRESS=0x...
 EASY_GAME_CHAIN_ID=8453
 EASY_GAME_CONFIRMATIONS=5
 EASY_GAME_START_BLOCK=<deployment block>
+APP_PUBLIC_URL=https://easygame.io
+WEB3_PUBLIC_RPC_URL=https://mainnet.base.org
+APP_ENVIRONMENT=production
 ```
+
+`BASE_RPC_URL` is the server-side RPC used by Functions. `WEB3_PUBLIC_RPC_URL`
+is the public client fallback used by Flutter event listeners. Do not put a
+paid/private RPC endpoint in `WEB3_PUBLIC_RPC_URL`.
 
 Never put a wallet private key, mnemonic, RPC secret, or service-account JSON
 inside Flutter or this repository.
@@ -41,9 +52,7 @@ npm install
 cd ..
 flutter build web \
   --dart-define=EASY_GAME_CHAIN_ID=8453 \
-  --dart-define=EASY_GAME_ADDRESS=0x... \
-  --dart-define=FIREBASE_RECAPTCHA_V3_SITE_KEY=... \
-  --dart-define=FIREBASE_VAPID_KEY=...
+  --dart-define=EASY_GAME_ADDRESS=0x...
 firebase deploy --only functions,firestore,hosting
 ```
 
@@ -54,6 +63,10 @@ firebase deploy --only functions,firestore,hosting
 - `requestWalletNonce` / `linkWallet`: binds anonymous UID to a signed wallet.
 - `registerDevice`: binds an FCM token to a verified wallet.
 - `trackTransaction`: records a user-submitted transaction.
+- `syncLevel` / `syncAllLevels`: reads contract level state through the
+  server-side `BASE_RPC_URL` secret and writes denormalized level documents.
+- `getAppConfig`: returns public app configuration plus public web keys loaded
+  from Secret Manager.
 - `health`: exposes the current indexer checkpoint.
 
 The Google Compute Engine VM is no longer required for normal processing. Keep

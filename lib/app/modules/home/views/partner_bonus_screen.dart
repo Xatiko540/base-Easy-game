@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/controllers/partner_bonus_controller.dart';
+import 'package:lottery_advance/app/modules/home/models/partner_bonus_models.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
-import 'package:lottery_advance/app/services/referral_link_service.dart';
-import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
-part '../models/partner_bonus_models.dart';
-part '../controllers/partner_bonus_controller.dart';
 part '../widgets/partner_bonus_widgets.dart';
 part '../widgets/partner_metric_widgets.dart';
 part '../widgets/partner_referral_widgets.dart';
@@ -21,11 +18,11 @@ class PartnerBonusScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final walletService = Get.find<WalletConnectService>();
-    return GetX<_PartnerBonusController>(
-      init: _PartnerBonusController(),
+    return GetX<PartnerBonusController>(
+      init: PartnerBonusController(),
       dispose: (_) {
-        if (Get.isRegistered<_PartnerBonusController>()) {
-          Get.delete<_PartnerBonusController>();
+        if (Get.isRegistered<PartnerBonusController>()) {
+          Get.delete<PartnerBonusController>();
         }
       },
       builder: (partnerController) {

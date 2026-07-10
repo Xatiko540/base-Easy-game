@@ -1,7 +1,7 @@
 part of '../views/partner_bonus_screen.dart';
 
 class _ClaimableReferralPanel extends StatelessWidget {
-  final _PartnerBonusController controller;
+  final PartnerBonusController controller;
 
   const _ClaimableReferralPanel({required this.controller});
 
@@ -28,7 +28,7 @@ class _ClaimableReferralPanel extends StatelessWidget {
             _ClaimStat(
               title: 'partner.claimableReferral'.tr,
               value:
-                  '${_formatWei(claimable)} ${controller.walletService.nativeSymbol}',
+                  '${formatPartnerWei(claimable)} ${controller.walletService.nativeSymbol}',
             ),
             _ClaimStat(
               title: 'partner.totalWeight'.tr,

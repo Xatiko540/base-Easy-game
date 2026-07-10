@@ -1,9 +1,9 @@
-part of '../views/profilescreen.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
-class _ProfileDashboardSnapshot {
+class ProfileDashboardSnapshot {
   final String contractAddress;
   final EasyGamePlayerSummary? player;
-  final List<_ProfileLevelState> levels;
+  final List<ProfileLevelState> levels;
   final int activeCount;
   final int frozenCount;
   final BigInt totalEarnedWei;
@@ -11,7 +11,7 @@ class _ProfileDashboardSnapshot {
   final BigInt totalActiveCells;
   final BigInt totalWeight;
 
-  const _ProfileDashboardSnapshot({
+  const ProfileDashboardSnapshot({
     required this.contractAddress,
     required this.player,
     required this.levels,
@@ -23,8 +23,8 @@ class _ProfileDashboardSnapshot {
     required this.totalWeight,
   });
 
-  factory _ProfileDashboardSnapshot.empty() {
-    return _ProfileDashboardSnapshot(
+  factory ProfileDashboardSnapshot.empty() {
+    return ProfileDashboardSnapshot(
       contractAddress: '0x0000000000000000000000000000000000000000',
       player: null,
       levels: [],
@@ -58,14 +58,14 @@ class _ProfileDashboardSnapshot {
   BigInt get nftWeight => player?.nftWeight ?? BigInt.zero;
 }
 
-class _ProfileLevelState {
+class ProfileLevelState {
   final int level;
   final EasyGameLevelState state;
   final EasyGameAdvanceLevelStats? stats;
   final BigInt priceWei;
   final bool available;
 
-  const _ProfileLevelState({
+  const ProfileLevelState({
     required this.level,
     required this.state,
     required this.stats,
@@ -74,7 +74,7 @@ class _ProfileLevelState {
   });
 }
 
-String _shortAddress(String address) {
+String shortProfileAddress(String address) {
   if (address.length <= 12) {
     return address;
   }

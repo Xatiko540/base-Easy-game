@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/firebase_options.dart';
 
+import 'app_config_service.dart';
 import 'notifications_service.dart';
 import 'wallet_connect_service.dart';
 
@@ -46,8 +47,7 @@ class FirebaseBackendService extends GetxService {
             ? ReCaptchaV3Provider(_recaptchaSiteKey)
             : null,
         providerAndroid: const AndroidPlayIntegrityProvider(),
-        providerApple:
-            const AppleAppAttestWithDeviceCheckFallbackProvider(),
+        providerApple: const AppleAppAttestWithDeviceCheckFallbackProvider(),
       );
     }
 
@@ -71,12 +71,12 @@ class FirebaseBackendService extends GetxService {
 
   Future<void> _fetchConfig() async {
     try {
-      final result = await _functions!
-          .httpsCallable('getAppConfig')
-          .call();
-      final data = Map<String, dynamic>.from(result.data as Map);
-      _recaptchaSiteKey = (data['recaptchaSiteKey'] as String?) ?? '';
-      _vapidKey = (data['vapidKey'] as String?) ?? '';
+      final config = Get.find<AppConfigService>();
+      if (!config.isLoaded.value) {
+        await config.fetch();
+      }
+      _recaptchaSiteKey = config.get('recaptchaSiteKey');
+      _vapidKey = config.get('vapidKey');
     } catch (e) {
       debugPrint('Firebase config fetch failed (non-critical): $e');
     }
@@ -100,8 +100,10 @@ class FirebaseBackendService extends GetxService {
   Future<void> _loadWalletLink() async {
     final uid = FirebaseAuth.instance.currentUser?.uid;
     if (uid == null) return;
-    final snapshot =
-        await FirebaseFirestore.instance.collection('walletLinks').doc(uid).get();
+    final snapshot = await FirebaseFirestore.instance
+        .collection('walletLinks')
+        .doc(uid)
+        .get();
     walletLinked.value = snapshot.exists &&
         snapshot.data()?['wallet']?.toString().toLowerCase() ==
             walletService.currentAddress.value.toLowerCase();
@@ -116,8 +118,9 @@ class FirebaseBackendService extends GetxService {
     final nonceResult = await _functions!
         .httpsCallable('requestWalletNonce')
         .call(<String, dynamic>{'wallet': wallet});
-    final message = Map<String, dynamic>.from(nonceResult.data as Map)['message']
-        .toString();
+    final message =
+        Map<String, dynamic>.from(nonceResult.data as Map)['message']
+            .toString();
     final signature = await walletService.signMessage(message);
     await _functions!.httpsCallable('linkWallet').call(<String, dynamic>{
       'signature': signature,
@@ -159,8 +162,8 @@ class FirebaseBackendService extends GetxService {
   Stream<DocumentSnapshot<Map<String, dynamic>>> watchTransaction(
     String transactionHash,
   ) {
-    final chainId = walletService.chainId.value ??
-        WalletConnectService.baseMainnetChainId;
+    final chainId =
+        walletService.chainId.value ?? WalletConnectService.baseMainnetChainId;
     return FirebaseFirestore.instance
         .collection('transactions')
         .doc('${chainId}_${transactionHash.toLowerCase()}')
@@ -168,8 +171,8 @@ class FirebaseBackendService extends GetxService {
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> watchPlayer() {
-    final chainId = walletService.chainId.value ??
-        WalletConnectService.baseMainnetChainId;
+    final chainId =
+        walletService.chainId.value ?? WalletConnectService.baseMainnetChainId;
     final wallet = walletService.currentAddress.value.toLowerCase();
     return FirebaseFirestore.instance
         .collection('users')

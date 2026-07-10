@@ -19,14 +19,27 @@ const contractAddress = defineString("EASY_GAME_CONTRACT_ADDRESS");
 const chainIdParam = defineString("EASY_GAME_CHAIN_ID", { default: "8453" });
 const confirmationsParam = defineString("EASY_GAME_CONFIRMATIONS", { default: "5" });
 const startBlockParam = defineString("EASY_GAME_START_BLOCK", { default: "0" });
+const appPublicUrlParam = defineString("APP_PUBLIC_URL", { default: "https://easygame.io" });
+const publicRpcUrlParam = defineString("WEB3_PUBLIC_RPC_URL", { default: "https://mainnet.base.org" });
+const environmentParam = defineString("APP_ENVIRONMENT", { default: "production" });
 const region = "us-central1";
 const iface = new Interface(GAME_ABI);
 const maxDeviceTokensPerWallet = 10;
 const allowedPlatforms = new Set(["web", "android", "ios", "macos", "windows", "linux"]);
+const zeroAddress = "0x0000000000000000000000000000000000000000";
+
+function publicContractAddress() {
+  const address = contractAddress.value();
+  if (!isAddress(address)) return "";
+  const normalized = getAddress(address);
+  return normalized === zeroAddress ? "" : normalized;
+}
 
 function runtime() {
   const address = contractAddress.value();
-  if (!isAddress(address)) throw new Error("EASY_GAME_CONTRACT_ADDRESS is invalid");
+  if (!isAddress(address) || getAddress(address) === zeroAddress) {
+    throw new Error("EASY_GAME_CONTRACT_ADDRESS is invalid or not configured");
+  }
   const provider = new JsonRpcProvider(rpcUrl.value(), Number(chainIdParam.value()));
   return {
     provider,
@@ -403,15 +416,14 @@ exports.trackTransaction = onCall({ region, enforceAppCheck: true }, async (requ
   return { tracked: true };
 });
 
-exports.syncLevel = onCall({ region, enforceAppCheck: true }, async (request) => {
+exports.syncLevel = onCall({ region, enforceAppCheck: true, secrets: [rpcUrl] }, async (request) => {
   requireApp(request);
   const uid = requireUser(request);
   await enforceRateLimit("syncLevel", uid, 30, 60 * 60);
   const level = Number(request.data?.level);
   if (level < 1 || level > 17) throw new HttpsError("invalid-argument", "Level must be 1-17");
 
-  const { provider, contract, chainId } = runtime();
-  const levelStr = String(level);
+  const { contract, chainId } = runtime();
   const [stats, usdcStats, ethPrice, usdcPrice, available] = await Promise.all([
     contract.getLevelStats(level),
     contract.getLevelStatsUSDC(level),
@@ -433,7 +445,12 @@ exports.syncLevel = onCall({ region, enforceAppCheck: true }, async (request) =>
   return { level, synced: true, ...doc };
 });
 
-exports.syncAllLevels = onCall({ region, enforceAppCheck: true, timeoutSeconds: 120 }, async (request) => {
+exports.syncAllLevels = onCall({
+  region,
+  enforceAppCheck: true,
+  timeoutSeconds: 120,
+  secrets: [rpcUrl],
+}, async (request) => {
   requireApp(request);
   const uid = requireUser(request);
   await enforceRateLimit("syncAllLevels", uid, 5, 60 * 60);
@@ -441,7 +458,6 @@ exports.syncAllLevels = onCall({ region, enforceAppCheck: true, timeoutSeconds: 
   const { contract, chainId } = runtime();
   const results = [];
   for (let level = 1; level <= 17; level++) {
-    const levelStr = String(level);
     const [stats, usdcStats, ethPrice, usdcPrice, available] = await Promise.all([
       contract.getLevelStats(level),
       contract.getLevelStatsUSDC(level),
@@ -499,10 +515,18 @@ exports.syncAllLevels = onCall({ region, enforceAppCheck: true, timeoutSeconds: 
 //   }
 // });
 
-exports.getAppConfig = onCall({ region }, async (_request) => {
+exports.getAppConfig = onCall({
+  region,
+  secrets: [recaptchaSiteKey, vapidKey],
+}, async (_request) => {
   return {
     recaptchaSiteKey: recaptchaSiteKey.value(),
     vapidKey: vapidKey.value(),
+    appPublicUrl: appPublicUrlParam.value(),
+    web3Rpc: publicRpcUrlParam.value(),
+    chainId: chainIdParam.value(),
+    contractAddress: publicContractAddress(),
+    environment: environmentParam.value(),
   };
 });
 

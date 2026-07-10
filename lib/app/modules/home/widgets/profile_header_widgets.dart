@@ -2,7 +2,7 @@ part of '../views/profilescreen.dart';
 
 class _ProfileHeader extends StatelessWidget {
   final String profileId;
-  final _ProfileDashboardSnapshot data;
+  final ProfileDashboardSnapshot data;
   final String referralLink;
   final VoidCallback onCopy;
   final VoidCallback onShare;
@@ -55,7 +55,7 @@ class _ProfileHeader extends StatelessWidget {
 
 class _UserIdentity extends StatelessWidget {
   final String profileId;
-  final _ProfileDashboardSnapshot data;
+  final ProfileDashboardSnapshot data;
 
   const _UserIdentity({
     required this.profileId,

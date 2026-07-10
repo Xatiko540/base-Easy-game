@@ -1,13 +1,13 @@
-part of '../views/partner_bonus_screen.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
-class _PartnerArenaSnapshot {
+class PartnerArenaSnapshot {
   final BigInt totalTickets;
   final BigInt baseWeight;
   final BigInt referralWeight;
   final BigInt totalWeight;
   final BigInt claimableReferralBonusWei;
 
-  _PartnerArenaSnapshot({EasyGamePlayerSummary? player})
+  PartnerArenaSnapshot({EasyGamePlayerSummary? player})
       : totalTickets = player?.totalTickets ?? BigInt.zero,
         baseWeight = player?.baseWeight ?? BigInt.zero,
         referralWeight = player?.referralWeight ?? BigInt.zero,
@@ -15,10 +15,10 @@ class _PartnerArenaSnapshot {
         claimableReferralBonusWei =
             player?.claimableReferralBonusWei ?? BigInt.zero;
 
-  factory _PartnerArenaSnapshot.empty() => _PartnerArenaSnapshot();
+  factory PartnerArenaSnapshot.empty() => PartnerArenaSnapshot();
 }
 
-String _formatWei(BigInt wei, {int decimals = 4}) {
+String formatPartnerWei(BigInt wei, {int decimals = 4}) {
   final base = BigInt.from(10).pow(18);
   final whole = wei ~/ base;
   final fraction = (wei % base).toString().padLeft(18, '0');

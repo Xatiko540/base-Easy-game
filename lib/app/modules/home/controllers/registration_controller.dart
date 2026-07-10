@@ -1,9 +1,14 @@
-part of '../views/registrationlevel.dart';
+import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
+import 'package:lottery_advance/app/modules/home/views/ActivateExpressGameScreen.dart';
+import 'package:lottery_advance/app/services/referral_link_service.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
-class _RegistrationController extends GetxController {
+class RegistrationController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
 
-  _RegistrationController();
+  RegistrationController();
 
   final uplineController = TextEditingController();
   final selectedLevel = 3.obs;

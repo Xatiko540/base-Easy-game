@@ -23,7 +23,11 @@ class ExpressGameScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetBuilder<LandingController>(
       init: LandingController(),
-      dispose: (_) => Get.delete<LandingController>(),
+      dispose: (_) {
+        if (Get.isRegistered<LandingController>()) {
+          Get.delete<LandingController>();
+        }
+      },
       builder: (landingController) {
         return Scaffold(
           backgroundColor: EasyGameTheme.page,
@@ -59,7 +63,8 @@ class ExpressGameScreen extends StatelessWidget {
                           const _FeatureGrid(),
                           const SizedBox(height: 36),
                           _PreviewSearch(
-                            controller: landingController.previewSearchController,
+                            controller:
+                                landingController.previewSearchController,
                             onPreview: landingController.openPreview,
                           ),
                           const SizedBox(height: 30),

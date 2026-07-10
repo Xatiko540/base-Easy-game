@@ -1,11 +1,16 @@
-part of '../views/partner_bonus_screen.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/models/partner_bonus_models.dart';
+import 'package:lottery_advance/app/services/referral_link_service.dart';
+import 'package:lottery_advance/app/services/ui_navigation_service.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
-class _PartnerBonusController extends GetxController {
+class PartnerBonusController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
 
-  _PartnerBonusController();
+  PartnerBonusController();
 
-  final snapshot = _PartnerArenaSnapshot.empty().obs;
+  final snapshot = PartnerArenaSnapshot.empty().obs;
   final isLoading = false.obs;
   Worker? _connectionWorker;
   Worker? _addressWorker;
@@ -40,15 +45,15 @@ class _PartnerBonusController extends GetxController {
     }
   }
 
-  Future<_PartnerArenaSnapshot> _loadSnapshot() async {
+  Future<PartnerArenaSnapshot> _loadSnapshot() async {
     if (!walletService.isConnected.value) {
-      return _PartnerArenaSnapshot.empty();
+      return PartnerArenaSnapshot.empty();
     }
     try {
       final player = await walletService.getEasyGamePlayerSummary();
-      return _PartnerArenaSnapshot(player: player);
+      return PartnerArenaSnapshot(player: player);
     } catch (_) {
-      return _PartnerArenaSnapshot.empty();
+      return PartnerArenaSnapshot.empty();
     }
   }
 

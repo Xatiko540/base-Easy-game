@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lottery_advance/app/modules/home/views/ActivateExpressGameScreen.dart';
+import 'package:lottery_advance/app/modules/home/controllers/registration_controller.dart';
+import 'package:lottery_advance/app/modules/home/models/registration_models.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
-import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
 import '../models/levels_models.dart';
 
-part '../controllers/registration_controller.dart';
-part '../models/registration_models.dart';
 part '../widgets/registration_widgets.dart';
 part '../widgets/registration_asset_widgets.dart';
 part '../widgets/registration_levels_widgets.dart';
@@ -33,13 +31,13 @@ class RegistrationScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tag = '$level-${inviter ?? 'default'}';
-    return GetX<_RegistrationController>(
-      init: _RegistrationController()
+    return GetX<RegistrationController>(
+      init: RegistrationController()
         ..configure(level: level, amount: amount, inviter: inviter),
       tag: tag,
       dispose: (_) {
-        if (Get.isRegistered<_RegistrationController>(tag: tag)) {
-          Get.delete<_RegistrationController>(tag: tag);
+        if (Get.isRegistered<RegistrationController>(tag: tag)) {
+          Get.delete<RegistrationController>(tag: tag);
         }
       },
       builder: (registrationController) {

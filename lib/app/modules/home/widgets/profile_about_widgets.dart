@@ -1,8 +1,8 @@
 part of '../views/profilescreen.dart';
 
 class _AboutContractsRow extends StatelessWidget {
-  final _ProfileController controller;
-  final _ProfileDashboardSnapshot data;
+  final ProfileController controller;
+  final ProfileDashboardSnapshot data;
 
   const _AboutContractsRow({
     required this.controller,
@@ -47,7 +47,7 @@ class _AboutContractsRow extends StatelessWidget {
 }
 
 class _AboutEasyGamePanel extends StatelessWidget {
-  final _ProfileDashboardSnapshot data;
+  final ProfileDashboardSnapshot data;
 
   const _AboutEasyGamePanel({
     required this.data,
@@ -231,7 +231,7 @@ class _ClaimMiniCard extends StatelessWidget {
 }
 
 class _ContractsStatsPanel extends StatelessWidget {
-  final _ProfileDashboardSnapshot data;
+  final ProfileDashboardSnapshot data;
   final String currency;
   final VoidCallback onCopyContract;
 
@@ -282,7 +282,7 @@ class _ContractsStatsPanel extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  _shortAddress(contract),
+                  shortProfileAddress(contract),
                   style: const TextStyle(
                     color: EasyGameTheme.teal,
                     fontWeight: FontWeight.w900,

@@ -1,11 +1,17 @@
-part of '../views/profilescreen.dart';
+import 'package:flutter/services.dart';
+import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
+import 'package:lottery_advance/app/modules/home/models/profile_models.dart';
+import 'package:lottery_advance/app/services/referral_link_service.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
-class _ProfileController extends GetxController {
+class ProfileController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
 
-  _ProfileController();
+  ProfileController();
 
-  final dashboard = _ProfileDashboardSnapshot.empty().obs;
+  final dashboard = ProfileDashboardSnapshot.empty().obs;
   final isLoading = false.obs;
   final errorMessage = ''.obs;
   Worker? _connectionWorker;
@@ -54,7 +60,7 @@ class _ProfileController extends GetxController {
       dashboard.value = await _loadDashboard();
     } catch (error) {
       errorMessage.value = error.toString();
-      dashboard.value = _ProfileDashboardSnapshot.empty();
+      dashboard.value = ProfileDashboardSnapshot.empty();
     } finally {
       isLoading.value = false;
     }
@@ -87,14 +93,14 @@ class _ProfileController extends GetxController {
     Clipboard.setData(ClipboardData(text: address));
     Get.snackbar(
       'common.copied'.tr,
-      _shortAddress(address),
+      shortProfileAddress(address),
       snackPosition: SnackPosition.BOTTOM,
     );
   }
 
-  Future<_ProfileDashboardSnapshot> _loadDashboard() async {
+  Future<ProfileDashboardSnapshot> _loadDashboard() async {
     if (!walletService.isConnected.value) {
-      return _ProfileDashboardSnapshot.empty();
+      return ProfileDashboardSnapshot.empty();
     }
 
     var contractAddress = '0x0000000000000000000000000000000000000000';
@@ -111,7 +117,7 @@ class _ProfileController extends GetxController {
       player = null;
     }
 
-    final levels = <_ProfileLevelState>[];
+    final levels = <ProfileLevelState>[];
     var activeCount = 0;
     var frozenCount = 0;
     var totalEarnedWei = BigInt.zero;
@@ -167,7 +173,7 @@ class _ProfileController extends GetxController {
       totalEarnedWei += state.earnedWei;
 
       levels.add(
-        _ProfileLevelState(
+        ProfileLevelState(
           level: level,
           state: state,
           stats: stats,
@@ -177,7 +183,7 @@ class _ProfileController extends GetxController {
       );
     }
 
-    return _ProfileDashboardSnapshot(
+    return ProfileDashboardSnapshot(
       contractAddress: contractAddress,
       player: player,
       levels: levels,

@@ -104,7 +104,7 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _WeightBreakdown extends StatelessWidget {
-  final _ProfileDashboardSnapshot data;
+  final ProfileDashboardSnapshot data;
 
   const _WeightBreakdown({required this.data});
 

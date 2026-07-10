@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/controllers/profile_controller.dart';
+import 'package:lottery_advance/app/modules/home/models/profile_models.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/modules/home/views/partner_bonus_screen.dart';
-import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../models/levels_models.dart';
 
-part '../models/profile_models.dart';
-part '../controllers/profile_controller.dart';
 part '../widgets/profile_widgets.dart';
 part '../widgets/profile_common_widgets.dart';
 part '../widgets/profile_header_widgets.dart';
@@ -24,11 +21,11 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetX<_ProfileController>(
-      init: _ProfileController(),
+    return GetX<ProfileController>(
+      init: ProfileController(),
       dispose: (_) {
-        if (Get.isRegistered<_ProfileController>()) {
-          Get.delete<_ProfileController>();
+        if (Get.isRegistered<ProfileController>()) {
+          Get.delete<ProfileController>();
         }
       },
       builder: (profileController) {

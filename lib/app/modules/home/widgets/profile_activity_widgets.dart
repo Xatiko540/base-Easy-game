@@ -1,7 +1,7 @@
 part of '../views/profilescreen.dart';
 
 class _RecentActivityTable extends StatelessWidget {
-  final _ProfileDashboardSnapshot data;
+  final ProfileDashboardSnapshot data;
 
   const _RecentActivityTable({
     required this.data,
@@ -98,7 +98,7 @@ class _HeaderText extends StatelessWidget {
 }
 
 class _ActivityRow extends StatelessWidget {
-  final _ProfileLevelState entry;
+  final ProfileLevelState entry;
   final String profileId;
 
   const _ActivityRow({

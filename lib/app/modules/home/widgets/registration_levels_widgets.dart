@@ -136,7 +136,7 @@ class _MiniLevelButton extends StatelessWidget {
               ],
             ),
             Text(
-              '${_formatRegistrationAmount(amount)} $currencySymbol',
+              '${formatRegistrationAmount(amount)} $currencySymbol',
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,

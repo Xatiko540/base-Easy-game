@@ -1,7 +1,7 @@
 part of '../views/profilescreen.dart';
 
 class _ProgramPanel extends StatelessWidget {
-  final _ProfileDashboardSnapshot data;
+  final ProfileDashboardSnapshot data;
 
   const _ProgramPanel({
     required this.data,
@@ -178,7 +178,7 @@ class _ProgramCta extends StatelessWidget {
 
 class _MatrixCell extends StatelessWidget {
   final int level;
-  final _ProfileLevelState? levelState;
+  final ProfileLevelState? levelState;
 
   const _MatrixCell({
     required this.level,
