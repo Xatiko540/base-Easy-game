@@ -1,9 +1,15 @@
+import 'package:get/get.dart';
+import 'app_config_service.dart';
+
 class ReferralLinkService {
   static const String referralPath = 'npalce';
-  static const String publicBaseUrl = String.fromEnvironment(
-    'APP_PUBLIC_URL',
-    defaultValue: 'https://express.game',
-  );
+  static String get publicBaseUrl {
+    try {
+      final fromConfig = Get.find<AppConfigService>().get('appPublicUrl');
+      if (fromConfig.isNotEmpty) return fromConfig;
+    } catch (_) {}
+    return 'https://express.game';
+  }
 
   static final RegExp _addressPattern = RegExp(r'^0x[a-fA-F0-9]{40}$');
 

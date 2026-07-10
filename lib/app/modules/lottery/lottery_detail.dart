@@ -18,229 +18,232 @@ class LotteryDetail extends StatelessWidget {
   Widget build(BuildContext context) {
     return GetX<LotteryDetailController>(
       init: LotteryDetailController()..init(lotteryAddress),
-      dispose: (_) => Get.delete<LotteryDetailController>(),
-      builder: (_) => Container(
-      decoration: BoxDecoration(
-        color: Get.theme.scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(16),
-          topRight: Radius.circular(16),
-        ),
-      ),
-      height: Get.height * 0.88,
-      child: ScrollConfiguration(
-        behavior: RemoveScrollGlow(),
-        child: Obx(() => Get.find<LotteryDetailController>().isLoading.value
-            ? const Center(child: CircularProgressIndicator())
-            : Obx(
-                () => ListView(
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
+      dispose: (_) {
+        if (Get.isRegistered<LotteryDetailController>()) {
+          Get.delete<LotteryDetailController>();
+        }
+      },
+      builder: (controller) {
+        final loading = controller.isLoading.value;
+        return Container(
+          decoration: BoxDecoration(
+            color: Get.theme.scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(16),
+              topRight: Radius.circular(16),
+            ),
+          ),
+          height: Get.height * 0.88,
+          child: ScrollConfiguration(
+            behavior: RemoveScrollGlow(),
+            child: loading
+                ? const Center(child: CircularProgressIndicator())
+                : Obx(
+                    () => ListView(
                       children: [
-                        Container(
-                          width: Get.width * 0.4,
-                          height: 5,
-                          decoration: BoxDecoration(
-                            color: Get.theme.brightness == Brightness.dark
-                                ? Colors.white
-                                : Colors.grey,
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(16),
-                            ),
-                          ),
-                        ).marginOnly(top: 5),
-                      ],
-                    ),
-                    Obx(
-                      () => SizedBox(
-                        width: Get.width * 0.8,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            IconButton(
-                              onPressed: Get.back,
-                              icon: const Icon(Icons.arrow_back),
-                            ),
-                            (Get.find<ContractLinking>().managerAddress.value ==
-                                        Get.find<ContractLinking>().userAddress.value &&
-                                    Get.find<ContractLinking>().lotteryLive.value == false)
-                                ? PopupMenuButton(
-                                    itemBuilder: (context) => [
-                                      PopupMenuItem(
-                                        child: const Text(
-                                          "Delete Lottery",
-                                          style: bodySemiLight,
-                                        ),
-                                        onTap: () async {
-                                          Get.back();
-                                          await Get.find<ContractLinking>().deleteLotteryFunc(
-                                              lotteryAddress);
-                                        },
-                                      )
-                                    ],
-                                  )
-                                : const SizedBox.shrink(),
+                            Container(
+                              width: Get.width * 0.4,
+                              height: 5,
+                              decoration: BoxDecoration(
+                                color: Get.theme.brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.grey,
+                                borderRadius: const BorderRadius.all(
+                                  Radius.circular(16),
+                                ),
+                              ),
+                            ).marginOnly(top: 5),
                           ],
                         ),
-                      ),
-                    ),
-                    Center(
-                      child: Text(
-                        Get.find<ContractLinking>().lotryname.value,
-                        style: headingStyleSemiBold,
-                      ),
-                    ),
-                    const Center(
-                      child: Text(
-                        "by",
-                        style: bodySemiLightSmall,
-                      ),
-                    ).marginSymmetric(vertical: 5),
-                    Center(
-                      child: Text(
-                        Get.find<ContractLinking>().managerAddress.value,
-                        style: bodySemiBoldSmall,
-                      ),
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        Column(
-                          children: [
-                            const FaIcon(
-                              FontAwesomeIcons.award,
-                              color: primaryColor,
-                              size: 22,
-                            ).marginOnly(bottom: 5),
-                            Text(
-                              Get.find<ContractLinking>().contractBalance.value,
-                              style: bodySemiBold,
-                            ),
-                          ],
-                        ),
-                        Column(
-                          children: [
-                            const Icon(
-                              Icons.groups,
-                              color: primaryColor,
-                              size: 22,
-                            ).marginOnly(bottom: 5),
-                            Text(
-                              '${Get.find<ContractLinking>().players.length}',
-                              style: bodySemiBold,
-                            ),
-                          ],
-                        ),
-                        Column(
-                          children: [
-                            FaIcon(
-                              Get.find<ContractLinking>().lotteryLive.value
-                                  ? FontAwesomeIcons.toggleOn
-                                  : FontAwesomeIcons.toggleOff,
-                              color: primaryColor,
-                              size: 22,
-                            ).marginOnly(bottom: 5),
-                            Text(
-                              Get.find<ContractLinking>().lotteryLive.value
-                                  ? "Active"
-                                  : "Inactive",
-                              style: bodySemiBold,
-                            ),
-                          ],
-                        ),
-                      ],
-                    ).marginSymmetric(vertical: 20),
-                    ListTile(
-                      leading: const FaIcon(
-                        FontAwesomeIcons.gift,
-                        color: primaryColor,
-                      ),
-                      title: const Text(
-                        'Last Winner',
-                        style: bodySemiBold,
-                      ),
-                      subtitle: Obx(
-                        () => Text(
-                          '${Get.find<ContractLinking>().lastWinner.value.isEmpty ? defaultHex : Get.find<ContractLinking>().lastWinner.value} ',
-                        ),
-                      ),
-                    ),
-                    ListTile(
-                      leading: const FaIcon(
-                        FontAwesomeIcons.ticketSimple,
-                        color: primaryColor,
-                      ),
-                      title: Text(
-                        'Tickets Buy ( Max : ${Get.find<ContractLinking>().lotteryLimit.value} )',
-                        style: bodySemiBold,
-                      ),
-                      subtitle: Obx(
-                        () => Text(
-                          '${Get.find<ContractLinking>().lotteryBuyCount.value}',
-                        ),
-                      ),
-                    ),
-                    if (Get.find<ContractLinking>().managerAddress.value ==
-                        Get.find<ContractLinking>().userAddress.value)
-                      ListTile(
-                        leading: const FaIcon(
-                          FontAwesomeIcons.clipboardCheck,
-                          color: primaryColor,
-                        ),
-                        title: const Text(
-                          'Tickets Sold',
-                          style: bodySemiBold,
-                        ),
-                        subtitle: Obx(
-                          () => Text(
-                            '${Get.find<ContractLinking>().lotterySold.value}',
-                          ),
-                        ),
-                      ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
                         Obx(
-                          () => Get.find<ContractLinking>().isLoadingParticipate.value
-                              ? Center(
-                                  child: CircularProgressIndicator.adaptive(
-                                    valueColor:
-                                        Get.find<ContractLinking>().animationController.drive(
-                                      ColorTween(
-                                        begin: primaryColor,
-                                        end: Colors.green,
+                          () => SizedBox(
+                            width: Get.width * 0.8,
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                IconButton(
+                                  onPressed: Get.back,
+                                  icon: const Icon(Icons.arrow_back),
+                                ),
+                                (Get.find<ContractLinking>()
+                                                .managerAddress
+                                                .value ==
+                                            Get.find<ContractLinking>()
+                                                .userAddress
+                                                .value &&
+                                        Get.find<ContractLinking>()
+                                                .lotteryLive
+                                                .value ==
+                                            false)
+                                    ? PopupMenuButton(
+                                        itemBuilder: (context) => [
+                                          PopupMenuItem(
+                                            child: const Text(
+                                              "Delete Lottery",
+                                              style: bodySemiLight,
+                                            ),
+                                            onTap: () async {
+                                              Get.back();
+                                              await Get.find<ContractLinking>()
+                                                  .deleteLotteryFunc(
+                                                      lotteryAddress);
+                                            },
+                                          )
+                                        ],
+                                      )
+                                    : const SizedBox.shrink(),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Center(
+                          child: Text(
+                            Get.find<ContractLinking>().lotryname.value,
+                            style: headingStyleSemiBold,
+                          ),
+                        ),
+                        const Center(
+                          child: Text(
+                            "by",
+                            style: bodySemiLightSmall,
+                          ),
+                        ).marginSymmetric(vertical: 5),
+                        Center(
+                          child: Text(
+                            Get.find<ContractLinking>().managerAddress.value,
+                            style: bodySemiBoldSmall,
+                          ),
+                        ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                            Column(
+                              children: [
+                                const FaIcon(
+                                  FontAwesomeIcons.award,
+                                  color: primaryColor,
+                                  size: 22,
+                                ).marginOnly(bottom: 5),
+                                Text(
+                                  Get.find<ContractLinking>()
+                                      .contractBalance
+                                      .value,
+                                  style: bodySemiBold,
+                                ),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                const Icon(
+                                  Icons.groups,
+                                  color: primaryColor,
+                                  size: 22,
+                                ).marginOnly(bottom: 5),
+                                Text(
+                                  '${Get.find<ContractLinking>().players.length}',
+                                  style: bodySemiBold,
+                                ),
+                              ],
+                            ),
+                            Column(
+                              children: [
+                                FaIcon(
+                                  Get.find<ContractLinking>().lotteryLive.value
+                                      ? FontAwesomeIcons.toggleOn
+                                      : FontAwesomeIcons.toggleOff,
+                                  color: primaryColor,
+                                  size: 22,
+                                ).marginOnly(bottom: 5),
+                                Text(
+                                  Get.find<ContractLinking>().lotteryLive.value
+                                      ? "Active"
+                                      : "Inactive",
+                                  style: bodySemiBold,
+                                ),
+                              ],
+                            ),
+                          ],
+                        ).marginSymmetric(vertical: 20),
+                        ListTile(
+                          leading: const FaIcon(
+                            FontAwesomeIcons.gift,
+                            color: primaryColor,
+                          ),
+                          title: const Text(
+                            'Last Winner',
+                            style: bodySemiBold,
+                          ),
+                          subtitle: Obx(
+                            () => Text(
+                              '${Get.find<ContractLinking>().lastWinner.value.isEmpty ? defaultHex : Get.find<ContractLinking>().lastWinner.value} ',
+                            ),
+                          ),
+                        ),
+                        ListTile(
+                          leading: const FaIcon(
+                            FontAwesomeIcons.ticketSimple,
+                            color: primaryColor,
+                          ),
+                          title: Text(
+                            'Tickets Buy ( Max : ${Get.find<ContractLinking>().lotteryLimit.value} )',
+                            style: bodySemiBold,
+                          ),
+                          subtitle: Obx(
+                            () => Text(
+                              '${Get.find<ContractLinking>().lotteryBuyCount.value}',
+                            ),
+                          ),
+                        ),
+                        if (Get.find<ContractLinking>().managerAddress.value ==
+                            Get.find<ContractLinking>().userAddress.value)
+                          ListTile(
+                            leading: const FaIcon(
+                              FontAwesomeIcons.clipboardCheck,
+                              color: primaryColor,
+                            ),
+                            title: const Text(
+                              'Tickets Sold',
+                              style: bodySemiBold,
+                            ),
+                            subtitle: Obx(
+                              () => Text(
+                                '${Get.find<ContractLinking>().lotterySold.value}',
+                              ),
+                            ),
+                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Obx(
+                              () => Get.find<ContractLinking>()
+                                      .isLoadingParticipate
+                                      .value
+                                  ? Center(
+                                      child: CircularProgressIndicator.adaptive(
+                                        valueColor: Get.find<ContractLinking>()
+                                            .animationController
+                                            .drive(
+                                              ColorTween(
+                                                begin: primaryColor,
+                                                end: Colors.green,
+                                              ),
+                                            ),
                                       ),
-                                    ),
-                                  ),
-                                )
-                              : Get.find<ContractLinking>().lotteryLive.value
-                                  ? Get.find<ContractLinking>().lotteryBuyCount.value == 0
-                                      ? MaterialButton(
-                                          onPressed:
-                                              Get.find<ContractLinking>().participateInLottery,
-                                          color: primaryColor,
-                                          textColor: Colors.white,
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(32)),
-                                          child: Text(
-                                            '${Get.find<ContractLinking>().lotteryETH} ETH \n Participate',
-                                            style: bodySemiBold,
-                                            textAlign: TextAlign.center,
-                                          ).paddingAll(12),
-                                        ).paddingSymmetric(
-                                          vertical: 4, horizontal: 16)
-                                      : (Get.find<ContractLinking>().players.contains(
-                                                  Get.find<ContractLinking>()
-                                                      .userAddress.value) &&
-                                              Get.find<ContractLinking>()
-                                                      .lotteryBuyCount.value <
-                                                  Get.find<ContractLinking>()
-                                                      .lotteryLimit.value)
+                                    )
+                                  : Get.find<ContractLinking>()
+                                          .lotteryLive
+                                          .value
+                                      ? Get.find<ContractLinking>()
+                                                  .lotteryBuyCount
+                                                  .value ==
+                                              0
                                           ? MaterialButton(
                                               onPressed:
-                                                  Get.find<ContractLinking>().participateInLottery,
+                                                  Get.find<ContractLinking>()
+                                                      .participateInLottery,
                                               color: primaryColor,
                                               textColor: Colors.white,
                                               shape: RoundedRectangleBorder(
@@ -248,104 +251,157 @@ class LotteryDetail extends StatelessWidget {
                                                       BorderRadius.circular(
                                                           32)),
                                               child: Text(
-                                                '${Get.find<ContractLinking>().lotteryETH} ETH \n Buy more',
+                                                '${Get.find<ContractLinking>().lotteryETH} ETH \n Participate',
                                                 style: bodySemiBold,
                                                 textAlign: TextAlign.center,
                                               ).paddingAll(12),
                                             ).paddingSymmetric(
                                               vertical: 4, horizontal: 16)
-                                          : Text(
-                                              "All tickets sold",
-                                              style: bodySemiBold.copyWith(
-                                                  color: Colors.red),
-                                            )
-                                  : const SizedBox.shrink(),
-                        ),
-                        Obx(
-                          () => Get.find<ContractLinking>().isLoadingDeclareWinner.value
-                              ? Center(
-                                  child: CircularProgressIndicator.adaptive(
-                                    valueColor:
-                                        Get.find<ContractLinking>().animationController.drive(
-                                      ColorTween(
-                                        begin: primaryColor,
-                                        end: Colors.green,
+                                          : (Get.find<ContractLinking>()
+                                                      .players
+                                                      .contains(Get.find<
+                                                              ContractLinking>()
+                                                          .userAddress
+                                                          .value) &&
+                                                  Get.find<ContractLinking>()
+                                                          .lotteryBuyCount
+                                                          .value <
+                                                      Get.find<
+                                                              ContractLinking>()
+                                                          .lotteryLimit
+                                                          .value)
+                                              ? MaterialButton(
+                                                  onPressed: Get.find<
+                                                          ContractLinking>()
+                                                      .participateInLottery,
+                                                  color: primaryColor,
+                                                  textColor: Colors.white,
+                                                  shape: RoundedRectangleBorder(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              32)),
+                                                  child: Text(
+                                                    '${Get.find<ContractLinking>().lotteryETH} ETH \n Buy more',
+                                                    style: bodySemiBold,
+                                                    textAlign: TextAlign.center,
+                                                  ).paddingAll(12),
+                                                ).paddingSymmetric(
+                                                  vertical: 4, horizontal: 16)
+                                              : Text(
+                                                  "All tickets sold",
+                                                  style: bodySemiBold.copyWith(
+                                                      color: Colors.red),
+                                                )
+                                      : const SizedBox.shrink(),
+                            ),
+                            Obx(
+                              () => Get.find<ContractLinking>()
+                                      .isLoadingDeclareWinner
+                                      .value
+                                  ? Center(
+                                      child: CircularProgressIndicator.adaptive(
+                                        valueColor: Get.find<ContractLinking>()
+                                            .animationController
+                                            .drive(
+                                              ColorTween(
+                                                begin: primaryColor,
+                                                end: Colors.green,
+                                              ),
+                                            ),
                                       ),
-                                    ),
-                                  ),
-                                )
-                              : (Get.find<ContractLinking>().userAddress.value ==
-                                          Get.find<ContractLinking>().managerAddress.value &&
-                                      Get.find<ContractLinking>().lotteryLive.value)
-                                  ? MaterialButton(
-                                      onPressed: Get.find<ContractLinking>().pickWinner,
-                                      color: secondaryColor,
-                                      textColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(32)),
-                                      child: const Text(
-                                        'Pick Winner',
-                                        style: bodySemiBold,
-                                      ).paddingAll(12),
-                                    ).paddingSymmetric(
-                                      vertical: 16, horizontal: 16)
-                                  : Container(),
-                        ),
-                        Obx(
-                          () => Get.find<ContractLinking>().isLoadingActivateLottery.value
-                              ? Center(
-                                  child: CircularProgressIndicator.adaptive(
-                                    valueColor:
-                                        Get.find<ContractLinking>().animationController.drive(
-                                      ColorTween(
-                                        begin: primaryColor,
-                                        end: Colors.green,
+                                    )
+                                  : (Get.find<ContractLinking>()
+                                                  .userAddress
+                                                  .value ==
+                                              Get.find<ContractLinking>()
+                                                  .managerAddress
+                                                  .value &&
+                                          Get.find<ContractLinking>()
+                                              .lotteryLive
+                                              .value)
+                                      ? MaterialButton(
+                                          onPressed: Get.find<ContractLinking>()
+                                              .pickWinner,
+                                          color: secondaryColor,
+                                          textColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(32)),
+                                          child: const Text(
+                                            'Pick Winner',
+                                            style: bodySemiBold,
+                                          ).paddingAll(12),
+                                        ).paddingSymmetric(
+                                          vertical: 16, horizontal: 16)
+                                      : Container(),
+                            ),
+                            Obx(
+                              () => Get.find<ContractLinking>()
+                                      .isLoadingActivateLottery
+                                      .value
+                                  ? Center(
+                                      child: CircularProgressIndicator.adaptive(
+                                        valueColor: Get.find<ContractLinking>()
+                                            .animationController
+                                            .drive(
+                                              ColorTween(
+                                                begin: primaryColor,
+                                                end: Colors.green,
+                                              ),
+                                            ),
                                       ),
-                                    ),
-                                  ),
-                                )
-                              : (Get.find<ContractLinking>().lotteryLive.value == false &&
-                                      Get.find<ContractLinking>().managerAddress.value ==
-                                          Get.find<ContractLinking>().userAddress.value)
-                                  ? MaterialButton(
-                                      onPressed: () {
-                                        activateLotteryDialog();
-                                      },
-                                      color: primaryColor,
-                                      textColor: Colors.white,
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(32)),
-                                      child: const Text(
-                                        'Activate Lottery',
-                                        style: bodySemiBold,
-                                        textAlign: TextAlign.center,
-                                      ).paddingAll(12),
-                                    ).paddingSymmetric(
-                                      vertical: 4, horizontal: 16)
-                                  : const SizedBox.shrink(),
+                                    )
+                                  : (Get.find<ContractLinking>()
+                                                  .lotteryLive
+                                                  .value ==
+                                              false &&
+                                          Get.find<ContractLinking>()
+                                                  .managerAddress
+                                                  .value ==
+                                              Get.find<ContractLinking>()
+                                                  .userAddress
+                                                  .value)
+                                      ? MaterialButton(
+                                          onPressed: () {
+                                            activateLotteryDialog();
+                                          },
+                                          color: primaryColor,
+                                          textColor: Colors.white,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(32)),
+                                          child: const Text(
+                                            'Activate Lottery',
+                                            style: bodySemiBold,
+                                            textAlign: TextAlign.center,
+                                          ).paddingAll(12),
+                                        ).paddingSymmetric(
+                                          vertical: 4, horizontal: 16)
+                                      : const SizedBox.shrink(),
+                            ),
+                          ],
+                        ),
+                        ListTile(
+                          title: Obx(
+                            () => Text(
+                              Get.find<ContractLinking>().message.value,
+                              textAlign: TextAlign.center,
+                              style: bodySemiBold.copyWith(
+                                  color: Get.find<ContractLinking>()
+                                          .message
+                                          .contains('error')
+                                      ? Colors.red
+                                      : Colors.green),
+                            ),
+                          ),
                         ),
                       ],
                     ),
-                    ListTile(
-                      title: Obx(
-                        () => Text(
-                          "${Get.find<ContractLinking>().message.value}",
-                          textAlign: TextAlign.center,
-                          style: bodySemiBold.copyWith(
-                              color: Get.find<ContractLinking>().message.contains('error')
-                                  ? Colors.red
-                                  : Colors.green),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-      ),
-      ),
-      ));
+                  ),
+          ),
+        );
+      },
+    );
   }
 
   void activateLotteryDialog() {
@@ -407,8 +463,10 @@ class LotteryDetail extends StatelessWidget {
                 : MaterialButton(
                     onPressed: () async {
                       await Get.find<ContractLinking>().activateLotteryFunc(
-                        int.parse(controller.lotteryMaxEntryController.text.trim()),
-                        int.parse(controller.lotteryETHRequiredController.text.trim()),
+                        int.parse(
+                            controller.lotteryMaxEntryController.text.trim()),
+                        int.parse(controller.lotteryETHRequiredController.text
+                            .trim()),
                       );
                       controller.lotteryMaxEntryController.clear();
                       controller.lotteryETHRequiredController.clear();

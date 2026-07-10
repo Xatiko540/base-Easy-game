@@ -161,8 +161,8 @@ class ContractLinking extends GetxController
     _abiCode2 = jsonEncode(jsonAbi2["abi"]);
 
     if (kDebugMode) {
-      print("ABI Lottery: ${_abiCode}");
-      print("ABI LotterGenerator: ${_abiCode2}");
+      print("ABI Lottery: $_abiCode");
+      print("ABI LotterGenerator: $_abiCode2");
     }
 
     // _contractAddressLottery =
@@ -613,7 +613,7 @@ class ContractLinking extends GetxController
         chainId: _chainId,
       );
       await reloadContractOnDecalreWinner();
-      message.value = 'Winner: ${lastWinner} ';
+      message.value = 'Winner: $lastWinner ';
     } catch (e) {
       message.value = 'An error occurred: $e';
       Get.rawSnackbar(message: 'Error: $e');

@@ -6,41 +6,48 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    // Public levels — read without auth, write only via Admin SDK
+    match /levels/{levelId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Global aggregated stats — public read
+    match /stats/{docId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    // Users — public read for on-chain data
     match /users/{userId} {
-      allow read: if signedIn();
+      allow read: if true;
       allow write: if false;
 
       match /levels/{levelId} {
-        allow read: if signedIn();
+        allow read: if true;
         allow write: if false;
       }
     }
 
-    match /levels/{levelId} {
-      allow read: if signedIn();
-      allow write: if false;
-
-      match /cells/{cellId} {
-        allow read: if signedIn();
-        allow write: if false;
-      }
-    }
-
+    // Events — public read
     match /events/{eventId} {
-      allow read: if signedIn();
+      allow read: if true;
       allow write: if false;
     }
 
+    // Transactions — only own uid
     match /transactions/{transactionId} {
       allow read: if signedIn() && resource.data.uid == request.auth.uid;
       allow write: if false;
     }
 
+    // Wallet links — only own uid
     match /walletLinks/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow write: if false;
     }
 
+    // Default deny everything else
     match /{document=**} {
       allow read, write: if false;
     }

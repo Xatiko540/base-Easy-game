@@ -7,6 +7,7 @@ import 'package:wallet/wallet.dart';
 import 'package:web3dart/web3dart.dart';
 import 'package:http/http.dart';
 
+import 'app_config_service.dart';
 import 'wallet_connect_service.dart';
 import 'notifications_service.dart';
 
@@ -19,10 +20,10 @@ class ContractEventsService extends GetxService {
   ContractEventsService();
 
   Future<void> init({String? rpcUrl, String? wsUrl}) async {
-    // Determine RPC URL - prefer provided, then env, then default
-    final envRpc = const String.fromEnvironment('WEB3_RPC');
+    // Determine RPC URL - prefer provided, then Firebase config, then default
+    final configRpc = _fromConfig('web3Rpc');
     final rpc = rpcUrl ??
-        (envRpc.isNotEmpty ? envRpc : walletService.targetNetwork.rpcUrl);
+        (configRpc.isNotEmpty ? configRpc : walletService.targetNetwork.rpcUrl);
 
     _client = Web3Client(rpc, Client());
 
@@ -250,5 +251,13 @@ class ContractEventsService extends GetxService {
     }
     _client?.dispose();
     super.onClose();
+  }
+
+  static String _fromConfig(String key) {
+    try {
+      return Get.find<AppConfigService>().get(key);
+    } catch (_) {
+      return '';
+    }
   }
 }

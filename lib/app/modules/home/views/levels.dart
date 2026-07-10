@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
@@ -33,168 +32,170 @@ class LevelsScreen extends StatelessWidget {
     return GetX<LevelsProvider>(
       init: LevelsProvider()..configure(playerAddress: walletAddress),
       tag: tag,
-      dispose: (_) => Get.delete<LevelsProvider>(tag: tag),
+      dispose: (_) {
+        if (Get.isRegistered<LevelsProvider>(tag: tag)) {
+          Get.delete<LevelsProvider>(tag: tag);
+        }
+      },
       builder: (levelsProvider) {
         final walletService = Get.find<WalletConnectService>();
-        return Obx(
-          () {
-            final currency = walletService.nativeSymbol;
-            return ExpressAppShell(
-              title: 'levels.title'.tr,
-              breadcrumb:
-                  '${walletService.isConnected.value ? walletService.shortAddress : 'ID 325234'} / Easy Games',
-              balanceLabel:
-                  '${formatWeiToEth(levelsProvider.totalEarnedWei)} $currency',
-              onRefresh: levelsProvider.fetchLevels,
-              child: LayoutBuilder(
-                builder: (context, constraints) {
-                  double width = constraints.maxWidth;
+        final levelCount = levelsProvider.levels.length;
+        final loading = levelsProvider.isLoading.value;
+        final errorMessage = levelsProvider.errorMessage.value;
+        final currency = walletService.nativeSymbol;
+        final totalEarnedWei = levelsProvider.totalEarnedWei;
+        final connected = walletService.isConnected.value;
+        return ExpressAppShell(
+          title: 'levels.title'.tr,
+          breadcrumb:
+              '${connected ? walletService.shortAddress : 'ID 325234'} / Easy Games',
+          balanceLabel: '${formatWeiToEth(totalEarnedWei)} $currency',
+          onRefresh: levelsProvider.fetchLevels,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              double width = constraints.maxWidth;
 
-                  int crossAxisCount = width < 480
+              int crossAxisCount = width < 480
+                  ? 2
+                  : width < 800
                       ? 2
-                      : width < 800
-                          ? 2
-                          : width < 1200
-                              ? 3
-                              : 4;
+                      : width < 1200
+                          ? 3
+                          : 4;
 
-                  double childAspectRatio = width < 480
-                      ? 0.82
-                      : width < 800
-                          ? 1.05
-                          : 1.26;
+              double childAspectRatio = width < 480
+                  ? 0.82
+                  : width < 800
+                      ? 1.05
+                      : 1.26;
 
-                  return SingleChildScrollView(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+              return SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  walletAddress == null
-                                      ? 'ID 325234 / Easy Games'
-                                      : "Preview ${walletAddress!.substring(0, 6)}...${walletAddress!.substring(walletAddress!.length - 4)} / Easy Games",
-                                  style: const TextStyle(
-                                    color: Colors.white54,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                const SizedBox(height: 10),
-                                Text(
-                                  'levels.title'.tr,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 34,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ],
-                            ),
                             Text(
-                              "${formatWeiToEth(levelsProvider.totalEarnedWei)} $currency",
+                              walletAddress == null
+                                  ? 'ID 325234 / Easy Games'
+                                  : "Preview ${walletAddress!.substring(0, 6)}...${walletAddress!.substring(walletAddress!.length - 4)} / Easy Games",
+                              style: const TextStyle(
+                                color: Colors.white54,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              'levels.title'.tr,
                               style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 32,
+                                fontSize: 34,
                                 fontWeight: FontWeight.w900,
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 36),
-                        Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.all(28),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF202223).withValues(alpha: 0.88),
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          child: Obx(
-                            () => Column(
-                              children: [
-                                if (levelsProvider.errorMessage.value.isNotEmpty)
-                                  _LevelStateBanner(
-                                    message: levelsProvider.errorMessage.value,
-                                    onRefresh: levelsProvider.fetchLevels,
-                                  ),
-                                if (levelsProvider.isLoading.value)
-                                  const Padding(
-                                    padding: EdgeInsets.symmetric(vertical: 12),
-                                    child: LinearProgressIndicator(),
-                                  ),
-                                GridView.builder(
-                                  shrinkWrap: true,
-                                  physics: const NeverScrollableScrollPhysics(),
-                                  padding: EdgeInsets.zero,
-                                  gridDelegate:
-                                      SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: crossAxisCount,
-                                    crossAxisSpacing: 24,
-                                    mainAxisSpacing: 24,
-                                    childAspectRatio: childAspectRatio,
-                                  ),
-                                  itemCount: levelsProvider.levels.length,
-                                  itemBuilder: (context, index) {
-                                    final level = levelsProvider.levels[index];
-                                    return _LevelCardPresenter(
-                                      level: level,
-                                      currencySymbol: currency,
-                                    );
-                                  },
-                                ),
-                              ],
-                            ),
+                        Text(
+                          "${formatWeiToEth(levelsProvider.totalEarnedWei)} $currency",
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 32,
+                            fontWeight: FontWeight.w900,
                           ),
                         ),
-                        const SizedBox(height: 14),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF426CF8),
-                                borderRadius: BorderRadius.circular(18),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.help,
-                                      color: Colors.white, size: 14),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'levels.marketingLegend'.tr,
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 13,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Text(
-                              'levels.pricesCurrency'.tr,
-                              style: const TextStyle(
-                                  color: Colors.white60, fontSize: 14),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 28),
-                        const BottomTableSection(),
                       ],
                     ),
-                  );
-                },
-              ),
-            );
-          },
+                    const SizedBox(height: 36),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF202223).withValues(alpha: 0.88),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          if (errorMessage.isNotEmpty)
+                            _LevelStateBanner(
+                              message: errorMessage,
+                              onRefresh: levelsProvider.fetchLevels,
+                            ),
+                          if (loading)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(vertical: 12),
+                              child: LinearProgressIndicator(),
+                            ),
+                          GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: EdgeInsets.zero,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              crossAxisSpacing: 24,
+                              mainAxisSpacing: 24,
+                              childAspectRatio: childAspectRatio,
+                            ),
+                            itemCount: levelCount,
+                            itemBuilder: (context, index) {
+                              final level = levelsProvider.levels[index];
+                              return _LevelCardPresenter(
+                                level: level,
+                                currencySymbol: currency,
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF426CF8),
+                            borderRadius: BorderRadius.circular(18),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.help,
+                                  color: Colors.white, size: 14),
+                              const SizedBox(width: 6),
+                              Text(
+                                'levels.marketingLegend'.tr,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 13,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Text(
+                          'levels.pricesCurrency'.tr,
+                          style: const TextStyle(
+                              color: Colors.white60, fontSize: 14),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 28),
+                    const BottomTableSection(),
+                  ],
+                ),
+              );
+            },
+          ),
         );
       },
     );
@@ -213,9 +214,16 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
     return GetX<LevelDetailController>(
       init: LevelDetailController(level: level),
       tag: tag,
-      dispose: (_) => Get.delete<LevelDetailController>(tag: tag),
+      dispose: (_) {
+        if (Get.isRegistered<LevelDetailController>(tag: tag)) {
+          Get.delete<LevelDetailController>(tag: tag);
+        }
+      },
       builder: (detailController) {
         final walletService = Get.find<WalletConnectService>();
+        detailController.snapshot.value;
+        detailController.isLoading.value;
+        detailController.errorMessage.value;
         return ExpressAppShell(
           title: 'levels.levelTitle'.trParams({'level': '$level'}),
           breadcrumb: 'levels.breadcrumbLevel'.trParams({'level': '$level'}),
@@ -242,7 +250,8 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                               })
                             : 'levels.previewBreadcrumb'
                                 .trParams({'level': '$level'}),
-                        style: const TextStyle(color: Colors.grey, fontSize: 14),
+                        style:
+                            const TextStyle(color: Colors.grey, fontSize: 14),
                       ),
                     ),
                     const SizedBox(height: 18),
@@ -250,8 +259,8 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _LevelNavButton(
-                          label: 'levels.levelTitle'
-                              .trParams({'level': '${level <= 1 ? 1 : level - 1}'}),
+                          label: 'levels.levelTitle'.trParams(
+                              {'level': '${level <= 1 ? 1 : level - 1}'}),
                           icon: Icons.arrow_back_ios,
                           enabled: level > 1,
                           onTap: () => Get.off(
@@ -350,10 +359,16 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                       _LevelDetailPanel(
                         title: 'levelDetail.liveState'.tr,
                         rows: [
-                          DetailRow('common.active'.tr,
-                              data.state.active ? 'common.yes'.tr : 'common.no'.tr),
-                          DetailRow('common.frozen'.tr,
-                              data.state.frozen ? 'common.yes'.tr : 'common.no'.tr),
+                          DetailRow(
+                              'common.active'.tr,
+                              data.state.active
+                                  ? 'common.yes'.tr
+                                  : 'common.no'.tr),
+                          DetailRow(
+                              'common.frozen'.tr,
+                              data.state.frozen
+                                  ? 'common.yes'.tr
+                                  : 'common.no'.tr),
                           DetailRow(
                             'levelDetail.nextOpenParent'.tr,
                             data.stats.nextOpenParentId.toString(),

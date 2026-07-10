@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/services/app_config_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/services/notifications_service.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
@@ -38,6 +39,7 @@ void main() async {
     final languageService = Get.put(LanguageService(), permanent: true);
     languageService.load();
 
+    Get.put(AppConfigService(), permanent: true);
     Get.put(NotificationsService(), permanent: true);
     Get.put(FirebaseBackendService(), permanent: true);
     Get.put(FirebaseDataService(), permanent: true);

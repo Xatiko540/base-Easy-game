@@ -7,6 +7,7 @@ import 'package:flutter_web3/ethereum.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/base_account_bridge.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
+import 'app_config_service.dart';
 
 class AppNetworkConfig {
   final int chainId;
@@ -35,28 +36,69 @@ class WalletConnectService extends GetxService {
   static const int baseSepoliaChainId = 84532;
   static const int ganacheChainId = 5777;
   static const int ganacheDefaultChainId = 1337;
-  static const int targetBaseChainId = int.fromEnvironment(
-    'EASY_GAME_CHAIN_ID',
-    defaultValue: baseSepoliaChainId,
-  );
-  static const String paymentReceiver =
-      String.fromEnvironment('PAYMENT_RECEIVER');
-  static const String easyGameContractAddress =
-      String.fromEnvironment('EASY_GAME_ADDRESS');
-  static const String usdcTokenAddress = String.fromEnvironment('USDC_ADDRESS');
-  static const String easyGameInviter =
-      String.fromEnvironment('EASY_GAME_INVITER');
-  static const String baseBuilderDataSuffix = '0x62635f68336c356a6c69790b0080218021802180218021802180218021';
-  static const bool allowLocalChains = bool.fromEnvironment(
-    'EASY_GAME_ALLOW_LOCAL_CHAINS',
-    defaultValue: false,
-  );
-  static const String baseAccountAppName = String.fromEnvironment(
-    'BASE_ACCOUNT_APP_NAME',
-    defaultValue: 'Easy Game',
-  );
-  static const String baseAccountAppLogoUrl =
-      String.fromEnvironment('BASE_ACCOUNT_APP_LOGO_URL');
+  static int get targetBaseChainId {
+    try {
+      return Get.find<AppConfigService>().getInt('targetBaseChainId', baseSepoliaChainId);
+    } catch (_) {
+      return baseSepoliaChainId;
+    }
+  }
+  static String get paymentReceiver {
+    try {
+      return Get.find<AppConfigService>().get('paymentReceiver');
+    } catch (_) {
+      return '';
+    }
+  }
+  static String get easyGameContractAddress {
+    try {
+      return Get.find<AppConfigService>().get('easyGameContractAddress');
+    } catch (_) {
+      return '';
+    }
+  }
+  static String get usdcTokenAddress {
+    try {
+      return Get.find<AppConfigService>().get('usdcTokenAddress');
+    } catch (_) {
+      return '';
+    }
+  }
+  static String get easyGameInviter {
+    try {
+      return Get.find<AppConfigService>().get('easyGameInviter');
+    } catch (_) {
+      return '';
+    }
+  }
+  static String get baseBuilderDataSuffix {
+    try {
+      return Get.find<AppConfigService>().get('baseBuilderDataSuffix');
+    } catch (_) {
+      return '0x62635f68336c356a6c69790b0080218021802180218021802180218021';
+    }
+  }
+  static bool get allowLocalChains {
+    try {
+      return Get.find<AppConfigService>().getBool('allowLocalChains', false);
+    } catch (_) {
+      return false;
+    }
+  }
+  static String get baseAccountAppName {
+    try {
+      return Get.find<AppConfigService>().get('baseAccountAppName', 'Easy Game');
+    } catch (_) {
+      return 'Easy Game';
+    }
+  }
+  static String get baseAccountAppLogoUrl {
+    try {
+      return Get.find<AppConfigService>().get('baseAccountAppLogoUrl');
+    } catch (_) {
+      return '';
+    }
+  }
   static const String _zeroAddress =
       '0x0000000000000000000000000000000000000000';
 

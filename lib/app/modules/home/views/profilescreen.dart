@@ -20,66 +20,66 @@ part '../widgets/profile_about_widgets.dart';
 part '../widgets/profile_activity_widgets.dart';
 
 class ProfileScreen extends StatelessWidget {
-  ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     return GetX<_ProfileController>(
       init: _ProfileController(),
-      dispose: (_) => Get.delete<_ProfileController>(),
-      builder: (_profileController) {
-        return Obx(
-          () {
-            final data = _profileController.dashboard.value;
-            final loading = _profileController.isLoading.value;
-            return ExpressAppShell(
-              title: 'nav.dashboard'.tr,
-              breadcrumb: '${'app.name'.tr} / ${'nav.dashboard'.tr}',
-              activeSection: 'Dashboard',
-              onRefresh: _profileController.refreshDashboard,
-              child: SingleChildScrollView(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1120),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _ProfileHeader(
-                        profileId: _profileController.profileId,
-                        data: data,
-                        referralLink: _profileController.referralLink,
-                        onCopy: _profileController.copyReferralLink,
-                        onShare: _profileController.shareReferralLink,
-                      ),
-                      const SizedBox(height: 26),
-                      if (loading)
-                        const LinearProgressIndicator(
-                          color: EasyGameTheme.teal,
-                          backgroundColor: EasyGameTheme.border,
-                        ),
-                      if (loading) const SizedBox(height: 14),
-                      _ProfileSectionHeading(
-                        title: 'profile.smartGames'.tr,
-                        subtitle: 'profile.smartGamesSubtitle'.tr,
-                      ),
-                      const SizedBox(height: 16),
-                      _ProgramPanel(
-                        data: data,
-                      ),
-                      const SizedBox(height: 22),
-                      _AboutContractsRow(
-                        controller: _profileController,
-                        data: data,
-                      ),
-                      const SizedBox(height: 22),
-                      _RecentActivityTable(
-                        data: data,
-                      ),
-                    ],
+      dispose: (_) {
+        if (Get.isRegistered<_ProfileController>()) {
+          Get.delete<_ProfileController>();
+        }
+      },
+      builder: (profileController) {
+        final data = profileController.dashboard.value;
+        final loading = profileController.isLoading.value;
+        return ExpressAppShell(
+          title: 'nav.dashboard'.tr,
+          breadcrumb: '${'app.name'.tr} / ${'nav.dashboard'.tr}',
+          activeSection: 'Dashboard',
+          onRefresh: profileController.refreshDashboard,
+          child: SingleChildScrollView(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 1120),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _ProfileHeader(
+                    profileId: profileController.profileId,
+                    data: data,
+                    referralLink: profileController.referralLink,
+                    onCopy: profileController.copyReferralLink,
+                    onShare: profileController.shareReferralLink,
                   ),
-                ),
+                  const SizedBox(height: 26),
+                  if (loading)
+                    const LinearProgressIndicator(
+                      color: EasyGameTheme.teal,
+                      backgroundColor: EasyGameTheme.border,
+                    ),
+                  if (loading) const SizedBox(height: 14),
+                  _ProfileSectionHeading(
+                    title: 'profile.smartGames'.tr,
+                    subtitle: 'profile.smartGamesSubtitle'.tr,
+                  ),
+                  const SizedBox(height: 16),
+                  _ProgramPanel(
+                    data: data,
+                  ),
+                  const SizedBox(height: 22),
+                  _AboutContractsRow(
+                    controller: profileController,
+                    data: data,
+                  ),
+                  const SizedBox(height: 22),
+                  _RecentActivityTable(
+                    data: data,
+                  ),
+                ],
               ),
-            );
-          },
+            ),
+          ),
         );
       },
     );

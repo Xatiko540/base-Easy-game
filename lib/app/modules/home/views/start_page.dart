@@ -21,10 +21,10 @@ class ExpressGameScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetX<LandingController>(
+    return GetBuilder<LandingController>(
       init: LandingController(),
       dispose: (_) => Get.delete<LandingController>(),
-      builder: (_landingController) {
+      builder: (landingController) {
         return Scaffold(
           backgroundColor: EasyGameTheme.page,
           body: Stack(
@@ -47,11 +47,11 @@ class ExpressGameScreen extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           _LandingTopBar(
-                            onConnect: _landingController.connectAndEnter,
+                            onConnect: landingController.connectAndEnter,
                           ),
                           const SizedBox(height: 54),
                           _HeroPanel(
-                            onConnect: _landingController.connectAndEnter,
+                            onConnect: landingController.connectAndEnter,
                           ),
                           const SizedBox(height: 22),
                           const _StartTimerStrip(),
@@ -59,8 +59,8 @@ class ExpressGameScreen extends StatelessWidget {
                           const _FeatureGrid(),
                           const SizedBox(height: 36),
                           _PreviewSearch(
-                            controller: _landingController.previewSearchController,
-                            onPreview: _landingController.openPreview,
+                            controller: landingController.previewSearchController,
+                            onPreview: landingController.openPreview,
                           ),
                           const SizedBox(height: 30),
                           const _SchedulePreview(),

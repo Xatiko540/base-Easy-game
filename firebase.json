@@ -1,11 +1,39 @@
 {
   "functions": {
-    "source": "functions",
-    "runtime": "nodejs22"
+    "source": "functions"
   },
   "firestore": {
-    "rules": "firestore.rules",
-    "indexes": "firestore.indexes.json"
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "lottery-advance",
+          "appId": "1:331132217293:android:81845ebb38f368f043c684",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "ios": {
+        "default": {
+          "projectId": "lottery-advance",
+          "appId": "1:331132217293:ios:67e9a92772c19ec443c684",
+          "uploadDebugSymbols": false,
+          "fileOutput": "ios/Runner/GoogleService-Info.plist"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "lottery-advance",
+          "configurations": {
+            "android": "1:331132217293:android:81845ebb38f368f043c684",
+            "ios": "1:331132217293:ios:67e9a92772c19ec443c684",
+            "web": "1:331132217293:web:9540fb8749fe0bf743c684",
+            "windows": "1:331132217293:web:786a27eb6ada5db743c684"
+          }
+        }
+      }
+    }
   },
   "hosting": {
     "public": "build/web",
@@ -20,5 +48,27 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "emulators": {
+    "functions": {
+      "port": 5001
+    },
+    "firestore": {
+      "port": 8080
+    },
+    "auth": {
+      "port": 9099
+    },
+    "pubsub": {
+      "port": 8085
+    },
+    "hosting": {
+      "port": 5000
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4000
+    },
+    "singleProjectMode": true
   }
 }
