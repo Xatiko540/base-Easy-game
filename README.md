@@ -369,7 +369,11 @@ Current Flutter/Web3 behavior:
 - After confirmed activation, the app returns to the levels screen and refreshes state.
 - Payment value is read from `levelPrices(level)` in wei.
 - Native-token payment is used instead of floating-point ETH conversion.
-- Base Pay is not used for level activation because Base Pay is a USDC payment flow, while `activateLevel` requires native ETH in `msg.value`.
+- Level activation supports native ETH through `activateLevel` and optional
+  USDC through `activateLevelWithUSDC` after ERC-20 approval.
+- Base Pay can be evaluated later for a dedicated one-tap USDC payment UX, but
+  the current game flow uses direct contract calls so matrix state is updated
+  atomically by `EasyGameAdvance`.
 - Optional Base Builder Code attribution can be appended to calldata through `BASE_BUILDER_DATA_SUFFIX`.
 
 ---
@@ -385,13 +389,13 @@ npm run compile
 Deploy to Base Sepolia:
 
 ```bash
-BASE_SEPOLIA_RPC_URL=https://sepolia.base.org PROJECT_WALLET=0x... TREASURY_ADDRESS=0x... OPERATOR_WALLET=0x... npx hardhat run scripts/deploy.js --network baseSepolia
+BASE_SEPOLIA_RPC_URL=https://sepolia.base.org PROJECT_WALLET=0x... TREASURY_ADDRESS=0x... OPERATOR_WALLET=0x... USDC_ADDRESS=0x... npx hardhat run scripts/deploy.js --network baseSepolia
 ```
 
 Deploy to Base Mainnet:
 
 ```bash
-BASE_RPC_URL=https://mainnet.base.org PROJECT_WALLET=0x... TREASURY_ADDRESS=0x... OPERATOR_WALLET=0x... npx hardhat run scripts/deploy.js --network base
+BASE_RPC_URL=https://mainnet.base.org PROJECT_WALLET=0x... TREASURY_ADDRESS=0x... OPERATOR_WALLET=0x... USDC_ADDRESS=0x... npx hardhat run scripts/deploy.js --network base
 ```
 
 The deploy script writes the deployed contract address into:

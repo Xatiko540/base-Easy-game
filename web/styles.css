@@ -1,9 +1,59 @@
 body {
   margin: 0;
-  display: grid;
-  place-items: center;
   background: #0d0e0f;
-  height: 100vh;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.app-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background:
+    radial-gradient(circle at 50% 45%, rgba(21, 214, 190, 0.08), transparent 36%),
+    #000;
+  transition: opacity 220ms ease, visibility 220ms ease;
+}
+
+.app-splash--hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.app-splash__content {
+  width: min(82vw, 900px);
+  display: grid;
+  justify-items: center;
+  gap: 28px;
+}
+
+.app-splash__logo {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.app-splash__loader {
+  width: min(220px, 42vw);
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.app-splash__loader::after {
+  content: "";
+  display: block;
+  width: 45%;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8b22d8, #25d4c1);
+  animation: splash-progress 1.15s ease-in-out infinite;
 }
 
 .spinner {
@@ -18,5 +68,14 @@ body {
 @keyframes spin {
   to {
     transform: rotate(360deg);
+  }
+}
+
+@keyframes splash-progress {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(240%);
   }
 }

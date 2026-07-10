@@ -13,8 +13,8 @@ initializeApp();
 
 const db = getFirestore();
 const rpcUrl = defineSecret("BASE_RPC_URL");
-const recaptchaSiteKey = defineSecret("FIREBASE_RECAPTCHA_V3_SITE_KEY");
-const vapidKey = defineSecret("FIREBASE_VAPID_KEY");
+const recaptchaSiteKey = defineSecret("APP_CHECK_RECAPTCHA_SITE_KEY");
+const vapidKey = defineSecret("APP_MESSAGING_VAPID_KEY");
 const contractAddress = defineString("EASY_GAME_CONTRACT_ADDRESS");
 const chainIdParam = defineString("EASY_GAME_CHAIN_ID", { default: "8453" });
 const confirmationsParam = defineString("EASY_GAME_CONFIRMATIONS", { default: "5" });
@@ -22,6 +22,15 @@ const startBlockParam = defineString("EASY_GAME_START_BLOCK", { default: "0" });
 const appPublicUrlParam = defineString("APP_PUBLIC_URL", { default: "https://easygame.io" });
 const publicRpcUrlParam = defineString("WEB3_PUBLIC_RPC_URL", { default: "https://mainnet.base.org" });
 const environmentParam = defineString("APP_ENVIRONMENT", { default: "production" });
+const usdcTokenAddressParam = defineString("USDC_TOKEN_ADDRESS", { default: "" });
+const easyGameInviterParam = defineString("EASY_GAME_INVITER", { default: "" });
+const paymentReceiverParam = defineString("PAYMENT_RECEIVER", { default: "" });
+const baseBuilderDataSuffixParam = defineString("BASE_BUILDER_DATA_SUFFIX", {
+  default: "0x62635f68336c356a6c69790b0080218021802180218021802180218021",
+});
+const allowLocalChainsParam = defineString("EASY_GAME_ALLOW_LOCAL_CHAINS", { default: "false" });
+const baseAccountAppNameParam = defineString("BASE_ACCOUNT_APP_NAME", { default: "Easy Game" });
+const baseAccountAppLogoUrlParam = defineString("BASE_ACCOUNT_APP_LOGO_URL", { default: "" });
 const region = "us-central1";
 const iface = new Interface(GAME_ABI);
 const maxDeviceTokensPerWallet = 10;
@@ -31,6 +40,13 @@ const zeroAddress = "0x0000000000000000000000000000000000000000";
 function publicContractAddress() {
   const address = contractAddress.value();
   if (!isAddress(address)) return "";
+  const normalized = getAddress(address);
+  return normalized === zeroAddress ? "" : normalized;
+}
+
+function publicOptionalAddress(param) {
+  const address = param.value();
+  if (!address || !isAddress(address)) return "";
   const normalized = getAddress(address);
   return normalized === zeroAddress ? "" : normalized;
 }
@@ -519,13 +535,27 @@ exports.getAppConfig = onCall({
   region,
   secrets: [recaptchaSiteKey, vapidKey],
 }, async (_request) => {
+  const chainId = chainIdParam.value();
+  const easyGameAddress = publicContractAddress();
+  const publicRpc = publicRpcUrlParam.value();
+  const usdcTokenAddress = publicOptionalAddress(usdcTokenAddressParam);
   return {
     recaptchaSiteKey: recaptchaSiteKey.value(),
     vapidKey: vapidKey.value(),
     appPublicUrl: appPublicUrlParam.value(),
-    web3Rpc: publicRpcUrlParam.value(),
-    chainId: chainIdParam.value(),
-    contractAddress: publicContractAddress(),
+    web3Rpc: publicRpc,
+    web3PublicRpcUrl: publicRpc,
+    chainId,
+    targetBaseChainId: chainId,
+    contractAddress: easyGameAddress,
+    easyGameContractAddress: easyGameAddress,
+    usdcTokenAddress,
+    easyGameInviter: publicOptionalAddress(easyGameInviterParam),
+    paymentReceiver: publicOptionalAddress(paymentReceiverParam),
+    baseBuilderDataSuffix: baseBuilderDataSuffixParam.value(),
+    allowLocalChains: allowLocalChainsParam.value(),
+    baseAccountAppName: baseAccountAppNameParam.value(),
+    baseAccountAppLogoUrl: baseAccountAppLogoUrlParam.value(),
     environment: environmentParam.value(),
   };
 });

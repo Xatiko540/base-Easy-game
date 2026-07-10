@@ -42,8 +42,8 @@ async function main() {
   const projectWallet = process.env.PROJECT_WALLET || deployer.address;
   const treasuryAddress = process.env.TREASURY_ADDRESS || deployer.address;
   const operatorWallet = process.env.OPERATOR_WALLET || deployer.address;
-  const usdcAddress =
-    process.env.USDC_ADDRESS || "0x0000000000000000000000000000000000000000";
+  const usdcAddress = process.env.USDC_ADDRESS || "";
+  const deployLegacyLottery = process.env.DEPLOY_LEGACY_LOTTERY === "true";
 
   console.log(`Deploying with account: ${deployer.address}`);
   console.log(`Network: ${network.name} (${network.chainId})`);
@@ -52,16 +52,24 @@ async function main() {
   console.log(`Operator wallet: ${operatorWallet}`);
   console.log(`USDC token: ${usdcAddress}`);
 
-  const LotteryGenerator = await hre.ethers.getContractFactory(
-    "LotteryGenerator"
-  );
-  const lotteryGenerator = await LotteryGenerator.deploy();
-  await lotteryGenerator.waitForDeployment();
+  if (!hre.ethers.isAddress(usdcAddress) || usdcAddress === hre.ethers.ZeroAddress) {
+    throw new Error(
+      "USDC_ADDRESS must be configured with a non-zero token address before deploying EasyGameAdvance."
+    );
+  }
 
-  const address = await lotteryGenerator.getAddress();
-  console.log(`LotteryGenerator deployed to: ${address}`);
+  if (deployLegacyLottery) {
+    const LotteryGenerator = await hre.ethers.getContractFactory(
+      "LotteryGenerator"
+    );
+    const lotteryGenerator = await LotteryGenerator.deploy();
+    await lotteryGenerator.waitForDeployment();
 
-  updateAppArtifact("LotteryGenerator", network.chainId, address);
+    const address = await lotteryGenerator.getAddress();
+    console.log(`LotteryGenerator deployed to: ${address}`);
+
+    updateAppArtifact("LotteryGenerator", network.chainId, address);
+  }
 
   const EasyGameAdvance = await hre.ethers.getContractFactory(
     "EasyGameAdvance"

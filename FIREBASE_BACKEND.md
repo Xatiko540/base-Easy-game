@@ -1,8 +1,8 @@
 # Easy Game Firebase backend
 
-The smart contract remains the source of truth. Firebase Functions index
-confirmed `EasyGameAdvance` events into Firestore, confirm submitted
-transactions, and send FCM notifications. Flutter signs all user transactions.
+The smart contract remains the source of truth. Firebase Functions provide
+secure public configuration, wallet linking, transaction tracking, manual level
+sync, and FCM notifications. Flutter signs all user transactions.
 
 ## Required Firebase setup
 
@@ -20,8 +20,8 @@ Firestore, or committed `.env` files.
 
 ```bash
 firebase functions:secrets:set BASE_RPC_URL
-firebase functions:secrets:set FIREBASE_RECAPTCHA_V3_SITE_KEY
-firebase functions:secrets:set FIREBASE_VAPID_KEY
+firebase functions:secrets:set APP_CHECK_RECAPTCHA_SITE_KEY
+firebase functions:secrets:set APP_MESSAGING_VAPID_KEY
 ```
 
 Public runtime values are Firebase Functions params. They are safe to return to
@@ -35,6 +35,13 @@ EASY_GAME_START_BLOCK=<deployment block>
 APP_PUBLIC_URL=https://easygame.io
 WEB3_PUBLIC_RPC_URL=https://mainnet.base.org
 APP_ENVIRONMENT=production
+USDC_TOKEN_ADDRESS=0x...
+EASY_GAME_INVITER=0x...
+PAYMENT_RECEIVER=0x...
+BASE_BUILDER_DATA_SUFFIX=0x...
+EASY_GAME_ALLOW_LOCAL_CHAINS=false
+BASE_ACCOUNT_APP_NAME=Easy Game
+BASE_ACCOUNT_APP_LOGO_URL=https://easygame.io/logo.png
 ```
 
 `BASE_RPC_URL` is the server-side RPC used by Functions. `WEB3_PUBLIC_RPC_URL`
@@ -58,8 +65,6 @@ firebase deploy --only functions,firestore,hosting
 
 ## Functions
 
-- `syncGameEvents`: confirmed event indexer, one batch per minute.
-- `confirmTransactions`: receipt confirmation every two minutes.
 - `requestWalletNonce` / `linkWallet`: binds anonymous UID to a signed wallet.
 - `registerDevice`: binds an FCM token to a verified wallet.
 - `trackTransaction`: records a user-submitted transaction.
@@ -68,6 +73,10 @@ firebase deploy --only functions,firestore,hosting
 - `getAppConfig`: returns public app configuration plus public web keys loaded
   from Secret Manager.
 - `health`: exposes the current indexer checkpoint.
+
+`syncGameEvents` and `confirmTransactions` are intentionally not enabled in the
+current deployment. Keep them as an explicit future backend-worker step if the
+project moves from manual/on-demand sync to scheduled indexing.
 
 The Google Compute Engine VM is no longer required for normal processing. Keep
 it stopped as a disaster-recovery tool, or remove it after the Functions setup
