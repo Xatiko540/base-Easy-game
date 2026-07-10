@@ -170,6 +170,19 @@ class _HeroMatrixPreview extends StatelessWidget {
 }
 
 class _MatrixPreviewPainter extends CustomPainter {
+  Path _hexPath(Offset center, double radius) {
+    final half = radius * 0.5;
+    final side = radius * 0.8660254038;
+    return Path()
+      ..moveTo(center.dx, center.dy - radius)
+      ..lineTo(center.dx + side, center.dy - half)
+      ..lineTo(center.dx + side, center.dy + half)
+      ..lineTo(center.dx, center.dy + radius)
+      ..lineTo(center.dx - side, center.dy + half)
+      ..lineTo(center.dx - side, center.dy - half)
+      ..close();
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
     final linePaint = Paint()
@@ -196,13 +209,30 @@ class _MatrixPreviewPainter extends CustomPainter {
       canvas.drawLine(nodes[link[0]], nodes[link[1]], linePaint);
     }
     for (var i = 0; i < nodes.length; i++) {
-      final paint = Paint()
-        ..color = i == 0
+      final color = i == 0
             ? EasyGameTheme.gold
             : i.isEven
                 ? EasyGameTheme.purple
                 : EasyGameTheme.teal;
-      canvas.drawCircle(nodes[i], i == 0 ? 16 : 13, paint);
+      final radius = i == 0 ? 18.0 : 14.0;
+      final path = _hexPath(nodes[i], radius);
+      canvas.drawShadow(
+        path,
+        color.withValues(alpha: 0.38),
+        10,
+        false,
+      );
+      canvas.drawPath(
+        path,
+        Paint()..color = color.withValues(alpha: i == 0 ? 0.96 : 0.86),
+      );
+      canvas.drawPath(
+        path,
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = i == 0 ? 2.1 : 1.7
+          ..color = Colors.white.withValues(alpha: 0.22),
+      );
     }
   }
 

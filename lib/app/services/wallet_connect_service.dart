@@ -921,9 +921,10 @@ class WalletConnectService extends GetxService {
   }
 
   Future<String> resolveEasyGameAddress() async {
-    if (easyGameContractAddress.isNotEmpty) {
-      easyGameAddress.value = easyGameContractAddress;
-      return easyGameContractAddress;
+    final configuredAddress = await _configuredEasyGameAddress();
+    if (configuredAddress.isNotEmpty) {
+      easyGameAddress.value = configuredAddress;
+      return configuredAddress;
     }
 
     if (easyGameAddress.value.isNotEmpty) {
@@ -955,6 +956,18 @@ class WalletConnectService extends GetxService {
       throw Exception(
         'Unable to load EasyGameAdvance artifact. Run hardhat compile/deploy or build with --dart-define=EASY_GAME_ADDRESS=0x...',
       );
+    }
+  }
+
+  Future<String> _configuredEasyGameAddress() async {
+    try {
+      final config = Get.find<AppConfigService>();
+      if (!config.isLoaded.value) {
+        await config.fetch();
+      }
+      return config.get('easyGameContractAddress');
+    } catch (_) {
+      return easyGameContractAddress;
     }
   }
 
