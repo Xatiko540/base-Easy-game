@@ -60,3 +60,61 @@ struct WeightBreakdown {
     uint256 matrixWeight;
     uint256 nftWeight;
 }
+
+enum RoundPhase {
+    Uninitialized,
+    Scheduled,
+    Open,
+    Locked,
+    SettlementReady,
+    Settled,
+    Cancelled,
+    Paused
+}
+
+struct RoundConfig {
+    uint256 seasonId;
+    uint256 roundId;
+    uint8 level;
+    uint64 startsAt;
+    uint64 entriesCloseAt;
+    uint64 endsAt;
+    uint64 freezeClosesAt;
+    uint32 maxPlayers;
+    uint16 maxWinners;
+    bytes32 winningCellsRoot;
+    uint256 ethPrice;
+    uint256 usdcPrice;
+    uint16 freezeLimit;
+    uint16 paymentSplitVersion;
+}
+
+struct RoundState {
+    bytes32 configHash;
+    uint64 initializedAt;
+    uint32 occupiedCells;
+    uint16 winnersRegistered;
+    bool initialized;
+    bool settled;
+    bool cancelled;
+    bool paused;
+    uint256 prizePoolEth;
+    uint256 prizePoolUsdc;
+}
+
+struct PlayerRound {
+    bool active;
+    bool frozen;
+    uint8 level;
+    uint256 tickets;
+    uint256 cellId;
+    uint256 parentCellId;
+    uint256 leftChildCellId;
+    uint256 rightChildCellId;
+    uint256 cycleCount;
+    uint256 totalWeight;
+    uint256 claimablePrize;
+    uint256 pendingPrize;
+    uint256 claimablePrizeUsdc;
+    uint256 pendingPrizeUsdc;
+}

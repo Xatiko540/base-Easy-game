@@ -3,10 +3,22 @@ part of '../views/utility_screens.dart';
 class _MatrixArenaPanel extends StatelessWidget {
   final _MatrixArenaSnapshot data;
   final String currency;
+  final String selectedOpponent;
+  final bool actionsBusy;
+  final ValueChanged<String> onSelectOpponent;
+  final VoidCallback onBuyFreeze;
+  final VoidCallback onFreeze;
+  final VoidCallback onUnfreeze;
 
   const _MatrixArenaPanel({
     required this.data,
     required this.currency,
+    required this.selectedOpponent,
+    required this.actionsBusy,
+    required this.onSelectOpponent,
+    required this.onBuyFreeze,
+    required this.onFreeze,
+    required this.onUnfreeze,
   });
 
   @override
@@ -23,10 +35,13 @@ class _MatrixArenaPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+          Wrap(
+            spacing: 18,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.start,
             children: [
-              Expanded(
+              SizedBox(
+                width: 300,
                 child: Text(
                   'matrix.levelTitle'.trParams({'level': '${data.level}'}),
                   style: const TextStyle(
@@ -38,10 +53,8 @@ class _MatrixArenaPanel extends StatelessWidget {
               ),
               _MatrixMiniStat('${data.activeCells}', 'matrix.occupied'.tr,
                   Colors.greenAccent),
-              const SizedBox(width: 18),
               _MatrixMiniStat(data.playerFrozen ? '1' : '0', 'common.frozen'.tr,
                   EasyGameTheme.teal),
-              const SizedBox(width: 18),
               _MatrixMiniStat('${data.recycleCount}', 'matrix.recycle'.tr,
                   EasyGameTheme.orange),
             ],
@@ -49,7 +62,11 @@ class _MatrixArenaPanel extends StatelessWidget {
           const SizedBox(height: 22),
           SizedBox(
             height: 300,
-            child: _MatrixTree(data: data),
+            child: _MatrixTree(
+              data: data,
+              selectedOpponent: selectedOpponent,
+              onSelectOpponent: onSelectOpponent,
+            ),
           ),
           const SizedBox(height: 18),
           _MatrixProgressBar(
@@ -85,6 +102,16 @@ class _MatrixArenaPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 18),
+          _ArenaSkillsPanel(
+            data: data,
+            selectedOpponent: selectedOpponent,
+            actionsBusy: actionsBusy,
+            onSelectOpponent: onSelectOpponent,
+            onBuyFreeze: onBuyFreeze,
+            onFreeze: onFreeze,
+            onUnfreeze: onUnfreeze,
+          ),
+          const SizedBox(height: 18),
           _InfoBlock(
             title: 'matrix.howTitle'.tr,
             text: 'matrix.howText'.tr,
@@ -97,8 +124,14 @@ class _MatrixArenaPanel extends StatelessWidget {
 
 class _MatrixTree extends StatelessWidget {
   final _MatrixArenaSnapshot data;
+  final String selectedOpponent;
+  final ValueChanged<String> onSelectOpponent;
 
-  const _MatrixTree({required this.data});
+  const _MatrixTree({
+    required this.data,
+    required this.selectedOpponent,
+    required this.onSelectOpponent,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -106,6 +139,8 @@ class _MatrixTree extends StatelessWidget {
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final h = constraints.maxHeight;
+        final compact = w < 520;
+        final nodeRadius = compact ? 13.0 : 24.0;
         final nodes = <_TreeNodeSpec>[
           _TreeNodeSpec(1, Offset(w * 0.5, h * 0.14)),
           _TreeNodeSpec(2, Offset(w * 0.34, h * 0.43)),
@@ -130,13 +165,22 @@ class _MatrixTree extends StatelessWidget {
             ),
             for (final node in nodes)
               Positioned(
-                left: node.position.dx - 24,
-                top: node.position.dy - 24,
-                child: _MatrixNodeIcon(
-                  color: _nodeColor(node.cellId, data),
-                  icon: _nodeIcon(node.cellId, data),
-                  muted: BigInt.from(node.cellId) > data.activeCells &&
-                      BigInt.from(node.cellId) != data.nextOpenParentId,
+                left: node.position.dx - nodeRadius,
+                top: node.position.dy - nodeRadius,
+                child: GestureDetector(
+                  onTap: () {
+                    final participant = data.participantAt(node.cellId);
+                    if (participant != null && !participant.isCurrentPlayer) {
+                      onSelectOpponent(participant.wallet);
+                    }
+                  },
+                  child: _MatrixNodeIcon(
+                    color: _nodeColor(node.cellId, data),
+                    icon: _nodeIcon(node.cellId, data),
+                    muted: BigInt.from(node.cellId) > data.activeCells &&
+                        BigInt.from(node.cellId) != data.nextOpenParentId,
+                    small: compact,
+                  ),
                 ),
               ),
           ],
@@ -146,6 +190,12 @@ class _MatrixTree extends StatelessWidget {
   }
 
   Color _nodeColor(int cellId, _MatrixArenaSnapshot data) {
+    final participant = data.participantAt(cellId);
+    if (participant?.wallet.toLowerCase() == selectedOpponent.toLowerCase()) {
+      return Colors.redAccent;
+    }
+    if (participant?.skillStatus?.frozen == true) return Colors.lightBlueAccent;
+    if (participant?.isInvited == true) return EasyGameTheme.purple;
     final id = BigInt.from(cellId);
     if (data.playerFrozen && data.playerCellId == id) return EasyGameTheme.teal;
     if (data.playerCellId == id) return EasyGameTheme.teal;
@@ -183,27 +233,90 @@ class _MatrixNodeIcon extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final size = small ? 26.0 : 48.0;
-    return Container(
+    return SizedBox(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color.withValues(alpha: muted ? 0.05 : 0.14),
-        border: Border.all(
-            color: color.withValues(alpha: muted ? 0.35 : 0.95),
-            width: small ? 2 : 3),
-        boxShadow: [
-          if (!muted)
-            BoxShadow(
-              color: color.withValues(alpha: 0.18),
-              blurRadius: 18,
-            ),
-        ],
-      ),
-      child: Icon(icon,
+      child: CustomPaint(
+        painter: _MatrixHexCellPainter(
+          color: color,
+          muted: muted,
+          strokeWidth: small ? 2 : 3,
+        ),
+        child: Icon(
+          icon,
           color: color.withValues(alpha: muted ? 0.55 : 1),
-          size: small ? 15 : 24),
+          size: small ? 15 : 23,
+        ),
+      ),
     );
+  }
+}
+
+class _MatrixHexCellPainter extends CustomPainter {
+  final Color color;
+  final bool muted;
+  final double strokeWidth;
+
+  const _MatrixHexCellPainter({
+    required this.color,
+    required this.muted,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = _hexPath(size).shift(const Offset(0, 1));
+    if (!muted) {
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = color.withValues(alpha: 0.24)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
+      );
+    }
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            color.withValues(alpha: muted ? 0.05 : 0.24),
+            EasyGameTheme.cardDark.withValues(alpha: 0.94),
+            color.withValues(alpha: muted ? 0.04 : 0.12),
+          ],
+        ).createShader(Offset.zero & size),
+    );
+
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = strokeWidth
+        ..strokeJoin = StrokeJoin.round
+        ..color = color.withValues(alpha: muted ? 0.35 : 0.95),
+    );
+  }
+
+  Path _hexPath(Size size) {
+    final w = size.width;
+    final h = size.height;
+    return Path()
+      ..moveTo(w * 0.50, 0)
+      ..lineTo(w * 0.92, h * 0.24)
+      ..lineTo(w * 0.92, h * 0.76)
+      ..lineTo(w * 0.50, h)
+      ..lineTo(w * 0.08, h * 0.76)
+      ..lineTo(w * 0.08, h * 0.24)
+      ..close();
+  }
+
+  @override
+  bool shouldRepaint(covariant _MatrixHexCellPainter oldDelegate) {
+    return oldDelegate.color != color ||
+        oldDelegate.muted != muted ||
+        oldDelegate.strokeWidth != strokeWidth;
   }
 }
 

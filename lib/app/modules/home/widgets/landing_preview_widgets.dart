@@ -1,11 +1,11 @@
 part of '../views/start_page.dart';
 
 class _PreviewSearch extends StatelessWidget {
-  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
   final VoidCallback onPreview;
 
   const _PreviewSearch({
-    required this.controller,
+    required this.onChanged,
     required this.onPreview,
   });
 
@@ -44,7 +44,8 @@ class _PreviewSearch extends StatelessWidget {
             builder: (context, constraints) {
               final compact = constraints.maxWidth < 680;
               final input = TextField(
-                controller: controller,
+                onChanged: onChanged,
+                onSubmitted: (_) => onPreview(),
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
@@ -103,68 +104,82 @@ class _SchedulePreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final rows = [
-      for (final level in [17, 16, 15, 14, 13, 12, 11, 10])
-        _ScheduleRow(
-          level,
-          levelPrice(level),
-          level >= 16 ? 'start.ready' : 'start.soon',
-        ),
-    ];
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: EasyGameTheme.surface.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(18),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'start.scheduleTitle'.tr,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-            ),
+    final roundsController = Get.find<GameRoundsController>();
+    return Obx(
+      () {
+        final rounds = roundsController.timeline.take(12).toList();
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: EasyGameTheme.surface.withValues(alpha: 0.88),
+            borderRadius: BorderRadius.circular(18),
           ),
-          const SizedBox(height: 18),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingTextStyle: const TextStyle(
-                color: Colors.white70,
-                fontWeight: FontWeight.w800,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'start.scheduleTitle'.tr,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.w900,
+                ),
               ),
-              dataTextStyle: const TextStyle(
-                color: Colors.white60,
-                fontWeight: FontWeight.w700,
-              ),
-              columns: [
-                DataColumn(label: Text('common.level'.tr)),
-                DataColumn(label: Text('common.value'.tr)),
-                DataColumn(label: Text('levels.status'.tr)),
-              ],
-              rows: [
-                for (final row in rows)
-                  DataRow(
-                    cells: [
-                      DataCell(Text(row.level.toString())),
-                      DataCell(Text('${_formatPrice(row.price)} ETH')),
-                      DataCell(
-                        Text(
-                          row.status.tr,
-                          style: const TextStyle(color: EasyGameTheme.tealSoft),
+              const SizedBox(height: 18),
+              if (rounds.isEmpty)
+                Text(
+                  'start.scheduleUnavailable'.tr,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontWeight: FontWeight.w700,
+                  ),
+                )
+              else
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    headingTextStyle: const TextStyle(
+                      color: Colors.white70,
+                      fontWeight: FontWeight.w800,
+                    ),
+                    dataTextStyle: const TextStyle(
+                      color: Colors.white60,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    columns: [
+                      DataColumn(label: Text('start.startsAt'.tr)),
+                      DataColumn(label: Text('common.level'.tr)),
+                      DataColumn(label: Text('common.value'.tr)),
+                      DataColumn(label: Text('levels.status'.tr)),
+                    ],
+                    rows: [
+                      for (final round in rounds)
+                        DataRow(
+                          cells: [
+                            DataCell(Text(
+                                formatRoundStart(round.schedule.startsAt))),
+                            DataCell(Text('${round.schedule.level}')),
+                            DataCell(Text(
+                              '${formatWeiToEth(round.schedule.ethPriceWei)} ETH',
+                            )),
+                            DataCell(
+                              Text(
+                                roundPhaseTranslationKey(round.phase).tr,
+                                style: const TextStyle(
+                                  color: EasyGameTheme.tealSoft,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
                     ],
                   ),
-              ],
-            ),
+                ),
+            ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 }

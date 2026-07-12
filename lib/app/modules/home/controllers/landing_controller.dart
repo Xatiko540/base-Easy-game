@@ -10,13 +10,7 @@ class LandingController extends GetxController {
 
   LandingController();
 
-  final previewSearchController = TextEditingController();
-
-  @override
-  void onClose() {
-    previewSearchController.dispose();
-    super.onClose();
-  }
+  final RxString previewQuery = ''.obs;
 
   Future<void> connectAndEnter() async {
     if (walletService.isConnected.value) {
@@ -51,6 +45,6 @@ class LandingController extends GetxController {
   }
 
   void openPreview() {
-    UiNavigationService.openMemberPreview(previewSearchController.text);
+    UiNavigationService.openMemberPreview(previewQuery.value);
   }
 }

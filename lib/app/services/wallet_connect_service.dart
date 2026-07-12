@@ -5,8 +5,14 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_web3/ethereum.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
+import 'package:web3dart/web3dart.dart' as web3;
+import 'package:wallet/wallet.dart' as wallet;
 import 'package:lottery_advance/app/services/base_account_bridge.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
+import 'package:lottery_advance/app/models/game_round_models.dart';
+import 'package:lottery_advance/app/models/game_round_chain_models.dart';
+import 'package:lottery_advance/app/models/matrix_round_models.dart';
 import 'app_config_service.dart';
 
 class AppNetworkConfig {
@@ -38,11 +44,13 @@ class WalletConnectService extends GetxService {
   static const int ganacheDefaultChainId = 1337;
   static int get targetBaseChainId {
     try {
-      return Get.find<AppConfigService>().getInt('targetBaseChainId', baseSepoliaChainId);
+      return Get.find<AppConfigService>()
+          .getInt('targetBaseChainId', baseSepoliaChainId);
     } catch (_) {
       return baseSepoliaChainId;
     }
   }
+
   static String get paymentReceiver {
     try {
       return Get.find<AppConfigService>().get('paymentReceiver');
@@ -50,6 +58,7 @@ class WalletConnectService extends GetxService {
       return '';
     }
   }
+
   static String get easyGameContractAddress {
     try {
       return Get.find<AppConfigService>().get('easyGameContractAddress');
@@ -57,6 +66,15 @@ class WalletConnectService extends GetxService {
       return '';
     }
   }
+
+  static String get easyGameRoundManagerAddress {
+    try {
+      return Get.find<AppConfigService>().get('roundManagerAddress');
+    } catch (_) {
+      return '';
+    }
+  }
+
   static String get usdcTokenAddress {
     try {
       return Get.find<AppConfigService>().get('usdcTokenAddress');
@@ -64,6 +82,7 @@ class WalletConnectService extends GetxService {
       return '';
     }
   }
+
   static String get easyGameInviter {
     try {
       return Get.find<AppConfigService>().get('easyGameInviter');
@@ -71,6 +90,7 @@ class WalletConnectService extends GetxService {
       return '';
     }
   }
+
   static String get baseBuilderDataSuffix {
     try {
       return Get.find<AppConfigService>().get('baseBuilderDataSuffix');
@@ -78,6 +98,7 @@ class WalletConnectService extends GetxService {
       return '0x62635f68336c356a6c69790b0080218021802180218021802180218021';
     }
   }
+
   static bool get allowLocalChains {
     try {
       return Get.find<AppConfigService>().getBool('allowLocalChains', false);
@@ -85,13 +106,16 @@ class WalletConnectService extends GetxService {
       return false;
     }
   }
+
   static String get baseAccountAppName {
     try {
-      return Get.find<AppConfigService>().get('baseAccountAppName', 'Easy Game');
+      return Get.find<AppConfigService>()
+          .get('baseAccountAppName', 'Easy Game');
     } catch (_) {
       return 'Easy Game';
     }
   }
+
   static String get baseAccountAppLogoUrl {
     try {
       return Get.find<AppConfigService>().get('baseAccountAppLogoUrl');
@@ -99,6 +123,7 @@ class WalletConnectService extends GetxService {
       return '';
     }
   }
+
   static const String _zeroAddress =
       '0x0000000000000000000000000000000000000000';
 
@@ -122,6 +147,8 @@ class WalletConnectService extends GetxService {
   final RxString baseAccountSignature = ''.obs;
   final RxString baseAccountNonce = ''.obs;
   final RxString easyGameAddress = ''.obs;
+  final RxString roundManagerAddress = ''.obs;
+  final RxString arenaSkillsAddress = ''.obs;
   final RxString referralInviter = ''.obs;
   final Rxn<AppNetworkConfig> activeNetwork = Rxn<AppNetworkConfig>();
 
@@ -590,6 +617,178 @@ class WalletConnectService extends GetxService {
     }
   }
 
+  Future<String> activateEasyGameRound({
+    required GameRoundSchedule round,
+    String? inviter,
+    bool waitForReceipt = true,
+  }) async {
+    if (!isConnected.value) await connectBaseAccount();
+    await ensureBaseNetwork();
+    final contractAddress = await resolveEasyGameAddress();
+    final inviterAddress = _normalizeAddress(
+      inviter?.isNotEmpty == true ? inviter! : activeInviter,
+    );
+    final data = await _roundActivationCallData(
+      functionName: 'activateRound',
+      round: round,
+      inviterAddress: inviterAddress,
+    );
+    return _submitEasyGameTransaction(
+      contractAddress: contractAddress,
+      data: data,
+      paymentWei: round.ethPriceWei,
+      waitForReceipt: waitForReceipt,
+    );
+  }
+
+  Future<String> activateEasyGameRoundWithUSDC({
+    required GameRoundSchedule round,
+    String? inviter,
+    bool waitForReceipt = true,
+  }) async {
+    if (!isConnected.value) await connectBaseAccount();
+    await ensureBaseNetwork();
+    final contractAddress = await resolveEasyGameAddress();
+    final tokenAddress = await resolveUsdcAddress();
+    final inviterAddress = _normalizeAddress(
+      inviter?.isNotEmpty == true ? inviter! : activeInviter,
+    );
+    final allowance = await getUsdcAllowance(
+      owner: currentAddress.value,
+      spender: contractAddress,
+    );
+    if (allowance < round.usdcPrice) {
+      final approveTx = {
+        'from': currentAddress.value,
+        'to': tokenAddress,
+        'value': '0x0',
+        'data': _appendBuilderDataSuffix(
+          _erc20ApproveCallData(contractAddress, round.usdcPrice),
+        ),
+      };
+      lastGasEstimate.value = await _estimateGas(approveTx);
+      final approveHash = await _walletRequest<String>(
+        'eth_sendTransaction',
+        [approveTx],
+      );
+      if (waitForReceipt) {
+        final receipt = await waitForTransactionReceipt(approveHash);
+        if (!receipt.success) {
+          throw Exception('USDC approval reverted onchain: $approveHash');
+        }
+      }
+    }
+    final data = await _roundActivationCallData(
+      functionName: 'activateRoundWithUSDC',
+      round: round,
+      inviterAddress: inviterAddress,
+    );
+    return _submitEasyGameTransaction(
+      contractAddress: contractAddress,
+      data: data,
+      paymentWei: BigInt.zero,
+      waitForReceipt: waitForReceipt,
+    );
+  }
+
+  Future<String> _submitEasyGameTransaction({
+    required String contractAddress,
+    required String data,
+    required BigInt paymentWei,
+    required bool waitForReceipt,
+  }) async {
+    final txParams = {
+      'from': currentAddress.value,
+      'to': contractAddress,
+      'value': '0x${paymentWei.toRadixString(16)}',
+      'data': _appendBuilderDataSuffix(data),
+    };
+    isPaying.value = true;
+    paymentStatus.value = PaymentFlowStatus.estimatingGas;
+    lastPaymentReceipt.value = null;
+    try {
+      lastGasEstimate.value = await _estimateGas(txParams);
+      paymentStatus.value = PaymentFlowStatus.waitingForWallet;
+      final txHash = await _walletRequest<String>(
+        'eth_sendTransaction',
+        [txParams],
+      );
+      lastPaymentTxHash.value = txHash;
+      if (waitForReceipt) {
+        paymentStatus.value = PaymentFlowStatus.confirming;
+        final receipt = await waitForTransactionReceipt(txHash);
+        lastPaymentReceipt.value = receipt;
+        if (!receipt.success) {
+          throw Exception('Round activation reverted onchain: $txHash');
+        }
+        paymentStatus.value = PaymentFlowStatus.success;
+        await refreshNativeBalance();
+      } else {
+        paymentStatus.value = PaymentFlowStatus.submitted;
+      }
+      return txHash;
+    } catch (error) {
+      paymentStatus.value = PaymentFlowStatus.failed;
+      paymentStatusMessage.value = '$error';
+      rethrow;
+    } finally {
+      isPaying.value = false;
+    }
+  }
+
+  Future<String> _roundActivationCallData({
+    required String functionName,
+    required GameRoundSchedule round,
+    required String inviterAddress,
+  }) async {
+    final artifact = jsonDecode(
+      await rootBundle.loadString('src/artifacts/EasyGameAdvance.json'),
+    ) as Map<String, dynamic>;
+    final abi = web3.ContractAbi.fromJson(
+      jsonEncode(artifact['abi']),
+      'EasyGameAdvance',
+    );
+    final function = abi.functions.firstWhere(
+      (item) => item.name == functionName,
+    );
+    final encoded = function.encodeCall([
+      [
+        BigInt.from(round.seasonId),
+        BigInt.from(round.roundId),
+        BigInt.from(round.level),
+        BigInt.from(round.startsAt.millisecondsSinceEpoch ~/ 1000),
+        BigInt.from(round.entriesCloseAt.millisecondsSinceEpoch ~/ 1000),
+        BigInt.from(round.endsAt.millisecondsSinceEpoch ~/ 1000),
+        BigInt.from(round.freezeClosesAt.millisecondsSinceEpoch ~/ 1000),
+        BigInt.from(round.maxPlayers),
+        BigInt.from(round.maxWinners),
+        _hexBytes(round.winningCellsRoot),
+        round.ethPriceWei,
+        round.usdcPrice,
+        BigInt.from(round.freezeLimit),
+        BigInt.from(round.paymentSplitVersion),
+      ],
+      _hexBytes(round.operatorSignature),
+      wallet.EthereumAddress.fromHex(inviterAddress),
+    ]);
+    return web3.bytesToHex(encoded, include0x: true);
+  }
+
+  Uint8List _hexBytes(String value) {
+    final normalized = value.startsWith('0x') ? value.substring(2) : value;
+    if (normalized.length.isOdd ||
+        !RegExp(r'^[0-9a-fA-F]+$').hasMatch(normalized)) {
+      throw const FormatException('Invalid hexadecimal round data');
+    }
+    return Uint8List.fromList(List.generate(
+      normalized.length ~/ 2,
+      (index) => int.parse(
+        normalized.substring(index * 2, index * 2 + 2),
+        radix: 16,
+      ),
+    ));
+  }
+
   Future<EasyGamePaymentPreview> previewEasyGameLevelPayment({
     required int level,
     String? inviter,
@@ -711,6 +910,145 @@ class WalletConnectService extends GetxService {
       activeCells: _wordToBigInt(words[2]),
       nextOpenParentId: _wordToBigInt(words[3]),
       nextCellId: _wordToBigInt(words[4]),
+    );
+  }
+
+  Future<GameRoundPhase> getEasyGameRoundPhase(BigInt roundId) async {
+    final response = await _roundManagerCall(
+      '0xdfa0ec76${roundId.toRadixString(16).padLeft(64, '0')}',
+    );
+    final value = _wordToBigInt(_decodeWords(response).first).toInt();
+    if (value < 0 || value >= GameRoundPhase.values.length) {
+      throw Exception('Invalid on-chain round phase: $value');
+    }
+    return GameRoundPhase.values[value];
+  }
+
+  Future<GameRoundChainState> getEasyGameRoundState(BigInt roundId) async {
+    final encodedRoundId = roundId.toRadixString(16).padLeft(64, '0');
+    final responses = await Future.wait([
+      _roundManagerCall('0xc642e7bf$encodedRoundId'),
+      getEasyGameRoundPhase(roundId),
+    ]);
+    final words = _decodeWords(responses[0] as String);
+    final initializedAtSeconds = _wordToBigInt(words[1]);
+    return GameRoundChainState(
+      roundId: roundId,
+      configHash: '0x${words[0]}',
+      initializedAt: initializedAtSeconds == BigInt.zero
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(
+              initializedAtSeconds.toInt() * 1000,
+              isUtc: true,
+            ),
+      occupiedCells: _wordToBigInt(words[2]),
+      winnersRegistered: _wordToBigInt(words[3]),
+      initialized: _wordToBool(words[4]),
+      settled: _wordToBool(words[5]),
+      cancelled: _wordToBool(words[6]),
+      paused: _wordToBool(words[7]),
+      prizePoolEth: _wordToBigInt(words[8]),
+      prizePoolUsdc: _wordToBigInt(words[9]),
+      phase: responses[1] as GameRoundPhase,
+    );
+  }
+
+  Future<RoundMatrixStats> getRoundMatrixStats(BigInt roundId) async {
+    final values = await _abiCall(
+      artifactName: 'EasyGameAdvance',
+      contractAddress: await resolveEasyGameAddress(),
+      functionName: 'getRoundGameStats',
+      parameters: [roundId],
+    );
+    return RoundMatrixStats(
+      prizePoolEth: values[0] as BigInt,
+      prizePoolUsdc: values[1] as BigInt,
+      totalWeight: values[2] as BigInt,
+      activeCells: values[3] as BigInt,
+      nextCellId: values[4] as BigInt,
+      nextOpenParentId: values[5] as BigInt,
+    );
+  }
+
+  Future<RoundPlayerState> getRoundPlayerState(
+    BigInt roundId, {
+    String? playerAddress,
+  }) async {
+    final values = await _abiCall(
+      artifactName: 'EasyGameAdvance',
+      contractAddress: await resolveEasyGameAddress(),
+      functionName: 'getPlayerRound',
+      parameters: [
+        wallet.EthereumAddress.fromHex(
+          _normalizeAddress(playerAddress ?? currentAddress.value),
+        ),
+        roundId,
+      ],
+    );
+    final tuple = List<dynamic>.from(values.first as List);
+    return RoundPlayerState(
+      active: tuple[0] as bool,
+      frozen: tuple[1] as bool,
+      level: (tuple[2] as BigInt).toInt(),
+      cellId: tuple[4] as BigInt,
+      cycleCount: tuple[8] as BigInt,
+      totalWeight: tuple[9] as BigInt,
+    );
+  }
+
+  Future<RoundMatrixNode> getRoundMatrixNode(
+    BigInt roundId,
+    BigInt cellId,
+  ) async {
+    final values = await _abiCall(
+      artifactName: 'EasyGameAdvance',
+      contractAddress: await resolveEasyGameAddress(),
+      functionName: 'getRoundMatrixNode',
+      parameters: [roundId, cellId],
+    );
+    final tuple = List<dynamic>.from(values.first as List);
+    return RoundMatrixNode(
+      cellId: tuple[0] as BigInt,
+      player: _addressText(tuple[1]),
+      parentCellId: tuple[3] as BigInt,
+      closed: tuple[6] as bool,
+    );
+  }
+
+  Future<ArenaSkillStatus> getArenaSkillStatus(
+    BigInt roundId, {
+    String? playerAddress,
+  }) async {
+    final address = _normalizeAddress(playerAddress ?? currentAddress.value);
+    final contract = await resolveArenaSkillsAddress();
+    final results = await Future.wait([
+      _abiCall(
+        artifactName: 'EasyGameArenaSkills',
+        contractAddress: contract,
+        functionName: 'getArenaStatus',
+        parameters: [roundId, wallet.EthereumAddress.fromHex(address)],
+      ),
+      _abiCall(
+        artifactName: 'EasyGameArenaSkills',
+        contractAddress: contract,
+        functionName: 'getUnfreezePriceUsdc',
+        parameters: [roundId, wallet.EthereumAddress.fromHex(address)],
+      ),
+    ]);
+    final status = results[0];
+    final until = status[2] as BigInt;
+    return ArenaSkillStatus(
+      frozen: status[0] as bool,
+      immune: status[1] as bool,
+      frozenUntil: until == BigInt.zero
+          ? null
+          : DateTime.fromMillisecondsSinceEpoch(
+              until.toInt() * 1000,
+              isUtc: true,
+            ),
+      freezeHits: (status[3] as BigInt).toInt(),
+      freezeTokens: (status[4] as BigInt).toInt(),
+      unfreezePriceUsdc: results[1].first as BigInt,
     );
   }
 
@@ -931,7 +1269,9 @@ class WalletConnectService extends GetxService {
       return easyGameAddress.value;
     }
 
-    await refreshChainId();
+    if (isConnected.value) {
+      await refreshChainId();
+    }
     try {
       final artifact = jsonDecode(
         await rootBundle.loadString('src/artifacts/EasyGameAdvance.json'),
@@ -957,6 +1297,129 @@ class WalletConnectService extends GetxService {
         'Unable to load EasyGameAdvance artifact. Run hardhat compile/deploy or build with --dart-define=EASY_GAME_ADDRESS=0x...',
       );
     }
+  }
+
+  Future<String> resolveRoundManagerAddress() async {
+    final configuredAddress = easyGameRoundManagerAddress;
+    if (configuredAddress.isNotEmpty) {
+      roundManagerAddress.value = configuredAddress;
+      return configuredAddress;
+    }
+    if (roundManagerAddress.value.isNotEmpty) return roundManagerAddress.value;
+
+    if (isConnected.value) await refreshChainId();
+    try {
+      final artifact = jsonDecode(
+        await rootBundle.loadString('src/artifacts/EasyGameRoundManager.json'),
+      ) as Map<String, dynamic>;
+      final networks = artifact['networks'] as Map<String, dynamic>? ?? {};
+      final chainKey = '${chainId.value ?? targetNetwork.chainId}';
+      final network = networks[chainKey] as Map<String, dynamic>?;
+      final address = network?['address'] as String?;
+      if (address == null || address.isEmpty) {
+        throw Exception(
+          'EasyGameRoundManager is not deployed for chain $chainKey.',
+        );
+      }
+      roundManagerAddress.value = address;
+      return address;
+    } catch (error) {
+      if (error is Exception) rethrow;
+      throw Exception('Unable to load EasyGameRoundManager artifact.');
+    }
+  }
+
+  Future<String> resolveArenaSkillsAddress() async {
+    final configured = Get.find<AppConfigService>().get('arenaSkillsAddress');
+    if (configured.isNotEmpty) {
+      arenaSkillsAddress.value = configured;
+      return configured;
+    }
+    if (arenaSkillsAddress.value.isNotEmpty) return arenaSkillsAddress.value;
+    final artifact = jsonDecode(
+      await rootBundle.loadString('src/artifacts/EasyGameArenaSkills.json'),
+    ) as Map<String, dynamic>;
+    final networks = artifact['networks'] as Map<String, dynamic>? ?? {};
+    final chainKey = '${chainId.value ?? targetNetwork.chainId}';
+    final address =
+        (networks[chainKey] as Map<String, dynamic>?)?['address'] as String?;
+    if (address == null || address.isEmpty) {
+      throw Exception(
+          'EasyGameArenaSkills is not deployed for chain $chainKey.');
+    }
+    arenaSkillsAddress.value = address;
+    return address;
+  }
+
+  Future<String> buyArenaFreezeToken(BigInt roundId) async {
+    const price = 300000;
+    final skills = await resolveArenaSkillsAddress();
+    await _ensureUsdcAllowance(skills, BigInt.from(price));
+    final data = await _abiCallData(
+      artifactName: 'EasyGameArenaSkills',
+      functionName: 'buyFreezeToken',
+      parameters: [roundId],
+    );
+    return _submitEasyGameTransaction(
+      contractAddress: skills,
+      data: data,
+      paymentWei: BigInt.zero,
+      waitForReceipt: true,
+    );
+  }
+
+  Future<String> freezeArenaPlayer(BigInt roundId, String target) async {
+    final skills = await resolveArenaSkillsAddress();
+    final data = await _abiCallData(
+      artifactName: 'EasyGameArenaSkills',
+      functionName: 'freezePlayer',
+      parameters: [
+        roundId,
+        wallet.EthereumAddress.fromHex(_normalizeAddress(target))
+      ],
+    );
+    return _submitEasyGameTransaction(
+      contractAddress: skills,
+      data: data,
+      paymentWei: BigInt.zero,
+      waitForReceipt: true,
+    );
+  }
+
+  Future<String> buyArenaUnfreeze(BigInt roundId) async {
+    final skills = await resolveArenaSkillsAddress();
+    final status = await getArenaSkillStatus(roundId);
+    await _ensureUsdcAllowance(skills, status.unfreezePriceUsdc);
+    final data = await _abiCallData(
+      artifactName: 'EasyGameArenaSkills',
+      functionName: 'buyUnfreeze',
+      parameters: [roundId],
+    );
+    return _submitEasyGameTransaction(
+      contractAddress: skills,
+      data: data,
+      paymentWei: BigInt.zero,
+      waitForReceipt: true,
+    );
+  }
+
+  Future<void> _ensureUsdcAllowance(String spender, BigInt amount) async {
+    final allowance = await getUsdcAllowance(
+      owner: currentAddress.value,
+      spender: spender,
+    );
+    if (allowance >= amount) return;
+    final tokenAddress = await resolveUsdcAddress();
+    final transaction = {
+      'from': currentAddress.value,
+      'to': tokenAddress,
+      'value': '0x0',
+      'data': _appendBuilderDataSuffix(_erc20ApproveCallData(spender, amount)),
+    };
+    final hash =
+        await _walletRequest<String>('eth_sendTransaction', [transaction]);
+    final receipt = await waitForTransactionReceipt(hash);
+    if (!receipt.success) throw Exception('USDC approval reverted: $hash');
   }
 
   Future<String> _configuredEasyGameAddress() async {
@@ -1002,7 +1465,7 @@ class WalletConnectService extends GetxService {
         await refreshNativeBalance();
       }
     } catch (e) {
-      if (kDebugMode) {
+      if (kDebugMode && isConnected.value) {
         print('Unable to read wallet chain id: $e');
       }
     }
@@ -1156,7 +1619,8 @@ class WalletConnectService extends GetxService {
     if (!isConnected.value || currentAddress.value.isEmpty) {
       await connectBaseAccount();
     }
-    final encoded = '0x${utf8.encode(message).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join()}';
+    final encoded =
+        '0x${utf8.encode(message).map((byte) => byte.toRadixString(16).padLeft(2, '0')).join()}';
     return _walletRequest<String>('personal_sign', [
       encoded,
       currentAddress.value,
@@ -1372,27 +1836,99 @@ class WalletConnectService extends GetxService {
   }
 
   Future<String> _easyGameCall(String data) async {
-    if (!isWalletAvailable) {
-      throw Exception('MetaMask or another Web3 wallet is not installed');
-    }
-
     final contractAddress = await resolveEasyGameAddress();
     return _ethCall(to: contractAddress, data: data);
+  }
+
+  Future<String> _roundManagerCall(String data) async {
+    final contractAddress = await resolveRoundManagerAddress();
+    return _ethCall(to: contractAddress, data: data);
+  }
+
+  Future<List<dynamic>> _abiCall({
+    required String artifactName,
+    required String contractAddress,
+    required String functionName,
+    required List<dynamic> parameters,
+  }) async {
+    final function = await _artifactFunction(artifactName, functionName);
+    final response = await _ethCall(
+      to: contractAddress,
+      data: web3.bytesToHex(
+        function.encodeCall(parameters),
+        include0x: true,
+      ),
+    );
+    return function.decodeReturnValues(response);
+  }
+
+  Future<String> _abiCallData({
+    required String artifactName,
+    required String functionName,
+    required List<dynamic> parameters,
+  }) async {
+    final function = await _artifactFunction(artifactName, functionName);
+    return web3.bytesToHex(function.encodeCall(parameters), include0x: true);
+  }
+
+  Future<web3.ContractFunction> _artifactFunction(
+    String artifactName,
+    String functionName,
+  ) async {
+    final artifact = jsonDecode(
+      await rootBundle.loadString('src/artifacts/$artifactName.json'),
+    ) as Map<String, dynamic>;
+    final abi = web3.ContractAbi.fromJson(
+      jsonEncode(artifact['abi']),
+      artifactName,
+    );
+    return abi.functions.firstWhere((item) => item.name == functionName);
+  }
+
+  String _addressText(dynamic value) {
+    final text = '$value';
+    return text.startsWith('0x')
+        ? text.toLowerCase()
+        : '0x${text.toLowerCase()}';
   }
 
   Future<String> _ethCall({
     required String to,
     required String data,
   }) async {
-    final result = await _walletRequest<String>('eth_call', [
-      {
-        'to': to,
-        'data': data,
-      },
+    final params = [
+      {'to': to, 'data': data},
       'latest',
-    ]);
+    ];
+    final result = isWalletAvailable
+        ? await _walletRequest<String>('eth_call', params)
+        : await _publicRpcRequest<String>('eth_call', params);
 
     return result;
+  }
+
+  Future<T> _publicRpcRequest<T>(String method, List<dynamic> params) async {
+    final configuredRpc = Get.find<AppConfigService>().get('web3PublicRpcUrl');
+    final rpcUrl =
+        configuredRpc.isNotEmpty ? configuredRpc : currentNetwork.rpcUrl;
+    final response = await http.post(
+      Uri.parse(rpcUrl),
+      headers: const {'content-type': 'application/json'},
+      body: jsonEncode({
+        'jsonrpc': '2.0',
+        'id': 1,
+        'method': method,
+        'params': params,
+      }),
+    );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('RPC request failed: HTTP ${response.statusCode}');
+    }
+    final payload = jsonDecode(response.body) as Map<String, dynamic>;
+    if (payload['error'] != null) {
+      throw Exception('RPC request failed: ${payload['error']}');
+    }
+    return payload['result'] as T;
   }
 
   String _encodeAddressUint8Call(String selector, String address, int value) {

@@ -4,6 +4,8 @@ const path = require("path");
 const contracts = [
   "EasyGame",
   "EasyGameAdvance",
+  "EasyGameRoundManager",
+  "EasyGameArenaSkills",
   "Lottery",
   "LotteryGenerator",
   "Migrations",

@@ -89,21 +89,4 @@ abstract contract WeightLogic is SharedGameplayLogic {
         return requested > room ? room : requested;
     }
 
-    function _weightedWinner(uint8 level, uint256 winningPoint)
-        internal
-        view
-        override
-        returns (address)
-    {
-        uint256 cumulative;
-        address[] storage levelPlayers = _levelPlayers[level];
-        for (uint256 i = 0; i < levelPlayers.length; i++) {
-            address candidate = levelPlayers[i];
-            cumulative += playerLevels[candidate][level].levelWeight;
-            if (winningPoint <= cumulative) {
-                return candidate;
-            }
-        }
-        return address(0);
-    }
 }

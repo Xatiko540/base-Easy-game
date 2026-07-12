@@ -273,7 +273,7 @@ Accounting model:
 
 ```text
 Referral bonus = earned through invite structure
-Prize reward   = earned through matrix/prize/draw mechanics
+Prize reward   = earned through verified matrix/prize mechanics
 Pending prize  = earned while frozen
 Project fee    = platform commission only
 Prize pool     = reserved for player rewards
@@ -281,11 +281,9 @@ Prize pool     = reserved for player rewards
 
 ---
 
-## Weighted draw
+## Weight and draw safety
 
-Each level can use weighted draw mechanics.
-
-Weighted draw winners are selected from the level’s total weight pool.
+Each level tracks player weight and total level weight.
 
 Conceptual formula:
 
@@ -293,9 +291,11 @@ Conceptual formula:
 Player chance = playerLevelWeight / totalWeightByLevel
 ```
 
-The current MVP uses block-based pseudo-randomness.
-
-Production-grade deployment still needs verifiable randomness, such as Chainlink VRF or another secure randomness provider.
+The previous block-based pseudo-random draw is disabled because block values are
+not a safe source of financial randomness. `requestDraw` now reverts with
+`WeightedDrawDisabled`. Current rewards use deterministic prize cells. A future
+random fallback requires committed Merkle round configuration and verifiable
+randomness such as Chainlink VRF.
 
 ---
 
@@ -317,8 +317,6 @@ WeightUpdated
 Recycled
 BoxTokenGranted
 PrizePositionReached
-DrawRequested
-DrawWon
 ReferralBonusClaimed
 PrizeClaimed
 LevelFrozen
@@ -333,6 +331,9 @@ These events can support:
 - Referral history.
 - Prize history.
 - Recycle history.
+
+`DrawRequested` and `DrawWon` remain reserved in the ABI for a future verified
+draw implementation, but the current contract does not emit them.
 - Freeze/unfreeze tracking.
 - Weighted draw history.
 - Claimable reward tables.
@@ -491,7 +492,9 @@ Current tests cover:
 - [x] Payment distribution: 75.5% matrix prize pool, 9.5% direct referral, 6% second line, 4% third line, 5% project fee.
 - [x] Missing referral lines are routed into the level prize pool.
 - [x] `PROJECT_WALLET`, `TREASURY_ADDRESS`, and `OPERATOR_WALLET` are supported by the deploy script.
-- [x] Contract events are emitted for activation, placement, payment split, weights, referrals, prize positions, weighted draw, recycle, freeze, and unfreeze.
+- [x] Contract events are emitted for activation, placement, payment split, weights, referrals, prize positions, recycle, freeze, and unfreeze.
+- [x] Unsafe block-derived weighted draw is disabled.
+- [x] Recycle processing is bounded and deferred through a permissionless queue when necessary.
 - [x] Contract view functions expose player level state, player position, matrix node data, and level matrix stats.
 - [x] Claimable referral bonus functions are implemented.
 - [x] Claimable prize functions are implemented.
@@ -499,7 +502,7 @@ Current tests cover:
 - [x] Flutter can read on-chain level status and show active, waiting, locked, and frozen states.
 - [x] Registration screen lets the user enter an upline/referral address.
 - [x] Referral links / invite URL parsing can fill the upline address from `?inviter=0x...`, `?ref=0x...`, `?upline=0x...`, or `/npalce/0x...`.
-- [x] Contract tests cover activation, placement, payment distribution, recycle, prize positions, weighted draw, project fees, freeze, and unfreeze.
+- [x] Contract tests cover activation, placement, payment distribution, bounded recycle, prize positions, draw rejection, project fees, freeze, unfreeze, and ETH/USDC accounting invariants.
 - [x] Web build succeeds with the current Flutter package versions.
 
 ### Legacy lottery module
@@ -518,11 +521,13 @@ The legacy lottery module remains in the repository, but it is not the main Easy
 
 ## Not implemented yet
 
-- [ ] Production-grade verifiable random winner selection for weighted draw.
+- [ ] Season and timed-round runtime described in `docs/GAME_ROUNDS_ARCHITECTURE.md`.
+- [ ] Firebase season manifest and on-chain Merkle winning-cell verification.
+- [ ] Production-grade verifiable random winner selection for an optional weighted fallback.
 - [ ] Chainlink VRF or another secure randomness provider.
 - [ ] Full live matrix visualization in Flutter with all matrix nodes, child slots, and recycle movement.
-- [ ] Full UI tables for claimable referral bonus, claimable prize, pending prize, prize pool, player chance, and weighted draw history.
-- [ ] Real-time indexed history for `MatrixPlaced`, `PaymentSplit`, `ReferralBonusAdded`, `PrizePositionReached`, `DrawWon`, `Recycled`, `LevelFrozen`, and `LevelUnfrozen`.
+- [ ] Full UI tables for claimable referral bonus, claimable prize, pending prize, prize pool, player weight, and verified round history.
+- [ ] Real-time indexed history for `MatrixPlaced`, `PaymentSplit`, `ReferralBonusAdded`, `PrizePositionReached`, `Recycled`, `LevelFrozen`, and `LevelUnfrozen`.
 - [ ] Notification system for participants, referrals, rewards, freeze, and recycle status.
 - [ ] User ID system connected to wallet addresses and matrix positions.
 - [ ] Persistent local user profile data for Easy Game beyond the connected wallet.

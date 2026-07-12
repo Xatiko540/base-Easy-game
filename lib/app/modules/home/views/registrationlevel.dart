@@ -4,6 +4,7 @@ import 'package:lottery_advance/app/modules/home/controllers/registration_contro
 import 'package:lottery_advance/app/modules/home/models/registration_models.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
 import '../models/levels_models.dart';
@@ -18,6 +19,7 @@ class RegistrationScreen extends StatelessWidget {
   final int level;
   final double amount;
   final String? inviter;
+  final GameRoundViewState? round;
 
   RegistrationScreen(
     LevelStatus level1, {
@@ -25,6 +27,7 @@ class RegistrationScreen extends StatelessWidget {
     this.level = 3,
     this.amount = 0.1,
     String? inviter,
+    this.round,
   })  : inviter = inviter ?? WalletConnectService.easyGameInviter,
         super(key: key);
 
@@ -33,7 +36,12 @@ class RegistrationScreen extends StatelessWidget {
     final tag = '$level-${inviter ?? 'default'}';
     return GetX<RegistrationController>(
       init: RegistrationController()
-        ..configure(level: level, amount: amount, inviter: inviter),
+        ..configure(
+          level: level,
+          amount: amount,
+          inviter: inviter,
+          round: round,
+        ),
       tag: tag,
       dispose: (_) {
         if (Get.isRegistered<RegistrationController>(tag: tag)) {

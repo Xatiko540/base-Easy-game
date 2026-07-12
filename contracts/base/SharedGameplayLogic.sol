@@ -43,12 +43,6 @@ abstract contract SharedGameplayLogic is EasyGameAdvanceStorage, GameplayEvents 
         uint256 cap
     ) internal pure virtual returns (uint256);
 
-    function _weightedWinner(uint8 level, uint256 winningPoint)
-        internal
-        view
-        virtual
-        returns (address);
-
     function _advanceNextOpenParent(uint8 level) internal virtual;
 
     function _freezeAfterRecycle(address playerAddress, uint8 level) internal virtual;

@@ -67,6 +67,11 @@ abstract contract GameplayEvents is EasyGameAdvanceStorage {
         uint256 recycleCount,
         uint256 newCellId
     );
+    event RecycleQueued(
+        address indexed player,
+        uint8 indexed level,
+        uint256 indexed queueIndex
+    );
     event BoxTokenGranted(
         address indexed player,
         uint8 indexed level,

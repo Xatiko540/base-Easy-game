@@ -39,11 +39,29 @@ function updateAppArtifact(contractName, chainId, address) {
 async function main() {
   const [deployer] = await hre.ethers.getSigners();
   const network = await hre.ethers.provider.getNetwork();
-  const projectWallet = process.env.PROJECT_WALLET || deployer.address;
-  const treasuryAddress = process.env.TREASURY_ADDRESS || deployer.address;
-  const operatorWallet = process.env.OPERATOR_WALLET || deployer.address;
-  const usdcAddress = process.env.USDC_ADDRESS || "";
+  const chainId = Number(network.chainId);
+  const isLocalNetwork = [1337, 31337, 5777].includes(chainId);
+  const useLocalWallets =
+    isLocalNetwork && process.env.LOCAL_USE_ENV_WALLETS !== "true";
+  const projectWallet = useLocalWallets
+    ? deployer.address
+    : process.env.PROJECT_WALLET || deployer.address;
+  const treasuryAddress = useLocalWallets
+    ? deployer.address
+    : process.env.TREASURY_ADDRESS || deployer.address;
+  const operatorWallet = useLocalWallets
+    ? deployer.address
+    : process.env.OPERATOR_WALLET || deployer.address;
+  let usdcAddress = process.env.USDC_ADDRESS || "";
   const deployLegacyLottery = process.env.DEPLOY_LEGACY_LOTTERY === "true";
+
+  if (isLocalNetwork && process.env.LOCAL_USE_MOCK_USDC !== "false") {
+    const MockUSDC = await hre.ethers.getContractFactory("MockUSDC");
+    const mockUsdc = await MockUSDC.deploy();
+    await mockUsdc.waitForDeployment();
+    usdcAddress = await mockUsdc.getAddress();
+    console.log(`MockUSDC deployed to: ${usdcAddress}`);
+  }
 
   console.log(`Deploying with account: ${deployer.address}`);
   console.log(`Network: ${network.name} (${network.chainId})`);
@@ -52,7 +70,10 @@ async function main() {
   console.log(`Operator wallet: ${operatorWallet}`);
   console.log(`USDC token: ${usdcAddress}`);
 
-  if (!hre.ethers.isAddress(usdcAddress) || usdcAddress === hre.ethers.ZeroAddress) {
+  if (
+    !hre.ethers.isAddress(usdcAddress) ||
+    usdcAddress === hre.ethers.ZeroAddress
+  ) {
     throw new Error(
       "USDC_ADDRESS must be configured with a non-zero token address before deploying EasyGameAdvance."
     );
@@ -71,6 +92,14 @@ async function main() {
     updateAppArtifact("LotteryGenerator", network.chainId, address);
   }
 
+  const EasyGameRoundManager = await hre.ethers.getContractFactory(
+    "EasyGameRoundManager"
+  );
+  const roundManager = await EasyGameRoundManager.deploy(operatorWallet);
+  await roundManager.waitForDeployment();
+  const roundManagerAddress = await roundManager.getAddress();
+  console.log(`EasyGameRoundManager deployed to: ${roundManagerAddress}`);
+
   const EasyGameAdvance = await hre.ethers.getContractFactory(
     "EasyGameAdvance"
   );
@@ -78,14 +107,34 @@ async function main() {
     projectWallet,
     treasuryAddress,
     operatorWallet,
-    usdcAddress
+    usdcAddress,
+    roundManagerAddress
   );
   await easyGame.waitForDeployment();
 
   const easyGameAddress = await easyGame.getAddress();
   console.log(`EasyGameAdvance deployed to: ${easyGameAddress}`);
 
+  const setCoreTx = await roundManager.setGameCore(easyGameAddress);
+  await setCoreTx.wait();
+  console.log("Round manager linked to EasyGameAdvance");
+
+  const EasyGameArenaSkills = await hre.ethers.getContractFactory(
+    "EasyGameArenaSkills"
+  );
+  const arenaSkills = await EasyGameArenaSkills.deploy(
+    easyGameAddress,
+    roundManagerAddress,
+    usdcAddress,
+    projectWallet
+  );
+  await arenaSkills.waitForDeployment();
+  const arenaSkillsAddress = await arenaSkills.getAddress();
+  console.log(`EasyGameArenaSkills deployed to: ${arenaSkillsAddress}`);
+
+  updateAppArtifact("EasyGameRoundManager", network.chainId, roundManagerAddress);
   updateAppArtifact("EasyGameAdvance", network.chainId, easyGameAddress);
+  updateAppArtifact("EasyGameArenaSkills", network.chainId, arenaSkillsAddress);
 }
 
 main().catch((error) => {

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
+import 'package:lottery_advance/app/models/game_round_models.dart';
+import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/views/ActivateExpressGameScreen.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
@@ -14,6 +16,7 @@ class RegistrationController extends GetxController {
   final selectedLevel = 3.obs;
   final selectedAmount = 0.1.obs;
   final paymentAsset = EasyGamePaymentAsset.native.obs;
+  final Rxn<GameRoundViewState> selectedRound = Rxn<GameRoundViewState>();
   final networkChecked = false.obs;
   final balanceChecked = false.obs;
   final balanceMessage = ''.obs;
@@ -22,6 +25,7 @@ class RegistrationController extends GetxController {
     required int level,
     required double amount,
     String? inviter,
+    GameRoundViewState? round,
   }) {
     selectedLevel.value = level;
     selectedAmount.value = amount;
@@ -30,6 +34,8 @@ class RegistrationController extends GetxController {
     balanceChecked.value = false;
     balanceMessage.value = '';
     uplineController.text = inviter ?? '';
+    selectedRound.value = round ?? _roundForLevel(level);
+    _applyRoundPrice();
   }
 
   @override
@@ -49,14 +55,15 @@ class RegistrationController extends GetxController {
 
   void selectPaymentAsset(EasyGamePaymentAsset asset) {
     paymentAsset.value = asset;
-    selectedAmount.value = levelPrice(selectedLevel.value);
+    _applyRoundPrice();
     balanceChecked.value = false;
     balanceMessage.value = '';
   }
 
   void selectLevel(int level) {
     selectedLevel.value = level;
-    selectedAmount.value = levelPrice(level);
+    selectedRound.value = _roundForLevel(level);
+    _applyRoundPrice();
     networkChecked.value = false;
     balanceChecked.value = false;
     balanceMessage.value = '';
@@ -93,9 +100,10 @@ class RegistrationController extends GetxController {
 
     try {
       await walletService.ensureBaseNetwork();
+      final round = _requireOpenRound();
       final price = paymentAsset.value == EasyGamePaymentAsset.usdc
-          ? await walletService.getEasyGameLevelPriceUsdc(selectedLevel.value)
-          : await walletService.getEasyGameLevelPriceWei(selectedLevel.value);
+          ? round.schedule.usdcPrice
+          : round.schedule.ethPriceWei;
       final balance = paymentAsset.value == EasyGamePaymentAsset.usdc
           ? await walletService.getUsdcBalance()
           : await walletService.refreshNativeBalance();
@@ -178,9 +186,10 @@ class RegistrationController extends GetxController {
         uplineController.text = normalized;
       }
 
+      final round = _requireOpenRound();
       final price = paymentAsset.value == EasyGamePaymentAsset.usdc
-          ? await walletService.getEasyGameLevelPriceUsdc(selectedLevel.value)
-          : await walletService.getEasyGameLevelPriceWei(selectedLevel.value);
+          ? round.schedule.usdcPrice
+          : round.schedule.ethPriceWei;
       selectedAmount.value = assetToDouble(price);
       networkChecked.value = true;
 
@@ -190,6 +199,7 @@ class RegistrationController extends GetxController {
           totalAmount: selectedAmount.value,
           inviter: uplineController.text.trim(),
           paymentAsset: paymentAsset.value,
+          round: round.schedule,
         ),
       );
     } catch (e) {
@@ -199,6 +209,31 @@ class RegistrationController extends GetxController {
         snackPosition: SnackPosition.BOTTOM,
       );
     }
+  }
+
+  GameRoundViewState? _roundForLevel(int level) {
+    if (!Get.isRegistered<GameRoundsController>()) return null;
+    return Get.find<GameRoundsController>().roundForLevel(level);
+  }
+
+  GameRoundViewState _requireOpenRound() {
+    final round = selectedRound.value;
+    if (round == null || !round.canEnter) {
+      throw Exception('round.actionsUnavailable'.tr);
+    }
+    return round;
+  }
+
+  void _applyRoundPrice() {
+    final schedule = selectedRound.value?.schedule;
+    if (schedule == null) {
+      selectedAmount.value = 0;
+      return;
+    }
+    final amount = paymentAsset.value == EasyGamePaymentAsset.usdc
+        ? schedule.usdcPrice
+        : schedule.ethPriceWei;
+    selectedAmount.value = assetToDouble(amount);
   }
 
   double assetToDouble(BigInt amount) {

@@ -149,7 +149,7 @@ class _BinaryMatrixPainter extends CustomPainter {
       final isCurrent = positionId == BigInt.from(cellId);
       final isNext = nextCellId == BigInt.from(cellId);
       final isPrize = cellId == 7;
-      final radius = isCurrent ? 24.0 : 20.0;
+      final cellSize = isCurrent ? const Size(56, 50) : const Size(48, 43);
       final fill = isCurrent
           ? EasyGameTheme.teal
           : isNext
@@ -162,11 +162,25 @@ class _BinaryMatrixPainter extends CustomPainter {
       final border = Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = isCurrent ? 3 : 2
+        ..strokeJoin = StrokeJoin.round
         ..color = isCurrent
             ? Colors.white
             : EasyGameTheme.teal.withValues(alpha: 0.48);
-      canvas.drawCircle(center, radius, Paint()..color = fill);
-      canvas.drawCircle(center, radius, border);
+
+      final rect = Rect.fromCenter(
+        center: center,
+        width: cellSize.width,
+        height: cellSize.height,
+      );
+      final path = _hexPath(rect.size).shift(rect.topLeft);
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = fill.withValues(alpha: isActive || isCurrent ? 0.24 : 0.12)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10),
+      );
+      canvas.drawPath(path, Paint()..color = fill);
+      canvas.drawPath(path, border);
 
       textPainter.text = TextSpan(
         text: '$cellId',
@@ -195,6 +209,19 @@ class _BinaryMatrixPainter extends CustomPainter {
       textDirection: TextDirection.ltr,
     )..layout(maxWidth: size.width - 28);
     labelPaint.paint(canvas, const Offset(14, 14));
+  }
+
+  Path _hexPath(Size size) {
+    final w = size.width;
+    final h = size.height;
+    return Path()
+      ..moveTo(w * 0.50, 0)
+      ..lineTo(w * 0.92, h * 0.24)
+      ..lineTo(w * 0.92, h * 0.76)
+      ..lineTo(w * 0.50, h)
+      ..lineTo(w * 0.08, h * 0.76)
+      ..lineTo(w * 0.08, h * 0.24)
+      ..close();
   }
 
   @override

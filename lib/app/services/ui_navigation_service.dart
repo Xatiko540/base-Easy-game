@@ -9,11 +9,11 @@ class UiNavigationService {
   }
 
   static void openMatrix() {
-    Get.to(() => MatrixArenaScreen());
+    Get.toNamed('/matrix');
   }
 
   static void openStatistics() {
-    Get.to(() => StatisticsScreen());
+    Get.toNamed('/stats');
   }
 
   static void openMemberPreview(String query) {
@@ -30,19 +30,19 @@ class UiNavigationService {
   }
 
   static void openInformation() {
-    Get.to(() => const InformationScreen());
+    Get.toNamed('/information');
   }
 
   static void openTelegramBots() {
-    Get.to(() => const TelegramBotsScreen());
+    Get.toNamed('/telegram-bots');
   }
 
   static void openPromo() {
-    Get.to(() => PromoScreen());
+    Get.toNamed('/promo');
   }
 
   static void openNotifierBot() {
-    Get.to(() => NotifierBotScreen());
+    Get.toNamed('/notifier-bot');
   }
 
   static void openSettings() {
@@ -50,7 +50,7 @@ class UiNavigationService {
   }
 
   static void openSupport() {
-    Get.to(() => const SupportScreen());
+    Get.toNamed('/support');
   }
 
   static void openExpressInfo() {

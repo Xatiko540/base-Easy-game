@@ -14,6 +14,8 @@ abstract contract AdminInterface is EasyGameAdvanceStorage, GameLogic {
     event WalletsChanged(address projectWallet, address treasuryWallet, address operatorWallet);
     event UsdcTokenChanged(address indexed oldToken, address indexed newToken);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event RoundManagerChanged(address indexed oldManager, address indexed newManager);
+    event LegacyActivationChanged(bool enabled);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -58,6 +60,18 @@ abstract contract AdminInterface is EasyGameAdvanceStorage, GameLogic {
         }
 
         require(token.transfer(receiver, amount), "Token transfer failed");
+    }
+
+    function setRoundManager(address newManager) external onlyOwner {
+        if (newManager == address(0)) revert ZeroAddress();
+        address oldManager = roundManager;
+        roundManager = newManager;
+        emit RoundManagerChanged(oldManager, newManager);
+    }
+
+    function setLegacyActivationEnabled(bool enabled) external onlyOwner {
+        legacyActivationEnabled = enabled;
+        emit LegacyActivationChanged(enabled);
     }
 
     function getPlayer(address playerAddress) external view returns (Player memory) {
@@ -183,6 +197,15 @@ abstract contract AdminInterface is EasyGameAdvanceStorage, GameLogic {
     {
         _validateLevel(level);
         return (activeCellsByLevel[level], nextOpenParentCellId[level]);
+    }
+
+    function getPendingRecycleCount(uint8 level)
+        external
+        view
+        returns (uint256)
+    {
+        _validateLevel(level);
+        return _pendingRecycleTail[level] - _pendingRecycleHead[level];
     }
 
     function getMatrixNode(uint8 level, uint256 cellId)

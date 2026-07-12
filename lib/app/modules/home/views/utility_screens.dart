@@ -9,6 +9,8 @@ import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/services/firebase_data_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/models/matrix_round_models.dart';
+import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/utils/theme.dart';
 import '../models/levels_models.dart';
 
@@ -179,6 +181,7 @@ class MatrixArenaScreen extends StatelessWidget {
         final selectedLevel = matrixController.selectedLevel.value;
         final data = matrixController.snapshot.value;
         final loading = matrixController.isLoading.value;
+        final errorMessage = matrixController.errorMessage.value;
         return ExpressAppShell(
           title: 'matrix.title'.tr,
           breadcrumb: '${'app.name'.tr} / ${'nav.matrix'.tr}',
@@ -205,6 +208,13 @@ class MatrixArenaScreen extends StatelessWidget {
                       backgroundColor: EasyGameTheme.border,
                     ),
                   if (loading) const SizedBox(height: 18),
+                  if (errorMessage.isNotEmpty) ...[
+                    _InfoBlock(
+                      title: 'common.notLoaded'.tr,
+                      text: errorMessage,
+                    ),
+                    const SizedBox(height: 18),
+                  ],
                   LayoutBuilder(
                     builder: (context, constraints) {
                       final compact = constraints.maxWidth < 900;
@@ -224,6 +234,15 @@ class MatrixArenaScreen extends StatelessWidget {
                       final panel = _MatrixArenaPanel(
                         data: data,
                         currency: walletService.nativeSymbol,
+                        selectedOpponent:
+                            matrixController.selectedOpponent.value,
+                        actionsBusy:
+                            matrixController.isSkillActionRunning.value,
+                        onSelectOpponent: matrixController.selectOpponent,
+                        onBuyFreeze: () => matrixController.buyFreezeSkill(),
+                        onFreeze: () =>
+                            matrixController.freezeClosestOpponent(),
+                        onUnfreeze: () => matrixController.buyUnfreezeSkill(),
                       );
                       if (compact) {
                         return Column(

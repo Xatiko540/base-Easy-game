@@ -90,11 +90,7 @@ class LevelCard extends StatelessWidget {
                           Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(
-                                Icons.casino,
-                                size: 18,
-                                color: Colors.white.withValues(alpha: 0.12),
-                              ),
+                              const _MatrixCellGlyph(size: 20),
                               const SizedBox(width: 6),
                               Text(
                                 '${displayProgress.toStringAsFixed(2)}%',
@@ -160,6 +156,7 @@ class ActivateCard extends StatelessWidget {
   final double coin;
   final String currencySymbol;
   final LevelStatus status;
+  final GameRoundViewState? round;
 
   const ActivateCard({
     Key? key,
@@ -167,6 +164,7 @@ class ActivateCard extends StatelessWidget {
     required this.coin,
     required this.currencySymbol,
     required this.status,
+    this.round,
   }) : super(key: key);
 
   @override
@@ -207,6 +205,7 @@ class ActivateCard extends StatelessWidget {
                   level: level,
                   amount: coin,
                   inviter: Get.find<WalletConnectService>().activeInviter,
+                  round: round,
                 ),
               );
             },

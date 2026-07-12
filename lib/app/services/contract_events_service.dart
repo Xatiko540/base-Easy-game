@@ -61,8 +61,6 @@ class ContractEventsService extends GetxService {
       'Recycled',
       'BoxTokenGranted',
       'PrizePositionReached',
-      'DrawRequested',
-      'DrawWon',
       'ReferralBonusClaimed',
       'PrizeClaimed',
       'LevelFrozen',
@@ -116,8 +114,6 @@ class ContractEventsService extends GetxService {
         return _formatRecycled(decoded);
       case 'PrizePositionReached':
         return _formatPrizePosition(decoded);
-      case 'DrawWon':
-        return _formatDrawWon(decoded);
       case 'LevelFrozen':
       case 'LevelUnfrozen':
         return _formatStatusChange(decoded);
@@ -187,15 +183,6 @@ class ContractEventsService extends GetxService {
     final amount = _weiToEth(_asBigInt(decoded[3]));
     final pending = decoded[4].toString();
     return 'Prize cell $cellId reached by $player on level $level: $amount ETH, pending: $pending';
-  }
-
-  String _formatDrawWon(List<dynamic> decoded) {
-    if (decoded.length < 4) return decoded.join(', ');
-    final winner = decoded[0].toString();
-    final level = _asInt(decoded[1]);
-    final amount = _weiToEth(_asBigInt(decoded[2]));
-    final pending = decoded[3].toString();
-    return 'Weighted draw winner $winner on level $level: $amount ETH, pending: $pending';
   }
 
   String _formatProjectFeeAccrued(List<dynamic> decoded) {

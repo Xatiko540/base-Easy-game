@@ -49,6 +49,7 @@ class _LevelArenaStat {
 }
 
 class _MatrixArenaSnapshot {
+  final BigInt roundId;
   final int level;
   final BigInt priceWei;
   final BigInt activeCells;
@@ -63,9 +64,13 @@ class _MatrixArenaSnapshot {
   final BigInt playerWeight;
   final BigInt chanceBps;
   final BigInt boxTokens;
+  final _MatrixSkillRules skillRules;
+  final List<MatrixParticipant> participants;
+  final ArenaSkillStatus? playerSkillStatus;
 
   const _MatrixArenaSnapshot({
     required this.level,
+    required this.roundId,
     required this.priceWei,
     required this.activeCells,
     required this.totalWeight,
@@ -79,11 +84,15 @@ class _MatrixArenaSnapshot {
     required this.playerWeight,
     required this.chanceBps,
     required this.boxTokens,
+    required this.skillRules,
+    required this.participants,
+    required this.playerSkillStatus,
   });
 
   factory _MatrixArenaSnapshot.empty(int level) {
     return _MatrixArenaSnapshot(
       level: level,
+      roundId: BigInt.zero,
       priceWei: BigInt.zero,
       activeCells: BigInt.zero,
       totalWeight: BigInt.zero,
@@ -97,6 +106,9 @@ class _MatrixArenaSnapshot {
       playerWeight: BigInt.zero,
       chanceBps: BigInt.zero,
       boxTokens: BigInt.zero,
+      skillRules: _MatrixSkillRules.empty(),
+      participants: const [],
+      playerSkillStatus: null,
     );
   }
 
@@ -107,6 +119,61 @@ class _MatrixArenaSnapshot {
     final slots = BigInt.one << level;
     return activeCells.toDouble() / slots.toDouble() * 100;
   }
+
+  MatrixParticipant? participantAt(int cellId) {
+    for (final participant in participants) {
+      if (participant.cellId == BigInt.from(cellId)) return participant;
+    }
+    return null;
+  }
+}
+
+class _MatrixSkillRules {
+  final int roundHours;
+  final int freezeLimit;
+  final int freezeHitsTaken;
+  final double freezePriceUsd;
+  final double unfreezeBaseUsd;
+  final BigInt unfreezePrizeWei;
+
+  const _MatrixSkillRules({
+    required this.roundHours,
+    required this.freezeLimit,
+    required this.freezeHitsTaken,
+    required this.freezePriceUsd,
+    required this.unfreezeBaseUsd,
+    required this.unfreezePrizeWei,
+  });
+
+  factory _MatrixSkillRules.fromArena({
+    required BigInt prizePoolWei,
+    required bool playerFrozen,
+    int freezeLimit = 10,
+    int freezeHitsTaken = 0,
+    int roundHours = 24,
+  }) {
+    return _MatrixSkillRules(
+      roundHours: roundHours,
+      freezeLimit: freezeLimit,
+      freezeHitsTaken: freezeHitsTaken,
+      freezePriceUsd: 0.30,
+      unfreezeBaseUsd: 1,
+      unfreezePrizeWei: prizePoolWei * BigInt.from(7) ~/ BigInt.from(100),
+    );
+  }
+
+  factory _MatrixSkillRules.empty() {
+    return _MatrixSkillRules(
+      roundHours: 24,
+      freezeLimit: 10,
+      freezeHitsTaken: 0,
+      freezePriceUsd: 0.30,
+      unfreezeBaseUsd: 1,
+      unfreezePrizeWei: BigInt.zero,
+    );
+  }
+
+  int get freezesRemaining => math.max(0, freezeLimit - freezeHitsTaken);
 }
 
 class _StatisticsSnapshot {

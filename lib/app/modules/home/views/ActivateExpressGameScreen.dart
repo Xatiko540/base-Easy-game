@@ -3,12 +3,14 @@ import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/models/game_round_models.dart';
 
 class ActivateExpressGameScreen extends StatelessWidget {
   final int level;
   final double totalAmount;
   final String inviter;
   final EasyGamePaymentAsset paymentAsset;
+  final GameRoundSchedule round;
 
   ActivateExpressGameScreen({
     Key? key,
@@ -16,6 +18,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
     this.totalAmount = 0.28,
     this.inviter = '',
     this.paymentAsset = EasyGamePaymentAsset.native,
+    required this.round,
   }) : super(key: key);
 
   final WalletConnectService walletService = Get.find<WalletConnectService>();
@@ -25,8 +28,9 @@ class ActivateExpressGameScreen extends StatelessWidget {
     double horizontalPadding = MediaQuery.of(context).size.width * 0.10;
 
     return Obx(() {
-      final currency =
-          paymentAsset == EasyGamePaymentAsset.usdc ? 'USDC' : walletService.nativeSymbol;
+      final currency = paymentAsset == EasyGamePaymentAsset.usdc
+          ? 'USDC'
+          : walletService.nativeSymbol;
       final networkOk = walletService.isOnSupportedNetwork;
 
       return ExpressAppShell(
@@ -88,8 +92,8 @@ class ActivateExpressGameScreen extends StatelessWidget {
                       _buildRewardRow('payment.thirdNearest'.tr, "4%",
                           'payment.partner'.tr),
                       SizedBox(height: 8),
-                      _buildRewardRow('payment.projectFee'.tr, "5%",
-                          'payment.project'.tr),
+                      _buildRewardRow(
+                          'payment.projectFee'.tr, "5%", 'payment.project'.tr),
                       SizedBox(height: 8),
                       Divider(color: Colors.grey),
                       SizedBox(height: 16),
@@ -170,13 +174,13 @@ class ActivateExpressGameScreen extends StatelessWidget {
                                   final txHash =
                                       paymentAsset == EasyGamePaymentAsset.usdc
                                           ? await walletService
-                                              .activateEasyGameLevelWithUSDC(
-                                              level: level,
+                                              .activateEasyGameRoundWithUSDC(
+                                              round: round,
                                               inviter: inviter,
                                             )
                                           : await walletService
-                                              .activateEasyGameLevel(
-                                              level: level,
+                                              .activateEasyGameRound(
+                                              round: round,
                                               inviter: inviter,
                                             );
                                   Get.snackbar(

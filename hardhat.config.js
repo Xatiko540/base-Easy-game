@@ -13,7 +13,9 @@ module.exports = {
       viaIR: true,
       optimizer: {
         enabled: true,
-        runs: 200,
+        // Deployment size is the limiting factor for the round-aware core.
+        // A low run count keeps the implementation below EIP-170 on Base.
+        runs: 1,
       },
     },
   },
@@ -32,6 +34,10 @@ module.exports = {
     localhost: {
       url: process.env.LOCALHOST_RPC_URL || "http://127.0.0.1:7545",
       chainId: Number(process.env.LOCAL_CHAIN_ID) || 1337,
+    },
+    hardhatNode: {
+      url: "http://127.0.0.1:8545",
+      chainId: 31337,
     },
   },
   etherscan: {

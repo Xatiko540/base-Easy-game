@@ -7,8 +7,10 @@ import "./base/Validation.sol";
 import "./base/Storage.sol";
 import "./base/GameLogic.sol";
 import "./base/AdminInterface.sol";
+import "./base/RoundGameLogic.sol";
+import "./rounds/IEasyGameRoundManager.sol";
 
-contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface {
+contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface, RoundGameLogic {
 
     event LevelActivated(
         address indexed player,
@@ -44,18 +46,22 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface {
         address projectWallet_,
         address treasuryWallet_,
         address operatorWallet_,
-        address usdcToken_
+        address usdcToken_,
+        address roundManager_
     ) {
         if (projectWallet_ == address(0)) revert ZeroAddress();
         if (treasuryWallet_ == address(0)) revert ZeroAddress();
         if (operatorWallet_ == address(0)) revert ZeroAddress();
         if (usdcToken_ == address(0)) revert ZeroAddress();
+        if (roundManager_ == address(0)) revert ZeroAddress();
 
         owner = msg.sender;
         projectWallet = projectWallet_;
         treasuryWallet = treasuryWallet_;
         operatorWallet = operatorWallet_;
         usdcToken = IERC20Minimal(usdcToken_);
+        roundManager = roundManager_;
+        legacyActivationEnabled = false;
 
         levelPrices[1] = 0.05 ether;
         levelPrices[2] = 0.07 ether;
@@ -103,6 +109,7 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface {
     }
 
     function activateLevel(uint8 level, address inviter) external payable nonReentrant {
+        if (!legacyActivationEnabled) revert LegacyActivationDisabled();
         _validateLevel(level);
         require(levelAvailable[level], "Level is not available yet");
         require(msg.value == levelPrices[level], "Incorrect payment amount");
@@ -114,6 +121,7 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface {
     }
 
     function activateLevelWithUSDC(uint8 level, address inviter) external nonReentrant {
+        if (!legacyActivationEnabled) revert LegacyActivationDisabled();
         _validateLevel(level);
         require(levelAvailable[level], "Level is not available yet");
         require(address(usdcToken) != address(0), "USDC token not configured");
@@ -129,6 +137,78 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface {
         _splitUsdcPayment(level, msg.sender, amount);
 
         emit LevelActivated(msg.sender, level, amount, cellId);
+    }
+
+    function activateRound(
+        RoundConfig calldata config,
+        bytes calldata signature,
+        address inviter
+    ) external payable nonReentrant {
+        if (msg.value != config.ethPrice || config.ethPrice == 0) {
+            revert IncorrectRoundPayment();
+        }
+        _activateRoundState(
+            config,
+            signature,
+            msg.sender,
+            inviter,
+            false
+        );
+        _splitRoundPayment(config, msg.sender, msg.value, false);
+    }
+
+    function activateRoundWithUSDC(
+        RoundConfig calldata config,
+        bytes calldata signature,
+        address inviter
+    ) external nonReentrant {
+        if (config.usdcPrice == 0) revert RoundUsdcDisabled();
+        if (!usdcToken.transferFrom(msg.sender, address(this), config.usdcPrice)) {
+            revert TokenTransferFailed();
+        }
+        _activateRoundState(config, signature, msg.sender, inviter, true);
+        _splitRoundPayment(config, msg.sender, config.usdcPrice, true);
+    }
+
+    function getPlayerRound(address playerAddress, uint256 roundId)
+        external
+        view
+        returns (PlayerRound memory)
+    {
+        return playerRounds[playerAddress][roundId];
+    }
+
+    function getRoundGameStats(uint256 roundId)
+        external
+        view
+        returns (
+            uint256 prizePoolEth,
+            uint256 prizePoolUsdc,
+            uint256 totalWeight,
+            uint256 activeCells,
+            uint256 nextCell,
+            uint256 nextOpenParent
+        )
+    {
+        return (
+            roundPrizePools[roundId],
+            roundPrizePoolsUsdc[roundId],
+            roundTotalWeight[roundId],
+            roundActiveCells[roundId],
+            roundNextCellId[roundId],
+            roundNextOpenParentCellId[roundId]
+        );
+    }
+
+    function getRoundMatrixNode(uint256 roundId, uint256 cellId)
+        external
+        view
+        returns (MatrixNode memory)
+    {
+        if (cellId == 0 || cellId >= roundNextCellId[roundId]) {
+            revert InvalidRoundCell(roundId, cellId);
+        }
+        return roundMatrixNodes[roundId][cellId];
     }
 
     function _activateLevelState(uint8 level, address playerAddress, address inviter)
@@ -150,6 +230,7 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface {
         cellId = _placePlayer(level, playerAddress);
         _addWeight(playerAddress, level, BASE_ACTIVATION_WEIGHT, 0);
         _unfreezeLowerLevels(playerAddress, level);
+        _processPendingRecycles(level, MAX_RECYCLE_STEPS_PER_TX);
     }
 
     function claimReferralBonus() external nonReentrant {
@@ -225,52 +306,21 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface {
         emit TokenProjectFeesWithdrawn(address(usdcToken), projectWallet, amount);
     }
 
-    function requestDraw(uint8 level) external onlyOwner nonReentrant {
+    function requestDraw(uint8 level) external view onlyOwner {
         _validateLevel(level);
+        revert WeightedDrawDisabled();
+    }
 
-        uint256 totalWeight = totalWeightByLevel[level];
-        require(totalWeight > 0, "No weight");
-
-        uint256 reward = (matrixPrizePools[level] * DRAW_REWARD_BPS) / BPS;
-        uint256 usdcReward = (matrixPrizePoolsUsdc[level] * DRAW_REWARD_BPS) / BPS;
-        require(reward > 0 || usdcReward > 0, "No draw reward");
-
-        uint256 randomSeed = uint256(
-            keccak256(
-                abi.encodePacked(
-                    block.prevrandao,
-                    block.timestamp,
-                    block.number,
-                    level,
-                    totalWeight,
-                    matrixPrizePools[level]
-                )
-            )
-        );
-        uint256 winningPoint = (randomSeed % totalWeight) + 1;
-        address winner = _weightedWinner(level, winningPoint);
-        require(winner != address(0), "Winner not found");
-
-        if (reward > 0) {
-            matrixPrizePools[level] -= reward;
-            _creditPrize(winner, level, reward);
+    function processPendingRecycles(uint8 level, uint8 maxSteps)
+        external
+        nonReentrant
+        returns (uint256 processed)
+    {
+        _validateLevel(level);
+        if (maxSteps == 0 || maxSteps > MAX_RECYCLE_STEPS_PER_TX) {
+            revert InvalidRecycleBatch(maxSteps, MAX_RECYCLE_STEPS_PER_TX);
         }
-        if (usdcReward > 0) {
-            matrixPrizePoolsUsdc[level] -= usdcReward;
-            _creditPrizeUsdc(winner, level, usdcReward);
-        }
-
-        emit DrawRequested(level, randomSeed, totalWeight);
-        emit DrawWon(winner, level, reward, playerLevels[winner][level].frozen);
-        if (usdcReward > 0) {
-            emit TokenDrawWon(
-                winner,
-                level,
-                address(usdcToken),
-                usdcReward,
-                playerLevels[winner][level].frozen
-            );
-        }
+        return _processPendingRecycles(level, maxSteps);
     }
 
 }

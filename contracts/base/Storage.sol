@@ -31,11 +31,14 @@ abstract contract EasyGameAdvanceStorage {
 
     uint256 public constant PRIZE_POSITION_BPS = 500;
     uint256 public constant DRAW_REWARD_BPS = 1000;
+    uint8 public constant MAX_RECYCLE_STEPS_PER_TX = 4;
 
     address public owner;
     address public projectWallet;
     address public treasuryWallet;
     address public operatorWallet;
+    address public roundManager;
+    bool public legacyActivationEnabled;
     IERC20Minimal public usdcToken;
 
     mapping(uint8 => uint256) public levelPrices;
@@ -52,6 +55,19 @@ abstract contract EasyGameAdvanceStorage {
     mapping(uint8 => uint256) public matrixPrizePoolsUsdc;
     mapping(uint8 => uint256) public totalWeightByLevel;
     mapping(uint8 => uint256) public activeCellsByLevel;
+
+    mapping(address => mapping(uint256 => PlayerRound)) public playerRounds;
+    mapping(uint256 => mapping(uint256 => MatrixNode)) public roundMatrixNodes;
+    mapping(uint256 => uint256) public roundNextCellId;
+    mapping(uint256 => uint256) public roundNextOpenParentCellId;
+    mapping(uint256 => uint256) public roundActiveCells;
+    mapping(uint256 => uint256) public roundTotalWeight;
+    mapping(uint256 => uint256) public roundPrizePools;
+    mapping(uint256 => uint256) public roundPrizePoolsUsdc;
+    mapping(address => mapping(uint256 => WeightBreakdown)) internal _roundWeights;
+    mapping(uint256 => mapping(uint256 => address)) internal _roundRecycleQueue;
+    mapping(uint256 => uint256) internal _roundRecycleHead;
+    mapping(uint256 => uint256) internal _roundRecycleTail;
     uint256 public projectFeesAccrued;
     uint256 public projectFeesAccruedUsdc;
     mapping(address => uint256) public claimableReferralBonusUsdc;
@@ -60,9 +76,11 @@ abstract contract EasyGameAdvanceStorage {
     mapping(address => mapping(uint8 => uint256)) public claimablePrizeUsdcByLevel;
     mapping(address => mapping(uint8 => uint256)) public pendingPrizeUsdcByLevel;
 
-    mapping(uint8 => address[]) internal _levelPlayers;
-    mapping(uint8 => mapping(address => bool)) internal _levelPlayerSeen;
     mapping(address => mapping(uint8 => WeightBreakdown)) internal _levelWeights;
+
+    mapping(uint8 => mapping(uint256 => address)) internal _pendingRecycleQueue;
+    mapping(uint8 => uint256) internal _pendingRecycleHead;
+    mapping(uint8 => uint256) internal _pendingRecycleTail;
 
     uint256 internal _reentrancyLock = 1;
 }

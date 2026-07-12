@@ -170,6 +170,11 @@ class FirebaseDataService extends GetxService {
           usdcNextCell: usdcStats.nextCellId,
         ));
       } catch (e) {
+        final message = e.toString();
+        if (message.contains('EasyGameAdvance contract is not deployed')) {
+          debugPrint('FirebaseDataService: contract fallback skipped: $message');
+          break;
+        }
         debugPrint('FirebaseDataService: contract fallback level $level: $e');
       }
     }

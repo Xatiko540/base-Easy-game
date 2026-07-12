@@ -1,0 +1,79 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.24;
+
+import "./base/Types.sol";
+import "./base/Errors.sol";
+import "./base/RoundScheduleLogic.sol";
+
+contract EasyGameRoundManager is RoundScheduleLogic {
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+    event ScheduleSignerChanged(address indexed oldSigner, address indexed newSigner);
+    event ScheduleSignerPermissionChanged(address indexed signer, bool allowed);
+    event GameCoreChanged(address indexed oldCore, address indexed newCore);
+    event RoundPauseChanged(uint256 indexed roundId, bool paused);
+    event RoundCancelled(uint256 indexed roundId);
+
+    modifier onlyOwner() {
+        require(msg.sender == owner, "Only owner");
+        _;
+    }
+
+    constructor(address scheduleSigner_) {
+        if (scheduleSigner_ == address(0)) revert ZeroAddress();
+        owner = msg.sender;
+        scheduleSigner = scheduleSigner_;
+        allowedScheduleSigners[scheduleSigner_] = true;
+    }
+
+    function setGameCore(address newCore) external onlyOwner {
+        if (newCore == address(0)) revert ZeroAddress();
+        address oldCore = gameCore;
+        gameCore = newCore;
+        emit GameCoreChanged(oldCore, newCore);
+    }
+
+    function setScheduleSigner(address newSigner) external onlyOwner {
+        if (newSigner == address(0)) revert ZeroAddress();
+        address oldSigner = scheduleSigner;
+        scheduleSigner = newSigner;
+        allowedScheduleSigners[newSigner] = true;
+        emit ScheduleSignerChanged(oldSigner, newSigner);
+        emit ScheduleSignerPermissionChanged(newSigner, true);
+    }
+
+    function setScheduleSignerAllowed(address signer, bool allowed) external onlyOwner {
+        if (signer == address(0)) revert ZeroAddress();
+        require(allowed || signer != scheduleSigner, "Cannot revoke current signer");
+        allowedScheduleSigners[signer] = allowed;
+        emit ScheduleSignerPermissionChanged(signer, allowed);
+    }
+
+    function setRoundPaused(uint256 roundId, bool paused) external onlyOwner {
+        RoundState storage state = _roundStates[roundId];
+        if (!state.initialized) revert RoundNotInitialized(roundId);
+        if (state.settled) revert RoundAlreadySettled(roundId);
+        state.paused = paused;
+        emit RoundPauseChanged(roundId, paused);
+    }
+
+    function cancelRound(uint256 roundId) external onlyOwner {
+        RoundState storage state = _roundStates[roundId];
+        if (!state.initialized) revert RoundNotInitialized(roundId);
+        if (state.settled) revert RoundAlreadySettled(roundId);
+        require(state.occupiedCells == 0, "Round has entries");
+        state.cancelled = true;
+        state.paused = false;
+        RoundConfig storage config = _roundConfigs[roundId];
+        if (activeRoundByLevel[config.level] == roundId) {
+            activeRoundByLevel[config.level] = 0;
+        }
+        emit RoundCancelled(roundId);
+    }
+
+    function transferOwnership(address newOwner) external onlyOwner {
+        if (newOwner == address(0)) revert ZeroAddress();
+        address previousOwner = owner;
+        owner = newOwner;
+        emit OwnershipTransferred(previousOwner, newOwner);
+    }
+}

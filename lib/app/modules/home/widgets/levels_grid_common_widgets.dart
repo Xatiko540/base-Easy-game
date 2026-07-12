@@ -103,6 +103,70 @@ class _ProgressBar extends StatelessWidget {
   }
 }
 
+class _MatrixCellGlyph extends StatelessWidget {
+  final double size;
+
+  const _MatrixCellGlyph({required this.size});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: size,
+      height: size * 0.9,
+      child: CustomPaint(
+        painter: _MatrixCellGlyphPainter(
+          color: Colors.white.withValues(alpha: 0.16),
+        ),
+      ),
+    );
+  }
+}
+
+class _MatrixCellGlyphPainter extends CustomPainter {
+  final Color color;
+
+  const _MatrixCellGlyphPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final path = _hexPath(size);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..strokeJoin = StrokeJoin.round
+        ..color = color,
+    );
+    canvas.drawPath(
+      path.shift(Offset(size.width * 0.35, size.height * 0.30)),
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.8
+        ..strokeJoin = StrokeJoin.round
+        ..color = color.withValues(alpha: 0.75),
+    );
+  }
+
+  Path _hexPath(Size size) {
+    final w = size.width * 0.62;
+    final h = size.height * 0.68;
+    return Path()
+      ..moveTo(w * 0.50, 0)
+      ..lineTo(w * 0.92, h * 0.24)
+      ..lineTo(w * 0.92, h * 0.76)
+      ..lineTo(w * 0.50, h)
+      ..lineTo(w * 0.08, h * 0.76)
+      ..lineTo(w * 0.08, h * 0.24)
+      ..close();
+  }
+
+  @override
+  bool shouldRepaint(covariant _MatrixCellGlyphPainter oldDelegate) {
+    return oldDelegate.color != color;
+  }
+}
+
 class _GradientActionButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;

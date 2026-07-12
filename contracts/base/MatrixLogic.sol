@@ -60,11 +60,6 @@ abstract contract MatrixLogic is SharedGameplayLogic {
         activeCellsByLevel[level] += 1;
         levelMatrixSize[level] = activeCellsByLevel[level];
 
-        if (!_levelPlayerSeen[level][playerAddress]) {
-            _levelPlayerSeen[level][playerAddress] = true;
-            _levelPlayers[level].push(playerAddress);
-        }
-
         if (parentCellId != 0) {
             MatrixNode storage parent = matrixNodes[level][parentCellId];
             if (parent.leftChildCellId == 0) {
@@ -87,6 +82,39 @@ abstract contract MatrixLogic is SharedGameplayLogic {
     }
 
     function _handleRecycle(uint8 level, address playerAddress) internal override {
+        PlayerLevel storage state = playerLevels[playerAddress][level];
+        if (!state.active) {
+            return;
+        }
+
+        uint256 queueIndex = _pendingRecycleTail[level];
+        _pendingRecycleQueue[level][queueIndex] = playerAddress;
+        _pendingRecycleTail[level] = queueIndex + 1;
+
+        emit RecycleQueued(playerAddress, level, queueIndex);
+    }
+
+    function _processPendingRecycles(uint8 level, uint256 maxSteps)
+        internal
+        returns (uint256 processed)
+    {
+        uint256 head = _pendingRecycleHead[level];
+        uint256 tail = _pendingRecycleTail[level];
+
+        while (head < tail && processed < maxSteps) {
+            address playerAddress = _pendingRecycleQueue[level][head];
+            delete _pendingRecycleQueue[level][head];
+            head += 1;
+            processed += 1;
+
+            _applyRecycle(level, playerAddress);
+            tail = _pendingRecycleTail[level];
+        }
+
+        _pendingRecycleHead[level] = head;
+    }
+
+    function _applyRecycle(uint8 level, address playerAddress) private {
         PlayerLevel storage state = playerLevels[playerAddress][level];
         if (!state.active) {
             return;

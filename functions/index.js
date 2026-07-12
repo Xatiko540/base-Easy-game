@@ -5,7 +5,16 @@ const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https")
 const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret, defineString } = require("firebase-functions/params");
 const { logger } = require("firebase-functions");
-const { Contract, Interface, JsonRpcProvider, getAddress, isAddress, verifyMessage } = require("ethers");
+const {
+  Contract,
+  Interface,
+  JsonRpcProvider,
+  TypedDataEncoder,
+  getAddress,
+  isAddress,
+  verifyMessage,
+  verifyTypedData,
+} = require("ethers");
 const crypto = require("crypto");
 const { GAME_ABI } = require("./game_abi");
 
@@ -16,6 +25,15 @@ const rpcUrl = defineSecret("BASE_RPC_URL");
 const recaptchaSiteKey = defineSecret("APP_CHECK_RECAPTCHA_SITE_KEY");
 const vapidKey = defineSecret("APP_MESSAGING_VAPID_KEY");
 const contractAddress = defineString("EASY_GAME_CONTRACT_ADDRESS");
+const roundManagerAddressParam = defineString("EASY_GAME_ROUND_MANAGER_ADDRESS", {
+  default: "",
+});
+const roundScheduleSignerParam = defineString("EASY_GAME_ROUND_SCHEDULE_SIGNER", {
+  default: "",
+});
+const arenaSkillsAddressParam = defineString("EASY_GAME_ARENA_SKILLS_ADDRESS", {
+  default: "",
+});
 const chainIdParam = defineString("EASY_GAME_CHAIN_ID", { default: "8453" });
 const confirmationsParam = defineString("EASY_GAME_CONFIRMATIONS", { default: "5" });
 const startBlockParam = defineString("EASY_GAME_START_BLOCK", { default: "0" });
@@ -36,6 +54,24 @@ const iface = new Interface(GAME_ABI);
 const maxDeviceTokensPerWallet = 10;
 const allowedPlatforms = new Set(["web", "android", "ios", "macos", "windows", "linux"]);
 const zeroAddress = "0x0000000000000000000000000000000000000000";
+const roundTypes = {
+  RoundConfig: [
+    { name: "seasonId", type: "uint256" },
+    { name: "roundId", type: "uint256" },
+    { name: "level", type: "uint8" },
+    { name: "startsAt", type: "uint64" },
+    { name: "entriesCloseAt", type: "uint64" },
+    { name: "endsAt", type: "uint64" },
+    { name: "freezeClosesAt", type: "uint64" },
+    { name: "maxPlayers", type: "uint32" },
+    { name: "maxWinners", type: "uint16" },
+    { name: "winningCellsRoot", type: "bytes32" },
+    { name: "ethPrice", type: "uint256" },
+    { name: "usdcPrice", type: "uint256" },
+    { name: "freezeLimit", type: "uint16" },
+    { name: "paymentSplitVersion", type: "uint16" },
+  ],
+};
 
 function publicContractAddress() {
   const address = contractAddress.value();
@@ -379,6 +415,19 @@ exports.linkWallet = onCall({ region, enforceAppCheck: true }, async (request) =
       chainId: Number(chainIdParam.value()),
       verifiedAt: FieldValue.serverTimestamp(),
     });
+    transaction.set(
+      db.collection("users").doc(`${chainIdParam.value()}_${recovered}`),
+      {
+        wallet: recovered,
+        chainId: Number(chainIdParam.value()),
+        exists: true,
+        walletVerified: true,
+        profileVersion: 1,
+        registeredAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
     transaction.update(nonceDoc.ref, { used: true, usedAt: FieldValue.serverTimestamp() });
   });
   return { wallet: recovered, verified: true };
@@ -531,6 +580,115 @@ exports.syncAllLevels = onCall({
 //   }
 // });
 
+exports.publishRoundManifest = onCall({
+  region,
+  enforceAppCheck: true,
+}, async (request) => {
+  requireApp(request);
+  if (!request.auth?.token?.admin) {
+    throw new HttpsError("permission-denied", "Admin claim required");
+  }
+  const managerAddress = publicOptionalAddress(roundManagerAddressParam);
+  const signerAddress = publicOptionalAddress(roundScheduleSignerParam);
+  const coreAddress = publicContractAddress();
+  if (!managerAddress || !signerAddress || !coreAddress) {
+    throw new HttpsError("failed-precondition", "Round deployment config is incomplete");
+  }
+
+  const source = request.data?.config;
+  const signature = String(request.data?.signature || "");
+  if (!source || !/^0x[0-9a-fA-F]{130}$/.test(signature)) {
+    throw new HttpsError("invalid-argument", "Invalid round config or signature");
+  }
+  const integer = (name) => {
+    try {
+      const value = BigInt(source[name]);
+      if (value < 0n) throw new Error("negative");
+      return value;
+    } catch (_) {
+      throw new HttpsError("invalid-argument", `Invalid ${name}`);
+    }
+  };
+  const config = {
+    seasonId: integer("seasonId"),
+    roundId: integer("roundId"),
+    level: integer("level"),
+    startsAt: integer("startsAt"),
+    entriesCloseAt: integer("entriesCloseAt"),
+    endsAt: integer("endsAt"),
+    freezeClosesAt: integer("freezeClosesAt"),
+    maxPlayers: integer("maxPlayers"),
+    maxWinners: integer("maxWinners"),
+    winningCellsRoot: String(source.winningCellsRoot || ""),
+    ethPrice: integer("ethPrice"),
+    usdcPrice: integer("usdcPrice"),
+    freezeLimit: integer("freezeLimit"),
+    paymentSplitVersion: integer("paymentSplitVersion"),
+  };
+  if (
+    config.level < 1n || config.level > 17n ||
+    config.startsAt >= config.entriesCloseAt ||
+    config.entriesCloseAt >= config.endsAt ||
+    config.freezeClosesAt < config.startsAt ||
+    config.freezeClosesAt > config.entriesCloseAt ||
+    config.maxPlayers === 0n || config.maxWinners === 0n ||
+    config.maxWinners > 8n || config.paymentSplitVersion !== 1n ||
+    !/^0x[0-9a-fA-F]{64}$/.test(config.winningCellsRoot)
+  ) {
+    throw new HttpsError("invalid-argument", "Round constraints are invalid");
+  }
+  const domain = {
+    name: "EasyGameAdvance",
+    version: "2",
+    chainId: Number(chainIdParam.value()),
+    verifyingContract: managerAddress,
+  };
+  let recovered;
+  try {
+    recovered = verifyTypedData(domain, roundTypes, config, signature);
+  } catch (_) {
+    throw new HttpsError("invalid-argument", "Malformed EIP-712 signature");
+  }
+  if (getAddress(recovered) !== getAddress(signerAddress)) {
+    throw new HttpsError("permission-denied", "Invalid schedule signer");
+  }
+
+  const configHash = TypedDataEncoder.hashStruct("RoundConfig", roundTypes, config);
+  const roundRef = db.collection("rounds").doc(config.roundId.toString());
+  await db.runTransaction(async (transaction) => {
+    const existing = await transaction.get(roundRef);
+    if (existing.exists) {
+      throw new HttpsError("already-exists", "Round manifest is immutable");
+    }
+    transaction.create(roundRef, {
+      chainId: Number(chainIdParam.value()),
+      contractAddress: coreAddress.toLowerCase(),
+      roundManagerAddress: managerAddress.toLowerCase(),
+      configHash,
+      operatorSignature: signature,
+      schemaVersion: 2,
+      config: {
+        seasonId: config.seasonId.toString(),
+        roundId: config.roundId.toString(),
+        level: Number(config.level),
+        startsAt: Timestamp.fromMillis(Number(config.startsAt) * 1000),
+        entriesCloseAt: Timestamp.fromMillis(Number(config.entriesCloseAt) * 1000),
+        endsAt: Timestamp.fromMillis(Number(config.endsAt) * 1000),
+        freezeClosesAt: Timestamp.fromMillis(Number(config.freezeClosesAt) * 1000),
+        maxPlayers: Number(config.maxPlayers),
+        maxWinners: Number(config.maxWinners),
+        winningCellsRoot: config.winningCellsRoot,
+        ethPriceWei: config.ethPrice.toString(),
+        usdcPrice: config.usdcPrice.toString(),
+        freezeLimit: Number(config.freezeLimit),
+        paymentSplitVersion: Number(config.paymentSplitVersion),
+      },
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  return { roundId: config.roundId.toString(), configHash };
+});
+
 exports.getAppConfig = onCall({
   region,
   secrets: [recaptchaSiteKey, vapidKey],
@@ -549,6 +707,9 @@ exports.getAppConfig = onCall({
     targetBaseChainId: chainId,
     contractAddress: easyGameAddress,
     easyGameContractAddress: easyGameAddress,
+    roundManagerAddress: publicOptionalAddress(roundManagerAddressParam),
+    roundScheduleSigner: publicOptionalAddress(roundScheduleSignerParam),
+    arenaSkillsAddress: publicOptionalAddress(arenaSkillsAddressParam),
     usdcTokenAddress,
     easyGameInviter: publicOptionalAddress(easyGameInviterParam),
     paymentReceiver: publicOptionalAddress(paymentReceiverParam),

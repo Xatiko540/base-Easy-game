@@ -3,13 +3,13 @@
 import 'package:get/get.dart';
 
 import '../modules/home/models/levels_models.dart';
-import '../modules/home/views/ActivateExpressGameScreen.dart';
 import '../modules/home/views/InviteScreen.dart';
 import '../modules/home/views/partner_bonus_screen.dart';
 import '../modules/home/views/start_page.dart';
 import '../modules/home/views/levels.dart';
 import '../modules/home/views/profilescreen.dart';
 import '../modules/home/views/registrationlevel.dart';
+import '../modules/home/views/utility_screens.dart';
 import '../services/referral_link_service.dart';
 
 part 'app_routes.dart';
@@ -51,6 +51,34 @@ class AppPages {
       page: () => PartnerBonusScreen(),
     ),
     GetPage(
+      name: _Paths.MATRIX,
+      page: () => const MatrixArenaScreen(),
+    ),
+    GetPage(
+      name: _Paths.STATISTICS,
+      page: () => const StatisticsScreen(),
+    ),
+    GetPage(
+      name: _Paths.INFORMATION,
+      page: () => const InformationScreen(),
+    ),
+    GetPage(
+      name: _Paths.TELEGRAM_BOTS,
+      page: () => const TelegramBotsScreen(),
+    ),
+    GetPage(
+      name: _Paths.PROMO,
+      page: () => PromoScreen(),
+    ),
+    GetPage(
+      name: _Paths.NOTIFIER_BOT,
+      page: () => NotifierBotScreen(),
+    ),
+    GetPage(
+      name: _Paths.SUPPORT,
+      page: () => const SupportScreen(),
+    ),
+    GetPage(
       name: _Paths.REGISTRATION,
       page: () => RegistrationScreen(
         LevelStatus.waiting,
@@ -61,9 +89,10 @@ class AppPages {
     ),
     GetPage(
       name: _Paths.ACTIVATE,
-      page: () => ActivateExpressGameScreen(
+      page: () => RegistrationScreen(
+        LevelStatus.waiting,
         level: _intParam('level', 1),
-        totalAmount: _doubleParam('amount', levelPrice(_intParam('level', 1))),
+        amount: _doubleParam('amount', levelPrice(_intParam('level', 1))),
         inviter: _inviterParam(),
       ),
     ),

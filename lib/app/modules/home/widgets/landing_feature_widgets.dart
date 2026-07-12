@@ -5,30 +5,63 @@ class _StartTimerStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-        decoration: BoxDecoration(
-          color: EasyGameTheme.purple.withValues(alpha: 0.58),
-          borderRadius: BorderRadius.circular(0),
-        ),
-        child: const Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.timer, color: Colors.white, size: 15),
-            SizedBox(width: 8),
-            Text(
-              'Level 1 available in: 04d 00h 00m',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.w800,
-              ),
+    final roundsController = Get.find<GameRoundsController>();
+    return Obx(
+      () {
+        final round = roundsController.nearestEvent;
+        final text = round == null
+            ? 'start.scheduleUnavailable'.tr
+            : _roundTimerText(round);
+        return Center(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+            decoration: BoxDecoration(
+              color: EasyGameTheme.purple.withValues(alpha: 0.58),
+              borderRadius: BorderRadius.circular(0),
             ),
-          ],
-        ),
-      ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.timer, color: Colors.white, size: 15),
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    text,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
+  }
+
+  String _roundTimerText(GameRoundViewState round) {
+    final parameters = {
+      'level': '${round.schedule.level}',
+      'time': round.countdownLabel,
+    };
+    switch (round.phase) {
+      case GameRoundPhase.scheduled:
+        return 'start.roundStartsIn'.trParams(parameters);
+      case GameRoundPhase.open:
+        return 'start.entriesCloseIn'.trParams(parameters);
+      case GameRoundPhase.locked:
+        return 'start.roundEndsIn'.trParams(parameters);
+      case GameRoundPhase.uninitialized:
+      case GameRoundPhase.settlementReady:
+      case GameRoundPhase.settled:
+      case GameRoundPhase.cancelled:
+      case GameRoundPhase.paused:
+        return roundPhaseTranslationKey(round.phase).tr;
+    }
   }
 }
 

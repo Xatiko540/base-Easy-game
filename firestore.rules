@@ -12,13 +12,37 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Signed season manifests and round schedules. Client writes are denied;
+    // publication is performed only by the trusted Admin SDK path.
+    match /seasons/{seasonId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
+    match /rounds/{roundId} {
+      allow read: if true;
+      allow write: if false;
+
+      match /winningCells/{cellId} {
+        // Winning leaves remain private until trusted settlement publishes a
+        // separate immutable reveal document.
+        allow read, write: if false;
+      }
+    }
+
+    match /roundReveals/{roundId} {
+      allow read: if true;
+      allow write: if false;
+    }
+
     // Global aggregated stats — public read
     match /stats/{docId} {
       allow read: if true;
       allow write: if false;
     }
 
-    // Users — public read for on-chain data
+    // Public wallet profiles contain on-chain/public data only. Firebase UID
+    // remains isolated in walletLinks and is never copied into these docs.
     match /users/{userId} {
       allow read: if true;
       allow write: if false;

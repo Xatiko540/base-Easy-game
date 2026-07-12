@@ -7,6 +7,12 @@ import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/firebase_data_service.dart';
 import 'package:lottery_advance/app/services/language_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
+import 'package:lottery_advance/app/services/game_clock_service.dart';
+import 'package:lottery_advance/app/services/game_schedule_service.dart';
+import 'package:lottery_advance/app/services/game_round_blockchain_service.dart';
+import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
+import 'package:lottery_advance/app/repositories/game_user_repository.dart';
+import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/translations/app_translations.dart';
 import 'package:lottery_advance/core/binary_matrix.dart';
 import 'package:lottery_advance/utils/theme.dart';
@@ -43,6 +49,12 @@ void main() async {
     Get.put(NotificationsService(), permanent: true);
     Get.put(FirebaseBackendService(), permanent: true);
     Get.put(FirebaseDataService(), permanent: true);
+    Get.put(GameClockService(), permanent: true);
+    Get.put(GameScheduleService(), permanent: true);
+    Get.put(GameRoundBlockchainService().bind(), permanent: true);
+    Get.put(GameRoundsRepository().bind(), permanent: true);
+    Get.put(GameRoundsController(), permanent: true);
+    Get.put(GameUserRepository().bind(), permanent: true);
     print(kIsWeb
         ? "[DEBUG] main: Web services registered."
         : "[DEBUG] main: Mobile services registered.");
@@ -76,6 +88,24 @@ void main() async {
 }
 
 Future<void> _initializeBackgroundServices() async {
+  try {
+    await Get.find<AppConfigService>().fetch();
+  } catch (e, st) {
+    debugPrint('AppConfigService init failed: $e\n$st');
+  }
+
+  try {
+    await Get.find<GameClockService>().init();
+  } catch (e, st) {
+    debugPrint('GameClockService init failed: $e\n$st');
+  }
+
+  try {
+    await Get.find<GameScheduleService>().init();
+  } catch (e, st) {
+    debugPrint('GameScheduleService init failed: $e\n$st');
+  }
+
   try {
     await Get.find<NotificationsService>().init();
   } catch (e, st) {
