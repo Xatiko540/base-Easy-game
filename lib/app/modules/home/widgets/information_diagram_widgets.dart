@@ -67,7 +67,7 @@ class _BinaryTreeDiagram extends StatelessWidget {
   }
 }
 
-class _InfoTreeNode extends StatelessWidget {
+class _InfoTreeNode extends StatefulWidget {
   final String label;
   final Alignment alignment;
   final Color color;
@@ -81,32 +81,71 @@ class _InfoTreeNode extends StatelessWidget {
   });
 
   @override
+  State<_InfoTreeNode> createState() => _InfoTreeNodeState();
+}
+
+class _InfoTreeNodeState extends State<_InfoTreeNode> {
+  bool _isHovered = false;
+
+  @override
   Widget build(BuildContext context) {
     return Align(
-      alignment: alignment,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 64,
-            height: 58,
-            child: CustomPaint(
-              painter: _InfoHexCellPainter(color: color),
-              child: Center(
-                child: Icon(icon, color: color, size: 22),
+      alignment: widget.alignment,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: _isHovered ? 1 : 0),
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          builder: (context, hoverAmount, child) {
+            final activeColor = Color.lerp(
+              widget.color,
+              const Color(0xFF20E8FF),
+              hoverAmount,
+            )!;
+
+            return Transform.scale(
+              scale: 1 + (hoverAmount * 0.12),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    width: 64,
+                    height: 58,
+                    child: CustomPaint(
+                      painter: _InfoHexCellPainter(
+                        color: activeColor,
+                        glowIntensity: hoverAmount,
+                      ),
+                      child: Center(
+                        child: Icon(
+                          widget.icon,
+                          color: activeColor,
+                          size: 22 + (hoverAmount * 2),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.label,
+                    style: TextStyle(
+                      color: Color.lerp(
+                        Colors.white54,
+                        const Color(0xFF8FF5FF),
+                        hoverAmount,
+                      ),
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            label,
-            style: const TextStyle(
-              color: Colors.white54,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -114,15 +153,22 @@ class _InfoTreeNode extends StatelessWidget {
 
 class _InfoHexCellPainter extends CustomPainter {
   final Color color;
+  final double glowIntensity;
 
-  const _InfoHexCellPainter({required this.color});
+  const _InfoHexCellPainter({
+    required this.color,
+    this.glowIntensity = 0,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final path = _hexPath(size).shift(const Offset(0, 1));
     final shadowPaint = Paint()
-      ..color = color.withValues(alpha: 0.20)
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12);
+      ..color = color.withValues(alpha: 0.20 + (glowIntensity * 0.42))
+      ..maskFilter = MaskFilter.blur(
+        BlurStyle.normal,
+        12 + (glowIntensity * 10),
+      );
     canvas.drawPath(path, shadowPaint);
 
     final fillPaint = Paint()
@@ -147,7 +193,7 @@ class _InfoHexCellPainter extends CustomPainter {
 
     final borderPaint = Paint()
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3
+      ..strokeWidth = 3 + glowIntensity
       ..strokeJoin = StrokeJoin.round
       ..color = color.withValues(alpha: 0.92);
     canvas.drawPath(path, borderPaint);
@@ -175,7 +221,7 @@ class _InfoHexCellPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _InfoHexCellPainter oldDelegate) =>
-      oldDelegate.color != color;
+      oldDelegate.color != color || oldDelegate.glowIntensity != glowIntensity;
 }
 
 class _InfoTreeLinesPainter extends CustomPainter {

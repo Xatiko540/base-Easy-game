@@ -1,6 +1,6 @@
 part of '../views/utility_screens.dart';
 
-class _InfoHeroCard extends StatelessWidget {
+class _InfoHeroCard extends StatefulWidget {
   final String title;
   final String text;
 
@@ -10,44 +10,105 @@ class _InfoHeroCard extends StatelessWidget {
   });
 
   @override
+  State<_InfoHeroCard> createState() => _InfoHeroCardState();
+}
+
+class _InfoHeroCardState extends State<_InfoHeroCard> {
+  bool _isExpanded = true;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.all(22),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: EasyGameTheme.actionGradient,
-        boxShadow: [
-          BoxShadow(
-            color: EasyGameTheme.teal.withValues(alpha: 0.16),
-            blurRadius: 28,
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 600;
+
+        return Container(
+          width: double.infinity,
+          margin: const EdgeInsets.only(bottom: 14),
+          decoration: BoxDecoration(
+            color: EasyGameTheme.surface,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: EasyGameTheme.borderSoft),
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 26,
-              fontWeight: FontWeight.w900,
+          clipBehavior: Clip.antiAlias,
+          child: Material(
+            color: Colors.transparent,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                InkWell(
+                  onTap: () => setState(() => _isExpanded = !_isExpanded),
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: compact ? 18 : 28,
+                      vertical: compact ? 18 : 24,
+                    ),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            widget.title,
+                            style: TextStyle(
+                              color: EasyGameTheme.text,
+                              fontSize: compact ? 21 : 24,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        AnimatedRotation(
+                          turns: _isExpanded ? 0 : -0.25,
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.easeOutCubic,
+                          child: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            color: EasyGameTheme.teal,
+                            size: 28,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                AnimatedSize(
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeInOutCubic,
+                  alignment: Alignment.topCenter,
+                  child: _isExpanded
+                      ? Padding(
+                          padding: EdgeInsets.fromLTRB(
+                            compact ? 18 : 28,
+                            0,
+                            compact ? 18 : 28,
+                            compact ? 20 : 28,
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Divider(
+                                height: 1,
+                                color: EasyGameTheme.borderSoft,
+                              ),
+                              SizedBox(height: compact ? 18 : 24),
+                              Text(
+                                widget.text,
+                                style: TextStyle(
+                                  color: EasyGameTheme.textMuted,
+                                  fontSize: compact ? 15 : 17,
+                                  height: 1.75,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      : const SizedBox.shrink(),
+                ),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
-          Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 15,
-              height: 1.45,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ],
-      ),
+        );
+      },
     );
   }
 }
@@ -55,10 +116,12 @@ class _InfoHeroCard extends StatelessWidget {
 class _InfoSectionTitle extends StatelessWidget {
   final String title;
   final IconData icon;
+  final Widget? trailing;
 
   const _InfoSectionTitle({
     required this.title,
     required this.icon,
+    this.trailing,
   });
 
   @override
@@ -77,6 +140,10 @@ class _InfoSectionTitle extends StatelessWidget {
             ),
           ),
         ),
+        if (trailing != null) ...[
+          const SizedBox(width: 12),
+          trailing!,
+        ],
       ],
     );
   }
@@ -157,8 +224,6 @@ class _InfoSplitBar extends StatelessWidget {
               Expanded(
                 child: Text(
                   row.label,
-                  overflow: TextOverflow.ellipsis,
-                  maxLines: 1,
                   style: const TextStyle(
                     color: Colors.white70,
                     fontWeight: FontWeight.w800,

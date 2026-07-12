@@ -386,9 +386,9 @@ class AppTranslations extends Translations {
           'partner.linesHowText':
               'A new player feeds 75.5% into the matrix Prize Pool. Referral lines receive 9.5% + 6% + 4% as claimable bonuses and add weight. Missing lines route back into the Prize Pool.',
           'partner.newPlayerLine': 'New player',
-          'info.advanceTitle': 'Easy Game Advance',
+          'info.advanceTitle': 'Easy Smart Game',
           'info.advanceText':
-              'Matrix Prize Arena: 17 levels, binary placement, prize pools, tracked player weight, box tokens, recycle, freeze/unfreeze, and claimable rewards on Base.',
+              'Easy Smart Game is the first smart-contract game that lets participants receive passive income directly to their wallet — even without inviting partners. All game rewards are delivered instantly to the participant’s personal crypto wallet.\n\nThe game has 16 levels with the same reward logic and different activation prices. Every participant can activate any number of levels and earn from each of them independently.\n\nThe smart contract does not hold funds — all payouts are made instantly and directly to participants.',
           'info.matrixTitle': 'Easy Games matrix',
           'info.matrixText':
               'Each level uses a binary matrix. New activations are placed into the next open slot, and completed positions recycle into the same level.',
@@ -412,14 +412,23 @@ class AppTranslations extends Translations {
               'When both child slots under a player are filled, recycle gives a new position, matrix weight, and boxToken.',
           'info.ruleChance':
               'Player weight combines base, referral, matrix, box, and boost weight. The current contract rewards deterministic prize cells; weight can affect winners only after verified round rules are implemented.',
-          'info.paymentRouteTitle': 'Payment route',
+          'info.paymentRouteTitle': 'Reward system',
+          'info.rewardSystemIntro':
+              'With every activation, 100% of the amount is distributed according to the following scheme (in basis points):',
           'info.paymentRouteText':
-              'If a referral line is missing, its share stays inside the level prize pool instead of leaving the game economy.',
-          'info.splitPool': 'Prize pool of the selected level and round',
-          'info.splitDirect': 'Direct inviter claimable bonus + weight',
-          'info.splitSecond': 'Second-line inviter claimable bonus + weight',
-          'info.splitThird': 'Third-line inviter claimable bonus + weight',
-          'info.splitProject': 'Transparent project fee',
+              'Missing referral lines are automatically redirected to matrixPrizePool.',
+          'info.rewardSystemTotal':
+              'Total: 75.5 + 9.5 + 6.0 + 4.0 + 5.0 = 100% ✓',
+          'info.splitPool': 'Prize pool',
+          'info.splitPoolDescription':
+              'Sent to the level prize pool. The winner is selected through a weighted draw (totalWeightByLevel). The more matrix and referral points (weight) a player has, the higher their chance of winning.',
+          'info.splitDirect': 'Direct inviter (claimableReferralBonus)',
+          'info.splitSecond':
+              'Second level of the inviter (claimableReferralBonus)',
+          'info.splitThird':
+              'Third level of the inviter (claimableReferralBonus)',
+          'info.splitProject':
+              'projectFeesAccrued (only the owner can withdraw)',
           'info.roundLifecycleTitle': 'Round lifecycle',
           'info.stepConnect': 'Connect wallet and choose level',
           'info.stepTicket': 'Buy ticket with ETH or USDC',
@@ -896,9 +905,9 @@ class AppTranslations extends Translations {
           'partner.linesHowText':
               'Новый игрок отправляет 75.5% в матричный Prize Pool. Реферальные линии получают 9.5% + 6% + 4% как claimable-бонусы и добавляют вес. Отсутствующие линии возвращаются в Prize Pool.',
           'partner.newPlayerLine': 'Новый игрок',
-          'info.advanceTitle': 'Easy Game Advance',
+          'info.advanceTitle': 'Easy Smart Game',
           'info.advanceText':
-              'Matrix Prize Arena: 17 уровней, бинарное размещение, призовые пулы, учитываемый вес игрока, box tokens, recycle, freeze/unfreeze и claimable-награды в сети Base.',
+              'Easy Smart Game — это первая игра на смарт-контракте, позволяющая получать пассивный доход прямо на ваш кошелёк — даже без приглашения партнёров. Все награды из игры мгновенно приходят на личный крипто-кошелёк участника.\n\nИгра состоит из 16 уровней с одинаковой логикой наград, но разной стоимостью активации. Каждый участник может активировать любое количество уровней и получать с них доход независимо.\n\nСмарт-контракт не хранит средства — все выплаты происходят мгновенно и напрямую участникам.',
           'info.matrixTitle': 'Матрица Easy Games',
           'info.matrixText':
               'Каждый уровень использует бинарную матрицу. Новые активации попадают в следующий открытый слот, а завершенные позиции рециклятся в том же уровне.',
@@ -922,14 +931,20 @@ class AppTranslations extends Translations {
               'Когда под игроком заполнены оба дочерних слота, recycle дает новую позицию, matrix weight и boxToken.',
           'info.ruleChance':
               'Вес игрока складывается из base, referral, matrix, box и boost weight. Текущий контракт награждает детерминированные prize cells; вес сможет влиять на победителей только после внедрения проверяемых правил раунда.',
-          'info.paymentRouteTitle': 'Маршрут платежа',
+          'info.paymentRouteTitle': 'Система наград',
+          'info.rewardSystemIntro':
+              'При каждой активации 100% суммы распределяется по следующей схеме (в базисных пунктах):',
           'info.paymentRouteText':
-              'Если реферальной линии нет, ее доля остается внутри призового пула уровня и не выходит из экономики игры.',
-          'info.splitPool': 'Призовой пул выбранного уровня и раунда',
-          'info.splitDirect': 'Прямой пригласитель: claimable bonus + weight',
-          'info.splitSecond': 'Вторая линия: claimable bonus + weight',
-          'info.splitThird': 'Третья линия: claimable bonus + weight',
-          'info.splitProject': 'Прозрачная комиссия проекта',
+              'Отсутствующие реферальные линии автоматически перенаправляются в matrixPrizePool.',
+          'info.rewardSystemTotal':
+              'Итого: 75.5 + 9.5 + 6.0 + 4.0 + 5.0 = 100% ✓',
+          'info.splitPool': 'Призовой пул',
+          'info.splitPoolDescription':
+              'Поступает в призовой пул уровня. Победитель определяется взвешенным розыгрышем. Чем больше у игрока матричных и реферальных очков, тем выше шанс выиграть.',
+          'info.splitDirect': 'Прямой приглашающий',
+          'info.splitSecond': 'Второй уровень пригласившего',
+          'info.splitThird': 'Третий уровень пригласившего',
+          'info.splitProject': 'Проектный сбор',
           'info.roundLifecycleTitle': 'Цикл раунда',
           'info.stepConnect': 'Подключить кошелек и выбрать уровень',
           'info.stepTicket': 'Купить билет за ETH или USDC',
