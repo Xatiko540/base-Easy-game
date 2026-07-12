@@ -26,7 +26,7 @@ class _InfoHeroCardState extends State<_InfoHeroCard> {
           width: double.infinity,
           margin: const EdgeInsets.only(bottom: 14),
           decoration: BoxDecoration(
-            color: EasyGameTheme.surface,
+            color: const Color(0xFF1A1F2E),
             borderRadius: BorderRadius.circular(18),
             border: Border.all(color: EasyGameTheme.borderSoft),
           ),
@@ -197,58 +197,146 @@ class _InfoRuleList extends StatelessWidget {
   }
 }
 
-class _InfoSplitBar extends StatelessWidget {
+class _InfoSplitBar extends StatefulWidget {
   final _InfoSplitRow row;
 
   const _InfoSplitBar({required this.row});
 
   @override
+  State<_InfoSplitBar> createState() => _InfoSplitBarState();
+}
+
+class _InfoSplitBarState extends State<_InfoSplitBar> {
+  bool _isHovered = false;
+  bool _isSelected = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        children: [
-          Row(
+    final row = widget.row;
+    final isActive = _isHovered || _isSelected;
+    final activeColor = Color.lerp(
+      row.color,
+      const Color(0xFF20E8FF),
+      isActive ? 0.42 : 0,
+    )!;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _isSelected = !_isSelected),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          margin: const EdgeInsets.only(bottom: 8),
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: isActive
+                ? activeColor.withValues(alpha: 0.07)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isActive
+                  ? activeColor.withValues(alpha: 0.42)
+                  : Colors.transparent,
+            ),
+            boxShadow: isActive
+                ? [
+                    BoxShadow(
+                      color: activeColor.withValues(alpha: 0.12),
+                      blurRadius: 16,
+                    ),
+                  ]
+                : const [],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                width: 58,
-                child: Text(
-                  row.percent,
-                  style: TextStyle(
-                    color: row.color,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w900,
+              Row(
+                children: [
+                  SizedBox(
+                    width: 58,
+                    child: AnimatedDefaultTextStyle(
+                      duration: const Duration(milliseconds: 220),
+                      curve: Curves.easeOutCubic,
+                      style: TextStyle(
+                        color: activeColor,
+                        fontSize: isActive ? 17 : 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                      child: Text(row.percent),
+                    ),
                   ),
-                ),
+                  Expanded(
+                    child: Text(
+                      row.label,
+                      style: TextStyle(
+                        color: isActive ? EasyGameTheme.text : Colors.white70,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: Text(
-                  row.label,
-                  style: const TextStyle(
-                    color: Colors.white70,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+              const SizedBox(height: 7),
+              TweenAnimationBuilder<double>(
+                tween: Tween<double>(begin: 0, end: row.ratio),
+                duration: const Duration(milliseconds: 720),
+                curve: Curves.easeOutCubic,
+                builder: (context, value, child) {
+                  return Container(
+                    decoration: isActive
+                        ? BoxDecoration(
+                            borderRadius: BorderRadius.circular(999),
+                            boxShadow: [
+                              BoxShadow(
+                                color: activeColor.withValues(alpha: 0.35),
+                                blurRadius: 10,
+                              ),
+                            ],
+                          )
+                        : null,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        minHeight: isActive ? 11 : 9,
+                        value: value,
+                        backgroundColor: const Color(0xFF2A2948),
+                        valueColor: AlwaysStoppedAnimation(activeColor),
+                      ),
+                    ),
+                  );
+                },
+              ),
+              AnimatedSize(
+                duration: const Duration(milliseconds: 220),
+                curve: Curves.easeOutCubic,
+                alignment: Alignment.topCenter,
+                child: isActive
+                    ? Padding(
+                        padding: const EdgeInsets.only(top: 10),
+                        child: Text(
+                          row.description,
+                          style: TextStyle(
+                            color: activeColor.withValues(alpha: 0.88),
+                            height: 1.45,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      )
+                    : const SizedBox.shrink(),
               ),
             ],
           ),
-          const SizedBox(height: 7),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              minHeight: 9,
-              value: row.ratio,
-              backgroundColor: const Color(0xFF2A2948),
-              valueColor: AlwaysStoppedAnimation(row.color),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _InfoFlowCard extends StatelessWidget {
+class _InfoFlowCard extends StatefulWidget {
   final int index;
   final IconData icon;
   final String text;
@@ -260,46 +348,104 @@ class _InfoFlowCard extends StatelessWidget {
   });
 
   @override
+  State<_InfoFlowCard> createState() => _InfoFlowCardState();
+}
+
+class _InfoFlowCardState extends State<_InfoFlowCard> {
+  bool _isHovered = false;
+  bool _isSelected = false;
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: EasyGameTheme.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: EasyGameTheme.borderSoft),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 38,
-            height: 38,
-            alignment: Alignment.center,
+    final isActive = _isHovered || _isSelected;
+    const activeColor = Color(0xFF20E8FF);
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _isSelected = !_isSelected),
+        child: AnimatedScale(
+          scale: isActive ? 1.025 : 1,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutCubic,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: EasyGameTheme.teal.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: EasyGameTheme.teal, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              '$index. $text',
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: Colors.white70,
-                height: 1.3,
-                fontWeight: FontWeight.w800,
+              color: isActive
+                  ? activeColor.withValues(alpha: 0.08)
+                  : EasyGameTheme.cardDark,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: isActive
+                    ? activeColor.withValues(alpha: 0.72)
+                    : EasyGameTheme.borderSoft,
               ),
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: activeColor.withValues(alpha: 0.18),
+                        blurRadius: 18,
+                      ),
+                    ]
+                  : const [],
+            ),
+            child: Row(
+              children: [
+                AnimatedScale(
+                  scale: isActive ? 1.12 : 1,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutBack,
+                  child: AnimatedRotation(
+                    turns: isActive ? 0.035 : 0,
+                    duration: const Duration(milliseconds: 260),
+                    curve: Curves.easeOutCubic,
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 220),
+                      width: 38,
+                      height: 38,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: isActive
+                            ? activeColor.withValues(alpha: 0.18)
+                            : EasyGameTheme.teal.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Icon(
+                        widget.icon,
+                        color: isActive ? activeColor : EasyGameTheme.teal,
+                        size: 20,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    '${widget.index}. ${widget.text}',
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: isActive ? EasyGameTheme.text : Colors.white70,
+                      height: 1.3,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _InfoCellChip extends StatelessWidget {
+class _InfoCellChip extends StatefulWidget {
   final String label;
   final IconData icon;
   final Color color;
@@ -311,106 +457,217 @@ class _InfoCellChip extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 92,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      decoration: BoxDecoration(
-        color: EasyGameTheme.cardDark.withValues(alpha: 0.74),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: color.withValues(alpha: 0.30)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            width: 56,
-            height: 50,
-            child: CustomPaint(
-              painter: _InfoHexCellPainter(color: color),
-              child: Center(
-                child: Icon(icon, color: color, size: 18),
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color,
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              height: 1,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  State<_InfoCellChip> createState() => _InfoCellChipState();
 }
 
-class _InfoResourceCard extends StatelessWidget {
-  final _InfoResource resource;
-
-  const _InfoResourceCard({required this.resource});
+class _InfoCellChipState extends State<_InfoCellChip> {
+  bool _isHovered = false;
+  bool _isSelected = false;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: EasyGameTheme.cardDark,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: resource.color.withValues(alpha: 0.28)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 52,
-            height: 48,
-            padding: const EdgeInsets.all(2),
-            child: CustomPaint(
-              painter: _InfoHexCellPainter(color: resource.color),
-              child: Center(
-                child: Icon(
-                  resource.icon,
-                  color: resource.color,
-                  size: 21,
-                ),
+    final isActive = _isHovered || _isSelected;
+    final activeColor = Color.lerp(
+      widget.color,
+      const Color(0xFF20E8FF),
+      isActive ? 0.82 : 0,
+    )!;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _isSelected = !_isSelected),
+        child: AnimatedScale(
+          scale: isActive ? 1.08 : 1,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutBack,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            width: 92,
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? activeColor.withValues(alpha: 0.09)
+                  : EasyGameTheme.cardDark.withValues(alpha: 0.74),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: activeColor.withValues(alpha: isActive ? 0.78 : 0.30),
               ),
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: activeColor.withValues(alpha: 0.22),
+                        blurRadius: 18,
+                      ),
+                    ]
+                  : const [],
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  resource.title,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                    fontSize: 15,
+                SizedBox(
+                  width: 56,
+                  height: 50,
+                  child: CustomPaint(
+                    painter: _InfoHexCellPainter(
+                      color: activeColor,
+                      glowIntensity: isActive ? 1 : 0,
+                    ),
+                    child: Center(
+                      child: AnimatedRotation(
+                        turns: isActive ? 0.08 : 0,
+                        duration: const Duration(milliseconds: 260),
+                        curve: Curves.easeOutCubic,
+                        child: Icon(
+                          widget.icon,
+                          color: activeColor,
+                          size: isActive ? 21 : 18,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  resource.text,
-                  maxLines: 4,
+                  widget.label,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    height: 1.35,
-                    fontWeight: FontWeight.w700,
+                  style: TextStyle(
+                    color: activeColor,
+                    fontSize: isActive ? 17 : 16,
+                    fontWeight: FontWeight.w900,
+                    height: 1,
                   ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+}
+
+class _InfoResourceCard extends StatefulWidget {
+  final _InfoResource resource;
+
+  const _InfoResourceCard({required this.resource});
+
+  @override
+  State<_InfoResourceCard> createState() => _InfoResourceCardState();
+}
+
+class _InfoResourceCardState extends State<_InfoResourceCard> {
+  bool _isHovered = false;
+  bool _isSelected = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final resource = widget.resource;
+    final isActive = _isHovered || _isSelected;
+    final activeColor = Color.lerp(
+      resource.color,
+      const Color(0xFF20E8FF),
+      isActive ? 0.78 : 0,
+    )!;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _isSelected = !_isSelected),
+        child: AnimatedScale(
+          scale: isActive ? 1.02 : 1,
+          duration: const Duration(milliseconds: 220),
+          curve: Curves.easeOutBack,
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? activeColor.withValues(alpha: 0.08)
+                  : EasyGameTheme.cardDark,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: activeColor.withValues(alpha: isActive ? 0.72 : 0.28),
+              ),
+              boxShadow: isActive
+                  ? [
+                      BoxShadow(
+                        color: activeColor.withValues(alpha: 0.18),
+                        blurRadius: 18,
+                      ),
+                    ]
+                  : const [],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                AnimatedScale(
+                  scale: isActive ? 1.1 : 1,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutBack,
+                  child: SizedBox(
+                    width: 52,
+                    height: 48,
+                    child: CustomPaint(
+                      painter: _InfoHexCellPainter(
+                        color: activeColor,
+                        glowIntensity: isActive ? 1 : 0,
+                      ),
+                      child: Center(
+                        child: AnimatedRotation(
+                          turns: isActive ? 0.035 : 0,
+                          duration: const Duration(milliseconds: 260),
+                          child: Icon(
+                            resource.icon,
+                            color: activeColor,
+                            size: isActive ? 23 : 21,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        resource.title,
+                        style: TextStyle(
+                          color: isActive ? activeColor : Colors.white,
+                          fontWeight: FontWeight.w900,
+                          fontSize: 15,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        resource.text,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isActive ? Colors.white70 : Colors.white54,
+                          height: 1.35,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

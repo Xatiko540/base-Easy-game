@@ -417,8 +417,6 @@ class AppTranslations extends Translations {
               'With every activation, 100% of the amount is distributed according to the following scheme (in basis points):',
           'info.paymentRouteText':
               'Missing referral lines are automatically redirected to matrixPrizePool.',
-          'info.rewardSystemTotal':
-              'Total: 75.5 + 9.5 + 6.0 + 4.0 + 5.0 = 100% ✓',
           'info.splitPool': 'Prize pool',
           'info.splitPoolDescription':
               'Sent to the level prize pool. The winner is selected through a weighted draw (totalWeightByLevel). The more matrix and referral points (weight) a player has, the higher their chance of winning.',
@@ -429,17 +427,26 @@ class AppTranslations extends Translations {
               'Third level of the inviter (claimableReferralBonus)',
           'info.splitProject':
               'projectFeesAccrued (only the owner can withdraw)',
-          'info.roundLifecycleTitle': 'Round lifecycle',
+          'info.splitPoolHint': 'Builds the prize pool for the selected level.',
+          'info.splitDirectHint': 'Reward for the direct inviter.',
+          'info.splitSecondHint': 'Reward for the second referral line.',
+          'info.splitThirdHint': 'Reward for the third referral line.',
+          'info.splitProjectHint': 'Project maintenance fee.',
+          'info.roundLifecycleTitle': 'How to start',
           'info.stepConnect': 'Connect wallet and choose level',
           'info.stepTicket': 'Buy ticket with ETH or USDC',
           'info.stepMatrix': 'Take the next matrix cell',
           'info.stepRecycle': 'Recycle after two filled child cells',
           'info.stepPrize': 'Reach a verified winning cell',
           'info.stepClaim': 'Claim prize and referral rewards',
-          'info.winningCellsTitle': 'Winning cells',
+          'info.winningCellsTitle': 'Winner cell',
           'info.winningCellsText':
               'Before a round starts, winning positions are fixed and committed. Players who reach verified cells become prize candidates. If nobody reaches them, the allocation rolls into the next round.',
           'info.resourcesTitle': 'Game resources',
+          'info.boxTokenTitle': 'Reward token',
+          'info.freezeTokenTitle': 'Freeze token',
+          'info.shieldTokenTitle': 'Shield token',
+          'info.weightBoostTitle': 'Weight boost',
           'info.boxTokenText':
               'Earned from recycle and activity. Can become freeze, shield, boost, or extra strategy actions.',
           'info.freezeTokenText':
@@ -933,35 +940,42 @@ class AppTranslations extends Translations {
               'Вес игрока складывается из base, referral, matrix, box и boost weight. Текущий контракт награждает детерминированные prize cells; вес сможет влиять на победителей только после внедрения проверяемых правил раунда.',
           'info.paymentRouteTitle': 'Система наград',
           'info.rewardSystemIntro':
-              'При каждой активации 100% суммы распределяется по следующей схеме (в базисных пунктах):',
+              'При каждой активации 100% суммы распределяется по следующей схеме:',
           'info.paymentRouteText':
-              'Отсутствующие реферальные линии автоматически перенаправляются в matrixPrizePool.',
-          'info.rewardSystemTotal':
-              'Итого: 75.5 + 9.5 + 6.0 + 4.0 + 5.0 = 100% ✓',
+              'Отсутствующие реферальные линии автоматически перенаправляются в Призовой пул.',
           'info.splitPool': 'Призовой пул',
           'info.splitPoolDescription':
-              'Поступает в призовой пул уровня. Победитель определяется взвешенным розыгрышем. Чем больше у игрока матричных и реферальных очков, тем выше шанс выиграть.',
+              'Чем больше у игрока матричных и реферальных очков, тем выше шанс выиграть.',
           'info.splitDirect': 'Прямой приглашающий',
           'info.splitSecond': 'Второй уровень пригласившего',
           'info.splitThird': 'Третий уровень пригласившего',
           'info.splitProject': 'Проектный сбор',
-          'info.roundLifecycleTitle': 'Цикл раунда',
+          'info.splitPoolHint': 'Формирует призовой пул выбранного уровня.',
+          'info.splitDirectHint': 'Награда прямому приглашающему.',
+          'info.splitSecondHint': 'Награда второй реферальной линии.',
+          'info.splitThirdHint': 'Награда третьей реферальной линии.',
+          'info.splitProjectHint': 'Сбор на поддержку проекта.',
+          'info.roundLifecycleTitle': 'Как начать',
           'info.stepConnect': 'Подключить кошелек и выбрать уровень',
           'info.stepTicket': 'Купить билет за ETH или USDC',
           'info.stepMatrix': 'Занять следующую ячейку матрицы',
           'info.stepRecycle': 'Получить recycle после двух заполненных слотов',
           'info.stepPrize': 'Дойти до подтвержденной winning cell',
           'info.stepClaim': 'Вывести приз и реферальные награды',
-          'info.winningCellsTitle': 'Winning cells',
+          'info.winningCellsTitle': 'Ячейка победителя',
           'info.winningCellsText':
-              'Перед стартом раунда выигрышные позиции фиксируются и подтверждаются. Игроки, которые дошли до проверенных ячеек, становятся претендентами. Если никто не дошел, награда переносится в следующий раунд.',
+              'Перед началом раунда заранее фиксируются номера выигрышных ячеек. Участник, занявший одну из них, становится претендентом на награду этого раунда. Если до окончания раунда ни одна такая ячейка не занята, награда переносится в следующий раунд.',
           'info.resourcesTitle': 'Игровые ресурсы',
+          'info.boxTokenTitle': 'Наградной токен',
+          'info.freezeTokenTitle': 'Токен заморозки',
+          'info.shieldTokenTitle': 'Токен защиты',
+          'info.weightBoostTitle': 'Усиление веса',
           'info.boxTokenText':
-              'Начисляется за recycle и активность. Может превращаться в freeze, shield, boost или дополнительные стратегические действия.',
+              'Начисляется за повторный цикл и активность. Может превращаться в заморозку, защиту, усиление или дополнительные стратегические действия.',
           'info.freezeTokenText':
               'Позволяет временно остановить соперника, чтобы он не продвигался и не увеличивал шанс.',
           'info.shieldTokenText':
-              'Защищает игрока или ветку команды от попыток freeze во время раунда.',
+              'Защищает игрока или ветку команды от попыток заморозки во время раунда.',
           'info.weightBoostText':
               'Временно увеличивает вес в раунде и, значит, шанс игрока на победу.',
           'utility.wallet': 'Кошелек',

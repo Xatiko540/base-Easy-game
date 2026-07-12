@@ -235,10 +235,17 @@ class _MemberPreviewSnapshot {
 class _InfoSplitRow {
   final String percent;
   final String label;
+  final String description;
   final Color color;
   final double ratio;
 
-  const _InfoSplitRow(this.percent, this.label, this.color, this.ratio);
+  const _InfoSplitRow(
+    this.percent,
+    this.label,
+    this.description,
+    this.color,
+    this.ratio,
+  );
 }
 
 class _InfoFlowStep {
