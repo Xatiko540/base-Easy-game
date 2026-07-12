@@ -1,8 +1,16 @@
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/contract_linking.dart';
 
 class LotteriesController extends GetxController {
   final contractLink = Get.find<ContractLinking>();
+  final lotteryNameController = TextEditingController();
+
+  @override
+  void onClose() {
+    lotteryNameController.dispose();
+    super.onClose();
+  }
 
   Future<void> setup() async {
     await contractLink.getAbi();

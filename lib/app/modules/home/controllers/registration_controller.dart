@@ -3,7 +3,7 @@ import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
-import 'package:lottery_advance/app/modules/home/views/ActivateExpressGameScreen.dart';
+import 'package:lottery_advance/app/modules/home/views/activate_express_game_screen.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 

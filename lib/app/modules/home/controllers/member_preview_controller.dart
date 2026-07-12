@@ -21,11 +21,6 @@ class _MemberPreviewController extends GetxController {
     refreshPreview();
   }
 
-  @override
-  void onClose() {
-    super.onClose();
-    // _firebaseData is shared, not owned by this controller
-  }
 
   Future<void> refreshPreview() async {
     isLoading.value = true;

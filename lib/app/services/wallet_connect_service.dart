@@ -270,11 +270,15 @@ class WalletConnectService extends GetxService {
 
   @override
   void onInit() {
-    print("[DEBUG] WalletConnectService: onInit started.");
+    if (kDebugMode) {
+      print("[DEBUG] WalletConnectService: onInit started.");
+    }
     super.onInit();
     _restoreConnection();
     _listenWalletChanges();
-    print("[DEBUG] WalletConnectService: onInit completed.");
+    if (kDebugMode) {
+      print("[DEBUG] WalletConnectService: onInit completed.");
+    }
   }
 
   Future<void> connectWallet() async {
@@ -1560,7 +1564,9 @@ class WalletConnectService extends GetxService {
       }
     } catch (e) {
       if (kDebugMode && isConnected.value) {
-        print('Unable to read wallet chain id: $e');
+        if (kDebugMode) {
+          print('Unable to read wallet chain id: $e');
+        }
       }
     }
   }
@@ -1643,29 +1649,43 @@ class WalletConnectService extends GetxService {
   }
 
   Future<void> _restoreConnection() async {
-    print("[DEBUG] WalletConnectService: _restoreConnection started.");
+    if (kDebugMode) {
+      print("[DEBUG] WalletConnectService: _restoreConnection started.");
+    }
     if (!hasInjectedWallet) {
-      print(
+      if (kDebugMode) {
+        print(
           "[DEBUG] WalletConnectService: _restoreConnection - wallet not available.");
+      }
       return;
     }
 
     try {
-      print(
+      if (kDebugMode) {
+        print(
           "[DEBUG] WalletConnectService: _restoreConnection - fetching accounts...");
+      }
       _setAccounts(await ethereum!.getAccounts());
-      print(
+      if (kDebugMode) {
+        print(
           "[DEBUG] WalletConnectService: _restoreConnection - accounts fetched.");
+      }
       await refreshChainId();
-      print(
+      if (kDebugMode) {
+        print(
           "[DEBUG] WalletConnectService: _restoreConnection - chainId refreshed.");
+      }
     } catch (e) {
-      print("[DEBUG] WalletConnectService: _restoreConnection - error: $e");
+      if (kDebugMode) {
+        print("[DEBUG] WalletConnectService: _restoreConnection - error: $e");
+      }
       if (kDebugMode) {
         print('Unable to restore wallet connection: $e');
       }
     }
-    print("[DEBUG] WalletConnectService: _restoreConnection completed.");
+    if (kDebugMode) {
+      print("[DEBUG] WalletConnectService: _restoreConnection completed.");
+    }
   }
 
   void _listenWalletChanges() {

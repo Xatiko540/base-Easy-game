@@ -14,6 +14,7 @@ import 'package:lottery_advance/app/services/game_settlement_service.dart';
 import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
 import 'package:lottery_advance/app/repositories/game_user_repository.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
+import 'package:lottery_advance/app/modules/home/controllers/notifications_controller.dart';
 import 'package:lottery_advance/app/translations/app_translations.dart';
 import 'package:lottery_advance/core/binary_matrix.dart';
 import 'package:lottery_advance/utils/theme.dart';
@@ -23,25 +24,41 @@ import 'package:flutter/foundation.dart';
 import 'package:get_storage/get_storage.dart';
 
 void main() async {
-  print("[DEBUG] main: Starting application...");
+  if (kDebugMode) {
+    print("[DEBUG] main: Starting application...");
+  }
   try {
     WidgetsFlutterBinding.ensureInitialized();
-    print("[DEBUG] main: WidgetsFlutterBinding initialized.");
+    if (kDebugMode) {
+      print("[DEBUG] main: WidgetsFlutterBinding initialized.");
+    }
 
     await GetStorage.init();
-    print("[DEBUG] main: GetStorage initialized.");
+    if (kDebugMode) {
+      print("[DEBUG] main: GetStorage initialized.");
+    }
 
-    print("[DEBUG] main: Initializing BinaryMatrix...");
+    if (kDebugMode) {
+      print("[DEBUG] main: Initializing BinaryMatrix...");
+    }
     final matrix = BinaryMatrix();
     matrix.fillMatrix(6); // Заполняем 6 уровней
-    print("[DEBUG] main: BinaryMatrix filled.");
+    if (kDebugMode) {
+      print("[DEBUG] main: BinaryMatrix filled.");
+    }
     matrix.printMatrix();
-    print("[DEBUG] main: BinaryMatrix printed.");
+    if (kDebugMode) {
+      print("[DEBUG] main: BinaryMatrix printed.");
+    }
 
-    print("[DEBUG] main: Registering WalletConnectService...");
+    if (kDebugMode) {
+      print("[DEBUG] main: Registering WalletConnectService...");
+    }
     Get.lazyPut<WalletConnectService>(() => WalletConnectService(),
         fenix: true);
-    print("[DEBUG] main: WalletConnectService lazyPut completed.");
+    if (kDebugMode) {
+      print("[DEBUG] main: WalletConnectService lazyPut completed.");
+    }
 
     final languageService = Get.put(LanguageService(), permanent: true);
     languageService.load();
@@ -57,11 +74,16 @@ void main() async {
     Get.put(GameRoundsRepository().bind(), permanent: true);
     Get.put(GameRoundsController(), permanent: true);
     Get.put(GameUserRepository().bind(), permanent: true);
-    print(kIsWeb
+    Get.put(NotificationsController(), permanent: true);
+    if (kDebugMode) {
+      print(kIsWeb
         ? "[DEBUG] main: Web services registered."
         : "[DEBUG] main: Mobile services registered.");
+    }
 
-    print("[DEBUG] main: Running runApp...");
+    if (kDebugMode) {
+      print("[DEBUG] main: Running runApp...");
+    }
     runApp(
       GetMaterialApp(
         title: "Easy Games",
@@ -79,13 +101,19 @@ void main() async {
         themeMode: ThemeMode.dark,
       ),
     );
-    print("[DEBUG] main: runApp executed.");
+    if (kDebugMode) {
+      print("[DEBUG] main: runApp executed.");
+      print("[DEBUG] main: Initializing background services...");
+    }
 
-    print("[DEBUG] main: Initializing background services...");
+
     _initializeBackgroundServices();
   } catch (e, stacktrace) {
-    print("[DEBUG] main: FATAL ERROR during initialization: $e");
-    print("[DEBUG] main: Stacktrace: $stacktrace");
+    if (kDebugMode) {
+      print("[DEBUG] main: FATAL ERROR during initialization: $e");
+      print("[DEBUG] main: Stacktrace: $stacktrace");
+    }
+
   }
 }
 

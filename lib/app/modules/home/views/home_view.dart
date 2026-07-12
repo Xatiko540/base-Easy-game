@@ -17,7 +17,6 @@ import 'levels.dart';
 class HomeView extends StatelessWidget {
   final contractLink = Get.find<ContractLinking>();
   final avatarSize = 100.0;
-  final FocusNode keyFocusNode = FocusNode(); // Управление фокусом
 
   final WalletConnectService _walletService = Get.find<WalletConnectService>();
 
