@@ -28,7 +28,16 @@ class _InfoHeroCardState extends State<_InfoHeroCard> {
           decoration: BoxDecoration(
             color: const Color(0xFF1A1F2E),
             borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: EasyGameTheme.borderSoft),
+            border: Border.all(color: EasyGameTheme.borderSoft.withValues(alpha: 0.35)),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.white.withValues(alpha: 0.04),
+                const Color(0xFF1A1F2E).withValues(alpha: 0.72),
+                Colors.white.withValues(alpha: 0.02),
+              ],
+            ),
           ),
           clipBehavior: Clip.antiAlias,
           child: Material(
@@ -166,7 +175,16 @@ class _InfoRuleList extends StatelessWidget {
             decoration: BoxDecoration(
               color: EasyGameTheme.cardDark,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: EasyGameTheme.borderSoft),
+              border: Border.all(color: EasyGameTheme.borderSoft.withValues(alpha: 0.35)),
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  Colors.white.withValues(alpha: 0.04),
+                  EasyGameTheme.cardDark.withValues(alpha: 0.72),
+                  Colors.white.withValues(alpha: 0.02),
+                ],
+              ),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -375,16 +393,27 @@ class _InfoFlowCardState extends State<_InfoFlowCard> {
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: isActive
-                  ? activeColor.withValues(alpha: 0.08)
-                  : EasyGameTheme.cardDark,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
+              decoration: BoxDecoration(
                 color: isActive
-                    ? activeColor.withValues(alpha: 0.72)
-                    : EasyGameTheme.borderSoft,
-              ),
+                    ? activeColor.withValues(alpha: 0.08)
+                    : EasyGameTheme.cardDark,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: isActive
+                      ? activeColor.withValues(alpha: 0.72)
+                      : EasyGameTheme.borderSoft.withValues(alpha: 0.35),
+                ),
+                gradient: isActive
+                    ? null
+                    : LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          Colors.white.withValues(alpha: 0.04),
+                          EasyGameTheme.cardDark.withValues(alpha: 0.72),
+                          Colors.white.withValues(alpha: 0.02),
+                        ],
+                      ),
               boxShadow: isActive
                   ? [
                       BoxShadow(
@@ -497,6 +526,17 @@ class _InfoCellChipState extends State<_InfoCellChip> {
               border: Border.all(
                 color: activeColor.withValues(alpha: isActive ? 0.78 : 0.30),
               ),
+              gradient: isActive
+                  ? null
+                  : LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.04),
+                        EasyGameTheme.cardDark.withValues(alpha: 0.72),
+                        Colors.white.withValues(alpha: 0.02),
+                      ],
+                    ),
               boxShadow: isActive
                   ? [
                       BoxShadow(
@@ -598,6 +638,17 @@ class _InfoResourceCardState extends State<_InfoResourceCard> {
               border: Border.all(
                 color: activeColor.withValues(alpha: isActive ? 0.72 : 0.28),
               ),
+              gradient: isActive
+                  ? null
+                  : LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        Colors.white.withValues(alpha: 0.04),
+                        EasyGameTheme.cardDark.withValues(alpha: 0.72),
+                        Colors.white.withValues(alpha: 0.02),
+                      ],
+                    ),
               boxShadow: isActive
                   ? [
                       BoxShadow(

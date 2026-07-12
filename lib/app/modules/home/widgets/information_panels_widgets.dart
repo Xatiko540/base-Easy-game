@@ -48,7 +48,7 @@ class _InfoMatrixStructurePanelState extends State<_InfoMatrixStructurePanel> {
                     child: LayoutBuilder(
                       builder: (context, constraints) {
                         final compact = constraints.maxWidth < 620;
-                        final diagram = _BinaryTreeDiagram(compact: compact);
+                        final diagram = _AnimatedMatrixDemo(compact: compact);
                         final rules = _InfoRuleList(
                           rules: [
                             'info.ruleTicketCell'.tr,
@@ -315,7 +315,6 @@ class _InfoWinningCellsPanelState extends State<_InfoWinningCellsPanel> {
 
   @override
   Widget build(BuildContext context) {
-    const cells = [7, 15, 31, 63, 127, 255];
     return _Panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -362,17 +361,8 @@ class _InfoWinningCellsPanelState extends State<_InfoWinningCellsPanel> {
                           ),
                         ),
                         const SizedBox(height: 16),
-                        Wrap(
-                          spacing: 10,
-                          runSpacing: 10,
-                          children: [
-                            for (final cell in cells)
-                              _InfoCellChip(
-                                label: '$cell',
-                                icon: CupertinoIcons.star,
-                                color: EasyGameTheme.gold,
-                              ),
-                          ],
+                        const Center(
+                          child: _WinningCellsHoneycomb(),
                         ),
                       ],
                     ),
@@ -468,7 +458,7 @@ class _InfoGameResourcesPanelState extends State<_InfoGameResourcesPanel> {
                             crossAxisCount: columns,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
-                            mainAxisExtent: 132,
+                            mainAxisExtent: 148,
                           ),
                           itemBuilder: (context, index) {
                             final resource = resources[index];

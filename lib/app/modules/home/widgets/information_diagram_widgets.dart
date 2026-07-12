@@ -1,150 +1,216 @@
 part of '../views/utility_screens.dart';
 
-class _BinaryTreeDiagram extends StatelessWidget {
-  final bool compact;
+class _MatrixDemoController extends GetxController {
+  final currentFrame = 0.obs;
+  final isRunning = false.obs;
 
-  const _BinaryTreeDiagram({required this.compact});
+  static const frames = <Map<int, CellState>>[
+    {5: CellState.cyanUser},
+    {5: CellState.cyanUser, 2: CellState.greenUser},
+    {5: CellState.cyanUser, 2: CellState.greenUser, 3: CellState.greenUser},
+    {5: CellState.cyanGlow, 2: CellState.greenGlow, 3: CellState.greenGlow},
+    {
+      5: CellState.cyanUser,
+      2: CellState.greenUser,
+      3: CellState.greenUser,
+      4: CellState.greenUser
+    },
+    {
+      5: CellState.cyanUser,
+      2: CellState.greenUser,
+      3: CellState.greenUser,
+      4: CellState.greenUser,
+      7: CellState.blueUser
+    },
+    {
+      5: CellState.cyanUser,
+      2: CellState.greenUser,
+      3: CellState.greenUser,
+      4: CellState.greenUser,
+      7: CellState.greenUser,
+      9: CellState.greenUser
+    },
+    {
+      5: CellState.cyanUser,
+      7: CellState.greenUser,
+      9: CellState.greenUser,
+      15: CellState.goldUser
+    },
+    {5: CellState.cyanUser, 15: CellState.goldGlow},
+    {5: CellState.cyanUser},
+  ];
+
+  void startLoop() {
+    if (isRunning.value) return;
+    isRunning.value = true;
+    _animate();
+  }
+
+  void stopLoop() {
+    isRunning.value = false;
+    currentFrame.value = 0;
+  }
+
+  void _animate() async {
+    for (var i = 0; i < frames.length && isRunning.value; i++) {
+      currentFrame.value = i;
+      await Future.delayed(const Duration(milliseconds: 800));
+    }
+    if (isRunning.value) {
+      currentFrame.value = 0;
+      Future.delayed(const Duration(milliseconds: 800), _animate);
+    }
+  }
+
+  @override
+  void onClose() {
+    isRunning.value = false;
+    super.onClose();
+  }
+}
+
+class _AnimatedMatrixDemo extends StatefulWidget {
+  final bool compact;
+  const _AnimatedMatrixDemo({required this.compact});
+
+  @override
+  State<_AnimatedMatrixDemo> createState() => _AnimatedMatrixDemoState();
+}
+
+class _AnimatedMatrixDemoState extends State<_AnimatedMatrixDemo> {
+  late final _MatrixDemoController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(_MatrixDemoController(), tag: 'matrix_demo');
+    WidgetsBinding.instance.addPostFrameCallback((_) => controller.startLoop());
+  }
+
+  @override
+  void dispose() {
+    Get.delete<_MatrixDemoController>(tag: 'matrix_demo');
+    super.dispose();
+  }
+
+  static const _kAllCells = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+
+  Map<String, CellState> _buildStates(int frameIndex) {
+    final frameStates = _MatrixDemoController.frames[frameIndex];
+    final states = <String, CellState>{};
+    for (final c in _kAllCells) {
+      final entry = kAxialMap[c]!;
+      final id = '${entry[0]}:${entry[1]}';
+      states[id] = frameStates[c] ?? CellState.inactive;
+    }
+    return states;
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: compact ? 240 : 300,
-      decoration: BoxDecoration(
-        color: EasyGameTheme.cardDark.withValues(alpha: 0.76),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: EasyGameTheme.borderSoft),
-      ),
-      child: CustomPaint(
-        painter: _InfoTreeLinesPainter(),
-        child: Stack(
-          children: [
-            _InfoTreeNode(
-              label: '1',
-              alignment: const Alignment(0, -0.78),
-              color: EasyGameTheme.teal,
-              icon: CupertinoIcons.person,
-            ),
-            _InfoTreeNode(
-              label: '2',
-              alignment: const Alignment(-0.48, -0.12),
-              color: Colors.greenAccent,
-              icon: CupertinoIcons.person,
-            ),
-            _InfoTreeNode(
-              label: '3',
-              alignment: const Alignment(0.48, -0.12),
-              color: Colors.greenAccent,
-              icon: CupertinoIcons.person,
-            ),
-            _InfoTreeNode(
-              label: '4',
-              alignment: const Alignment(-0.72, 0.56),
-              color: Colors.white24,
-              icon: CupertinoIcons.circle,
-            ),
-            _InfoTreeNode(
-              label: '5',
-              alignment: const Alignment(-0.24, 0.56),
-              color: EasyGameTheme.teal,
-              icon: CupertinoIcons.snow,
-            ),
-            _InfoTreeNode(
-              label: '6',
-              alignment: const Alignment(0.24, 0.56),
-              color: EasyGameTheme.orange,
-              icon: CupertinoIcons.refresh,
-            ),
-            _InfoTreeNode(
-              label: '7',
-              alignment: const Alignment(0.72, 0.56),
-              color: EasyGameTheme.gold,
-              icon: CupertinoIcons.star,
-            ),
-          ],
+    return Obx(() {
+      final frameIndex = controller.currentFrame.value;
+      return Container(
+        height: widget.compact ? 240 : 300,
+        decoration: BoxDecoration(
+          color: EasyGameTheme.cardDark.withValues(alpha: 0.76),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: EasyGameTheme.borderSoft),
         ),
-      ),
+        clipBehavior: Clip.antiAlias,
+        child: NeonHoneycomb(
+          zoomFactor: 2.0,
+          states: _buildStates(frameIndex),
+        ),
+      );
+    });
+  }
+}
+
+class _WinningCellsHoneycomb extends StatelessWidget {
+  const _WinningCellsHoneycomb();
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth =
+            constraints.maxWidth.isFinite ? constraints.maxWidth : 520.0;
+        final cellWidth = ((availableWidth - 56) / 3.45).clamp(68.0, 122.0);
+        final cellHeight = cellWidth * 1.08;
+        final gap = (cellWidth * 0.10).clamp(8.0, 14.0);
+        final rowWidth = (cellWidth * 3) + (gap * 2);
+        final shift = cellWidth * 0.48;
+        final clusterWidth = rowWidth + shift;
+
+        Widget row(List<String> labels) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (var index = 0; index < labels.length; index++) ...[
+                if (index > 0) SizedBox(width: gap),
+                _WinningCellHex(
+                  label: labels[index],
+                  width: cellWidth,
+                  height: cellHeight,
+                ),
+              ],
+            ],
+          );
+        }
+
+        return Center(
+          child: SizedBox(
+            width: clusterWidth,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                    alignment: Alignment.centerLeft,
+                    child: row(const ['7', '15', '31'])),
+                SizedBox(height: gap),
+                Align(
+                    alignment: Alignment.centerRight,
+                    child: row(const ['63', '127', '255'])),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }
 
-class _InfoTreeNode extends StatefulWidget {
+class _WinningCellHex extends StatelessWidget {
   final String label;
-  final Alignment alignment;
-  final Color color;
-  final IconData icon;
+  final double width;
+  final double height;
 
-  const _InfoTreeNode({
+  const _WinningCellHex({
     required this.label,
-    required this.alignment,
-    required this.color,
-    required this.icon,
+    required this.width,
+    required this.height,
   });
 
   @override
-  State<_InfoTreeNode> createState() => _InfoTreeNodeState();
-}
-
-class _InfoTreeNodeState extends State<_InfoTreeNode> {
-  bool _isHovered = false;
-
-  @override
   Widget build(BuildContext context) {
-    return Align(
-      alignment: widget.alignment,
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween<double>(end: _isHovered ? 1 : 0),
-          duration: const Duration(milliseconds: 220),
-          curve: Curves.easeOutCubic,
-          builder: (context, hoverAmount, child) {
-            final activeColor = Color.lerp(
-              widget.color,
-              const Color(0xFF20E8FF),
-              hoverAmount,
-            )!;
-
-            return Transform.scale(
-              scale: 1 + (hoverAmount * 0.12),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  SizedBox(
-                    width: 64,
-                    height: 58,
-                    child: CustomPaint(
-                      painter: _InfoHexCellPainter(
-                        color: activeColor,
-                        glowIntensity: hoverAmount,
-                      ),
-                      child: Center(
-                        child: Icon(
-                          widget.icon,
-                          color: activeColor,
-                          size: 22 + (hoverAmount * 2),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    widget.label,
-                    style: TextStyle(
-                      color: Color.lerp(
-                        Colors.white54,
-                        const Color(0xFF8FF5FF),
-                        hoverAmount,
-                      ),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
+    return SizedBox(
+      width: width,
+      height: height,
+      child: CustomPaint(
+        painter: const _InfoHexCellPainter(
+          color: EasyGameTheme.gold,
+          glowIntensity: 0.42,
+        ),
+        child: Center(
+          child: Text(
+            label,
+            style: TextStyle(
+              color: const Color(0xFFFFC93C),
+              fontSize: (width * 0.31).clamp(22.0, 38.0),
+              fontWeight: FontWeight.w900,
+            ),
+          ),
         ),
       ),
     );
@@ -222,29 +288,4 @@ class _InfoHexCellPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _InfoHexCellPainter oldDelegate) =>
       oldDelegate.color != color || oldDelegate.glowIntensity != glowIntensity;
-}
-
-class _InfoTreeLinesPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    Offset p(double x, double y) =>
-        Offset(size.width * (x + 1) / 2, size.height * (y + 1) / 2);
-    final paint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.12)
-      ..strokeWidth = 2;
-    final links = [
-      [p(0, -0.58), p(-0.48, 0.08)],
-      [p(0, -0.58), p(0.48, 0.08)],
-      [p(-0.48, 0.08), p(-0.72, 0.72)],
-      [p(-0.48, 0.08), p(-0.24, 0.72)],
-      [p(0.48, 0.08), p(0.24, 0.72)],
-      [p(0.48, 0.08), p(0.72, 0.72)],
-    ];
-    for (final link in links) {
-      canvas.drawLine(link[0], link[1], paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant _InfoTreeLinesPainter oldDelegate) => false;
 }

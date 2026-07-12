@@ -412,6 +412,10 @@ class InformationScreen extends StatelessWidget {
           title: 'info.advanceTitle'.tr,
           text: 'info.advanceText'.tr,
         ),
+        _InfoBlock(
+          title: 'info.deploymentStatusTitle'.tr,
+          text: 'info.deploymentStatusText'.tr,
+        ),
         const _InfoMatrixStructurePanel(),
         const _InfoPaymentSplitPanel(),
         const _InfoRoundLifecyclePanel(),

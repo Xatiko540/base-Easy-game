@@ -148,11 +148,13 @@ class NeonHoneycombPainter extends CustomPainter {
     required this.backgroundColor,
     required this.padding,
     required this.states,
+    this.zoomFactor = 1,
   });
 
   final Color backgroundColor;
   final double padding;
   final Map<String, CellState> states;
+  final double zoomFactor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -164,7 +166,7 @@ class NeonHoneycombPainter extends CustomPainter {
     final availableHeight = size.height - padding * 2;
     final rw = availableWidth / bounds.widthFactor;
     final rh = availableHeight / bounds.heightFactor;
-    final radius = math.min(rw, rh);
+    final radius = math.min(rw, rh) * zoomFactor;
     final gridPixelWidth = bounds.widthFactor * radius;
     final gridPixelHeight = bounds.heightFactor * radius;
     final offset = Offset(
@@ -413,6 +415,7 @@ class NeonHoneycombPainter extends CustomPainter {
   bool shouldRepaint(covariant NeonHoneycombPainter oldDelegate) {
     return oldDelegate.backgroundColor != backgroundColor ||
         oldDelegate.padding != padding ||
+        oldDelegate.zoomFactor != zoomFactor ||
         oldDelegate.states != states;
   }
 }
@@ -422,12 +425,14 @@ class NeonHoneycomb extends StatelessWidget {
     Key? key,
     this.backgroundColor,
     this.padding = 2,
+    this.zoomFactor = 1,
     required this.states,
     this.onCellTap,
   }) : super(key: key);
 
   final Color? backgroundColor;
   final double padding;
+  final double zoomFactor;
   final Map<String, CellState> states;
   final void Function(int cellId)? onCellTap;
 
@@ -441,6 +446,7 @@ class NeonHoneycomb extends StatelessWidget {
           painter: NeonHoneycombPainter(
             backgroundColor: backgroundColor ?? const Color(0xFF141515),
             padding: padding,
+            zoomFactor: zoomFactor,
             states: states,
           ),
           child: const SizedBox.expand(),
@@ -461,7 +467,7 @@ class NeonHoneycomb extends StatelessWidget {
     final availableHeight = size.height - padding * 2;
     final rw = availableWidth / bounds.widthFactor;
     final rh = availableHeight / bounds.heightFactor;
-    final radius = math.min(rw, rh);
+    final radius = math.min(rw, rh) * zoomFactor;
     final gridPixelWidth = bounds.widthFactor * radius;
     final gridPixelHeight = bounds.heightFactor * radius;
     final offset = Offset(

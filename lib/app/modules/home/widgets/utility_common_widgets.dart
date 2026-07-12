@@ -108,9 +108,18 @@ class _MetricCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: EasyGameTheme.surface,
+        gradient: LinearGradient(
+          colors: [
+            EasyGameTheme.surface.withValues(alpha: 0.82),
+            EasyGameTheme.cardDark.withValues(alpha: 0.90),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: EasyGameTheme.borderSoft),
+        border: Border.all(
+          color: EasyGameTheme.borderSoft.withValues(alpha: 0.35),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -208,9 +217,18 @@ class _Panel extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1A1F2E),
+        gradient: LinearGradient(
+          colors: [
+            EasyGameTheme.surface.withValues(alpha: 0.85),
+            EasyGameTheme.cardDark.withValues(alpha: 0.92),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: EasyGameTheme.borderSoft),
+        border: Border.all(
+          color: EasyGameTheme.borderSoft.withValues(alpha: 0.35),
+        ),
       ),
       child: child,
     );

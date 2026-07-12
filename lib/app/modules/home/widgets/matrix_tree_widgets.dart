@@ -76,7 +76,7 @@ class _MatrixArenaPanel extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final treeSize =
-                  (constraints.maxWidth * 0.62).clamp(380.0, 600.0);
+                  (constraints.maxWidth * 0.92).clamp(600.0, 960.0);
               return SizedBox(
                 height: treeSize,
                 child: _MatrixTree(
@@ -130,13 +130,13 @@ class _MatrixArenaPanel extends StatelessWidget {
             onFreeze: onFreeze,
             onUnfreeze: onUnfreeze,
           ),
-          const SizedBox(height: 18),
-          _RoundSettlementPanel(
-            data: data,
-            actionsBusy: actionsBusy,
-            onSettle: onSettle,
-            onClaim: onClaimSettlement,
-          ),
+          // const SizedBox(height: 18),
+          // _RoundSettlementPanel(
+          //   data: data,
+          //   actionsBusy: actionsBusy,
+          //   onSettle: onSettle,
+          //   onClaim: onClaimSettlement,
+          // ),
           const SizedBox(height: 18),
           _InfoBlock(
             title: 'matrix.howTitle'.tr,
@@ -170,6 +170,7 @@ class _MatrixTree extends StatelessWidget {
             width: size,
             height: size,
             child: NeonHoneycomb(
+              zoomFactor: 2.0,
               states: states,
               onCellTap: (cellId) {
                 final participant = data.participantAt(cellId);

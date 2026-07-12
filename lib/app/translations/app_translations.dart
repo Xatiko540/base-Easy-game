@@ -389,9 +389,12 @@ class AppTranslations extends Translations {
           'partner.linesHowText':
               'A new player feeds 75.5% into the matrix Prize Pool. Referral lines receive 9.5% + 6% + 4% as claimable bonuses and add weight. Missing lines route back into the Prize Pool.',
           'partner.newPlayerLine': 'New player',
-          'info.advanceTitle': 'Easy Smart Game',
+          'info.advanceTitle': 'Easy Games',
           'info.advanceText':
-              'Easy Smart Game is the first smart-contract game that lets participants receive passive income directly to their wallet — even without inviting partners. All game rewards are delivered instantly to the participant’s personal crypto wallet.\n\nThe game has 16 levels with the same reward logic and different activation prices. Every participant can activate any number of levels and earn from each of them independently.\n\nThe smart contract does not hold funds — all payouts are made instantly and directly to participants.',
+              'Easy Games is a strategic matrix lottery on Base with 17 levels. Each level runs in separate rounds with its own ticket price, entry period, prize pool and committed winning cells.\n\nA ticket purchased with ETH or USDC places the player into the next available binary-matrix position. Cells fill from left to right. When both child cells below a position are filled, recycle gives the player a new position, a box token and additional weight.\n\nWinning positions are committed before the round starts. After the round ends, the contracts verify occupied winning cells and split the pool between eligible winners, or roll it into the next round when there is no winner. Referral rewards accrue across three lines and are claimed separately.\n\nParticipation does not guarantee a prize. Prize-pool funds and rewards remain in the smart contracts until settlement and a user claim.',
+          'info.deploymentStatusTitle': 'Current test deployment',
+          'info.deploymentStatusText':
+              'The published web interface targets Base Sepolia. The repository currently contains the round contracts and local deployment artifacts, but no Base Sepolia contract addresses for chain 84532. Until those addresses are deployed and configured, contract payments, arena actions, settlement and claims are unavailable in the hosted build.',
           'info.matrixTitle': 'Easy Games matrix',
           'info.matrixText':
               'Each level uses a binary matrix. New activations are placed into the next open slot, and completed positions recycle into the same level.',
@@ -401,9 +404,9 @@ class AppTranslations extends Translations {
               'Payments are split as 75.5% matrix prize pool, 9.5%, 6%, 4% rewards to the nearest referral lines, and 5% transparent project fee.',
           'info.rewardsImage':
               'Rewards: matrix prize pool + three referral lines + project fee',
-          'info.freezeTitle': 'Freeze rule',
+          'info.freezeTitle': 'Arena freeze and unfreeze',
           'info.freezeText':
-              'After two cycles, a level can freeze until the player activates the next level.',
+              'Only round participants can use arena actions. During the configured freeze window, a player can buy a freeze token for 0.30 USDC and temporarily freeze another participant. Each hit consumes one token. The round manifest defines the hit limit; reaching it makes the target immune. A frozen player can unfreeze for at least 1 USDC, or 7% of their expected USDC prize when that value is higher. Skill payments go to the configured skill treasury. A candidate still frozen through the round end is skipped during settlement.',
           'info.recyclePath': 'Recycle path',
           'info.binaryOverview': 'Binary matrix overview',
           'info.marketingPlan': 'Marketing plan',
@@ -414,7 +417,7 @@ class AppTranslations extends Translations {
           'info.ruleRecycle':
               'When both child slots under a player are filled, recycle gives a new position, matrix weight, and boxToken.',
           'info.ruleChance':
-              'Player weight combines base, referral, matrix, box, and boost weight. The current contract rewards deterministic prize cells; weight can affect winners only after verified round rules are implemented.',
+              'The contract tracks base, referral, matrix and box/NFT weight. The current settlement selects committed winning cells, not a weighted random winner, so weight is informational until a future audited settlement version explicitly uses it.',
           'info.paymentRouteTitle': 'Reward system',
           'info.rewardSystemIntro':
               'With every activation, 100% of the amount is distributed according to the following scheme (in basis points):',
@@ -422,7 +425,7 @@ class AppTranslations extends Translations {
               'Missing referral lines are automatically redirected to matrixPrizePool.',
           'info.splitPool': 'Prize pool',
           'info.splitPoolDescription':
-              'Sent to the level prize pool. The winner is selected through a weighted draw (totalWeightByLevel). The more matrix and referral points (weight) a player has, the higher their chance of winning.',
+              'Held in the selected round prize pool until settlement. The settlement verifies committed winning cells with Merkle proofs, excludes ineligible candidates, splits the pool between eligible unique winners, or rolls it into the next round when there is no winner.',
           'info.splitDirect': 'Direct inviter (claimableReferralBonus)',
           'info.splitSecond':
               'Second level of the inviter (claimableReferralBonus)',
@@ -430,34 +433,34 @@ class AppTranslations extends Translations {
               'Third level of the inviter (claimableReferralBonus)',
           'info.splitProject':
               'projectFeesAccrued (only the owner can withdraw)',
-          'info.splitPoolHint': 'Builds the prize pool for the selected level.',
+          'info.splitPoolHint': 'Builds the prize pool for the selected round.',
           'info.splitDirectHint': 'Reward for the direct inviter.',
           'info.splitSecondHint': 'Reward for the second referral line.',
           'info.splitThirdHint': 'Reward for the third referral line.',
           'info.splitProjectHint': 'Project maintenance fee.',
           'info.roundLifecycleTitle': 'How to start',
-          'info.stepConnect': 'Connect wallet and choose level',
-          'info.stepTicket': 'Buy ticket with ETH or USDC',
+          'info.stepConnect': 'Connect wallet and choose an open signed round',
+          'info.stepTicket': 'Buy one round ticket with ETH or USDC',
           'info.stepMatrix': 'Take the next matrix cell',
           'info.stepRecycle': 'Recycle after two filled child cells',
           'info.stepPrize': 'Reach a verified winning cell',
           'info.stepClaim': 'Claim prize and referral rewards',
-          'info.winningCellsTitle': 'Winner cell',
+          'info.winningCellsTitle': 'Winning cells',
           'info.winningCellsText':
-              'Before a round starts, winning positions are fixed and committed. Players who reach verified cells become prize candidates. If nobody reaches them, the allocation rolls into the next round.',
+              'Before the round starts, winning positions are committed and verified. Players who reach confirmed cells become prize candidates. If nobody reaches an eligible cell, the prize pool rolls over to the next round.',
           'info.resourcesTitle': 'Game resources',
           'info.boxTokenTitle': 'Reward token',
           'info.freezeTokenTitle': 'Freeze token',
           'info.shieldTokenTitle': 'Shield token',
           'info.weightBoostTitle': 'Weight boost',
           'info.boxTokenText':
-              'Earned from recycle and activity. Can become freeze, shield, boost, or extra strategy actions.',
+              'A recycle grants one box token, +50 matrix weight and +10 box/NFT weight. Box tokens are currently recorded as a player resource; spending or conversion is not implemented yet.',
           'info.freezeTokenText':
-              'Used to temporarily stop an opponent from progressing or increasing chance.',
+              'Implemented in the arena contract. A round participant can buy one for 0.30 USDC and use it against another participant during the freeze window. The round manifest limits repeated freezes and grants immunity after the limit.',
           'info.shieldTokenText':
-              'Protects a player or team branch from freeze attempts during the round.',
+              'Planned resource. Shield purchase and activation are not implemented in the current contracts.',
           'info.weightBoostText':
-              'Temporarily increases round weight and therefore the player chance.',
+              'Planned resource. Temporary boost purchase and its influence on settlement are not implemented in the current contracts.',
           'utility.wallet': 'Wallet',
           'utility.networkChainId': 'Network chain ID',
           'utility.easyGameContract': 'EasyGame contract',
@@ -685,7 +688,8 @@ class AppTranslations extends Translations {
           'levelDetail.transactionsHistory': 'История транзакций',
           'levelDetail.positionCreated': 'Позиция создана',
           'levelDetail.meaning': 'Значение',
-          'levelDetail.rewardMeaning': 'Призовой пул / награда winning cell',
+          'levelDetail.rewardMeaning':
+              'Призовой пул / награда выигрышной ячейки',
           'levelDetail.referralMeaning': 'Распределение по реферальным линиям',
           'levelDetail.cycleMeaning': 'Состояние цикла матрицы',
           'levelDetail.prizePool': 'Призовой пул',
@@ -694,7 +698,7 @@ class AppTranslations extends Translations {
           'levelDetail.activeCells': 'Активные ячейки',
           'levelDetail.playerWeight': 'Ваш вес',
           'levelDetail.chance': 'Шанс',
-          'levelDetail.boxTokens': 'Box tokens',
+          'levelDetail.boxTokens': 'Бокс-токены (box tokens)',
           'levelDetail.matrixSnapshot': 'Снимок матрицы',
           'levelDetail.binaryPlacement': 'Бинарное размещение',
           'levelDetail.currentCell': 'Текущая ячейка',
@@ -729,14 +733,14 @@ class AppTranslations extends Translations {
           'stats.topLevels': 'Топ уровней по заполнению',
           'stats.strategyTitle': 'Логика стратегической арены',
           'stats.strategyText':
-              'Каждый билет занимает ячейку матрицы. Новые игроки заполняют ветки, запускают recycle, увеличивают вес и двигают участников к выигрышным позициям. Freeze, shield и boost подготовлены как стратегический слой для следующей версии контракта.',
+              'Каждый билет занимает ячейку матрицы. Новые игроки заполняют ветки, запускают возврат (recycle), увеличивают вес и двигают участников к выигрышным позициям. Заморозка, защита и ускорение подготовлены как стратегический слой для следующей версии контракта.',
           'matrix.title': 'Matrix Visualization',
           'matrix.subtitle':
-              'Бинарное дерево • стратегические ячейки • freeze, recycle и выигрышные позиции',
+              'Бинарное дерево • стратегические ячейки • заморозка, возврат и выигрышные позиции',
           'matrix.chooseLevel': 'Выберите уровень',
           'matrix.you': 'Вы (Root)',
           'matrix.empty': 'Пусто',
-          'matrix.recycle': 'Рециклинг',
+          'matrix.recycle': 'Возврат (recycle)',
           'matrix.winningCell': 'Выигрышная ячейка',
           'matrix.statusFrozen': 'Вы заморожены',
           'matrix.statusImmune': 'Активен иммунитет к заморозке',
@@ -770,7 +774,7 @@ class AppTranslations extends Translations {
           'matrix.slots': 'слотов',
           'matrix.howTitle': 'Как работает боевая матрица',
           'matrix.howText':
-              'Игроки заполняют ячейки слева направо. Когда под узлом заполнены оба дочерних слота, recycle дает игроку новую позицию, box tokens и дополнительный matrix weight. Freeze/shield/boost подготовлены как стратегический слой поверх текущего состояния контракта.',
+              'Игроки заполняют ячейки слева направо. Когда под узлом заполнены оба дочерних слота, возврат (recycle) дает игроку новую позицию, бокс-токены (box tokens) и дополнительный матричный вес (matrix weight). Заморозка/защита/ускорение подготовлены как стратегический слой поверх текущего состояния контракта.',
           'matrix.freezeSkillTitle': 'Заморозка',
           'matrix.freezeOpponentTitle': 'Заморозить оппонента',
           'matrix.unfreezeSkillTitle': 'Разморозка',
@@ -880,7 +884,7 @@ class AppTranslations extends Translations {
           'profile.matrixSubtitle':
               '17 уровней весовой матрицы подключены к состоянию EasyGameAdvance.',
           'profile.activeCells': 'Активные ячейки',
-          'profile.boxTokens': 'Box tokens',
+          'profile.boxTokens': 'Бокс-токены (box tokens)',
           'profile.weightModel': 'Модель веса',
           'profile.weightHint':
               'Шанс выигрыша считается из базового, реферального, матричного, loyalty и NFT/box веса.',
@@ -918,22 +922,25 @@ class AppTranslations extends Translations {
           'partner.linesHowText':
               'Новый игрок отправляет 75.5% в матричный Prize Pool. Реферальные линии получают 9.5% + 6% + 4% как claimable-бонусы и добавляют вес. Отсутствующие линии возвращаются в Prize Pool.',
           'partner.newPlayerLine': 'Новый игрок',
-          'info.advanceTitle': 'Easy Smart Game',
+          'info.advanceTitle': 'Easy Games',
           'info.advanceText':
-              'Easy Smart Game — это первая игра на смарт-контракте, позволяющая получать пассивный доход прямо на ваш кошелёк — даже без приглашения партнёров. Все награды из игры мгновенно приходят на личный крипто-кошелёк участника.\n\nИгра состоит из 16 уровней с одинаковой логикой наград, но разной стоимостью активации. Каждый участник может активировать любое количество уровней и получать с них доход независимо.\n\nСмарт-контракт не хранит средства — все выплаты происходят мгновенно и напрямую участникам.',
+              'Easy Games — стратегическая матричная лотерея в сети Base с 17 уровнями. Каждый уровень проводится отдельными раундами со своей ценой билета, временем входа, призовым пулом и зафиксированными выигрышными ячейками.\n\nПокупая билет за ETH или USDC, игрок занимает следующую свободную позицию бинарной матрицы. Ячейки заполняются слева направо. Когда под позицией закрыты обе дочерние ячейки, recycle дает игроку новую позицию, бокс-токен и дополнительный вес.\n\nВыигрышные позиции фиксируются до старта раунда. После завершения контракты проверяют занятые выигрышные ячейки и делят пул между подходящими победителями либо переносят его в следующий раунд, если победителей нет. Реферальные бонусы начисляются по трем линиям и выводятся отдельно.\n\nУчастие не гарантирует выигрыш. Средства призового пула и награды остаются в смарт-контрактах до settlement и самостоятельного claim игроком.',
+          'info.deploymentStatusTitle': 'Текущая тестовая сборка',
+          'info.deploymentStatusText':
+              'Опубликованный веб-интерфейс настроен на Base Sepolia. В репозитории уже есть контракты раундов и локальные артефакты, но для сети 84532 пока не записаны адреса развернутых контрактов. До деплоя и настройки этих адресов платежи, действия арены, подведение итогов и вывод наград в опубликованной сборке недоступны.',
           'info.matrixTitle': 'Матрица Easy Games',
           'info.matrixText':
-              'Каждый уровень использует бинарную матрицу. Новые активации попадают в следующий открытый слот, а завершенные позиции рециклятся в том же уровне.',
+              'Каждый уровень использует бинарную матрицу. Новые активации попадают в следующий открытый слот, а завершенные позиции возвращаются (recycle) в том же уровне.',
           'info.structure': 'Структура Easy Games',
           'info.rewardTitle': 'Распределение наград',
           'info.rewardText':
               'Платежи делятся на 75.5% в матричный призовой пул, 9.5%, 6%, 4% ближайшим реферальным линиям и 5% прозрачной комиссии проекта.',
           'info.rewardsImage':
               'Награды: матричный призовой пул + три реферальные линии + комиссия проекта',
-          'info.freezeTitle': 'Правило заморозки',
+          'info.freezeTitle': 'Заморозка и разморозка на арене',
           'info.freezeText':
-              'После двух циклов уровень может заморозиться, пока игрок не активирует следующий уровень.',
-          'info.recyclePath': 'Путь рецикла',
+              'Действия арены доступны только участникам раунда. В заданном окне игрок может купить токен заморозки за 0.30 USDC и временно заморозить другого участника. Каждая атака расходует один токен. Лимит попаданий задается манифестом раунда; после его достижения цель получает иммунитет. Замороженный игрок может разморозиться минимум за 1 USDC либо за 7% от ожидаемого USDC-приза, если эта сумма выше. Оплата игровых действий поступает в настроенный skill treasury. Кандидат, оставшийся замороженным до конца раунда, пропускается при settlement.',
+          'info.recyclePath': 'Путь возврата',
           'info.binaryOverview': 'Обзор бинарной матрицы',
           'info.marketingPlan': 'Маркетинг-план',
           'info.ruleTicketCell':
@@ -941,9 +948,9 @@ class AppTranslations extends Translations {
           'info.ruleFillLeftRight':
               'Ячейки заполняются слева направо: сначала левый дочерний слот, потом правый.',
           'info.ruleRecycle':
-              'Когда под игроком заполнены оба дочерних слота, recycle дает новую позицию, matrix weight и boxToken.',
+              'Когда под игроком заполнены оба дочерних слота, возврат (recycle) дает новую позицию, матричный вес (matrix weight) и бокс-токен (boxToken).',
           'info.ruleChance':
-              'Вес игрока складывается из base, referral, matrix, box и boost weight. Текущий контракт награждает детерминированные prize cells; вес сможет влиять на победителей только после внедрения проверяемых правил раунда.',
+              'Контракт учитывает базовый, реферальный, матричный и box/NFT-вес. Текущий settlement выбирает заранее зафиксированные выигрышные ячейки, а не случайного победителя по весу. Поэтому вес пока информационный и сможет влиять на результат только в отдельной проверенной версии settlement.',
           'info.paymentRouteTitle': 'Система наград',
           'info.rewardSystemIntro':
               'При каждой активации 100% суммы распределяется по следующей схеме:',
@@ -951,39 +958,42 @@ class AppTranslations extends Translations {
               'Отсутствующие реферальные линии автоматически перенаправляются в Призовой пул.',
           'info.splitPool': 'Призовой пул',
           'info.splitPoolDescription':
-              'Чем больше у игрока матричных и реферальных очков, тем выше шанс выиграть.',
+              'Средства хранятся в призовом пуле выбранного раунда до подведения итогов. Settlement проверяет зафиксированные выигрышные ячейки через Merkle proof, исключает неподходящих кандидатов, делит пул между уникальными победителями или переносит его в следующий раунд, если победителей нет.',
           'info.splitDirect': 'Прямой приглашающий',
           'info.splitSecond': 'Второй уровень пригласившего',
           'info.splitThird': 'Третий уровень пригласившего',
           'info.splitProject': 'Проектный сбор',
-          'info.splitPoolHint': 'Формирует призовой пул выбранного уровня.',
+          'info.splitPoolHint': 'Формирует призовой пул выбранного раунда.',
           'info.splitDirectHint': 'Награда прямому приглашающему.',
           'info.splitSecondHint': 'Награда второй реферальной линии.',
           'info.splitThirdHint': 'Награда третьей реферальной линии.',
           'info.splitProjectHint': 'Сбор на поддержку проекта.',
           'info.roundLifecycleTitle': 'Как начать',
-          'info.stepConnect': 'Подключить кошелек и выбрать уровень',
-          'info.stepTicket': 'Купить билет за ETH или USDC',
+          'info.stepConnect':
+              'Подключить кошелек и выбрать открытый подписанный раунд',
+          'info.stepTicket': 'Купить один билет раунда за ETH или USDC',
           'info.stepMatrix': 'Занять следующую ячейку матрицы',
-          'info.stepRecycle': 'Получить recycle после двух заполненных слотов',
-          'info.stepPrize': 'Дойти до подтвержденной winning cell',
+          'info.stepRecycle':
+              'Получить возврат (recycle) после двух заполненных слотов',
+          'info.stepPrize':
+              'Дойти до подтвержденной выигрышной ячейки (winning cell)',
           'info.stepClaim': 'Вывести приз и реферальные награды',
-          'info.winningCellsTitle': 'Ячейка победителя',
+          'info.winningCellsTitle': 'Выигрышные ячейки',
           'info.winningCellsText':
-              'Перед началом раунда заранее фиксируются номера выигрышных ячеек. Участник, занявший одну из них, становится претендентом на награду этого раунда. Если до окончания раунда ни одна такая ячейка не занята, награда переносится в следующий раунд.',
+              'Перед стартом раунда выигрышные позиции фиксируются и подтверждаются. Игроки, которые дошли до проверенных ячеек, становятся претендентами. Если никто не дошел до подходящей ячейки, призовой пул переносится в следующий раунд.',
           'info.resourcesTitle': 'Игровые ресурсы',
           'info.boxTokenTitle': 'Наградной токен',
           'info.freezeTokenTitle': 'Токен заморозки',
           'info.shieldTokenTitle': 'Токен защиты',
           'info.weightBoostTitle': 'Усиление веса',
           'info.boxTokenText':
-              'Начисляется за повторный цикл и активность. Может превращаться в заморозку, защиту, усиление или дополнительные стратегические действия.',
+              'За recycle начисляются один бокс-токен, +50 матричного веса и +10 box/NFT-веса. Сейчас бокс-токены только учитываются как ресурс игрока; их расходование или конвертация ещё не реализованы.',
           'info.freezeTokenText':
-              'Позволяет временно остановить соперника, чтобы он не продвигался и не увеличивал шанс.',
+              'Реализован в контракте арены. Участник раунда может купить токен за 0.30 USDC и применить его к другому участнику в окне заморозки. Манифест раунда ограничивает число заморозок и после достижения лимита дает иммунитет.',
           'info.shieldTokenText':
-              'Защищает игрока или ветку команды от попыток заморозки во время раунда.',
+              'Запланированный ресурс. Покупка и активация щита в текущих контрактах ещё не реализованы.',
           'info.weightBoostText':
-              'Временно увеличивает вес в раунде и, значит, шанс игрока на победу.',
+              'Запланированный ресурс. Покупка временного усиления и его влияние на settlement в текущих контрактах ещё не реализованы.',
           'utility.wallet': 'Кошелек',
           'utility.networkChainId': 'ID сети',
           'utility.easyGameContract': 'Контракт EasyGame',
