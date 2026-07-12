@@ -245,6 +245,9 @@ class AppTranslations extends Translations {
           'matrix.howTitle': 'How the battle matrix works',
           'matrix.howText':
               'Players fill cells from left to right. When both child slots under a node are filled, recycle gives the player a new position, box tokens and more matrix weight. Freeze/shield/boost actions are prepared as the strategic layer on top of the current contract state.',
+          'matrix.freezeSkillTitle': 'Freeze Skill',
+          'matrix.freezeOpponentTitle': 'Freeze Opponent',
+          'matrix.unfreezeSkillTitle': 'Unfreeze Skill',
           'wallet.baseCoopError':
               'Base Account popup is blocked by Cross-Origin-Opener-Policy. Serve the app with Cross-Origin-Opener-Policy: same-origin-allow-popups.',
           'wallet.usdcPreparing': 'Preparing USDC contract payment.',
@@ -768,6 +771,9 @@ class AppTranslations extends Translations {
           'matrix.howTitle': 'Как работает боевая матрица',
           'matrix.howText':
               'Игроки заполняют ячейки слева направо. Когда под узлом заполнены оба дочерних слота, recycle дает игроку новую позицию, box tokens и дополнительный matrix weight. Freeze/shield/boost подготовлены как стратегический слой поверх текущего состояния контракта.',
+          'matrix.freezeSkillTitle': 'Заморозка',
+          'matrix.freezeOpponentTitle': 'Заморозить оппонента',
+          'matrix.unfreezeSkillTitle': 'Разморозка',
           'wallet.baseCoopError':
               'Popup Base Account заблокирован Cross-Origin-Opener-Policy. Запустите приложение с Cross-Origin-Opener-Policy: same-origin-allow-popups.',
           'wallet.usdcPreparing': 'Подготовка USDC-платежа в контракт.',

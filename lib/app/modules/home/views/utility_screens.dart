@@ -18,6 +18,7 @@ import 'package:lottery_advance/app/services/game_settlement_service.dart';
 import 'package:lottery_advance/app/services/game_round_blockchain_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
 import '../models/levels_models.dart';
+import '../widgets/neon_honeycomb.dart';
 
 part '../models/utility_screen_models.dart';
 part '../controllers/statistics_controller.dart';
@@ -28,6 +29,7 @@ part '../widgets/matrix_arena_widgets.dart';
 part '../widgets/matrix_stats_widgets.dart';
 part '../widgets/matrix_picker_widgets.dart';
 part '../widgets/matrix_tree_widgets.dart';
+part '../widgets/neon_honeycomb_widget.dart';
 part '../widgets/information_widgets.dart';
 part '../widgets/information_panels_widgets.dart';
 part '../widgets/information_diagram_widgets.dart';
