@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/lottery/controllers/lotteries_controller.dart';
 import 'package:lottery_advance/app/modules/lottery/lottery_detail.dart';
 import 'package:lottery_advance/app/services/contract_linking.dart';
 import 'package:lottery_advance/utils/font_styles.dart';
@@ -12,7 +13,7 @@ import 'package:lottery_advance/utils/constants.dart';
 class LotteriesView extends StatelessWidget {
   LotteriesView({Key? key}) : super(key: key);
   final contractLink = Get.find<ContractLinking>();
-  final lotteryNameController = TextEditingController();
+  final controller = Get.find<LotteriesController>();
 
   @override
   Widget build(BuildContext context) {
@@ -95,7 +96,7 @@ class LotteriesView extends StatelessWidget {
                 constraints: BoxConstraints(maxWidth: Get.width * 0.8),
                 padding: const EdgeInsets.all(8.0),
                 child: TextField(
-                  controller: lotteryNameController,
+                  controller: controller.lotteryNameController,
                   decoration: borderedInputDecoration(
                     fillColor: primaryColor,
                     hint: 'Diwali lottery',
@@ -104,7 +105,7 @@ class LotteriesView extends StatelessWidget {
                       color: primaryColor,
                     ),
                     suffixIcon: IconButton(
-                      onPressed: lotteryNameController.clear,
+                      onPressed: controller.lotteryNameController.clear,
                       icon: const Icon(
                         CupertinoIcons.clear,
                         color: primaryColor,
@@ -120,8 +121,8 @@ class LotteriesView extends StatelessWidget {
                       : MaterialButton(
                           onPressed: () async {
                             await contractLink.createLotteryFunc(
-                                lotteryNameController.text.trim());
-                            lotteryNameController.clear();
+                                controller.lotteryNameController.text.trim());
+                            controller.lotteryNameController.clear();
                             Get.back();
                           },
                           splashColor: splashColor,

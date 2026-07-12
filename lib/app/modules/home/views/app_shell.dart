@@ -8,6 +8,7 @@ import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
 import '../widgets/notifications/notifications_bottom_sheet.dart';
+import '../controllers/notifications_controller.dart';
 
 class ExpressAppShell extends StatelessWidget {
   final Widget child;
@@ -236,22 +237,26 @@ class _ExpressTopBar extends StatelessWidget {
                         const SizedBox(width: 10),
                         _RoundIconButton(icon: CupertinoIcons.search, onTap: onRefresh),
                         const SizedBox(width: 8),
-                        _RoundIconButton(
-                          icon: CupertinoIcons.bell,
-                          onTap: () {
-                            showModalBottomSheet(
-                              context: context,
-                              isScrollControlled: true,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.vertical(
-                                  top: Radius.circular(16),
+                        Obx(() {
+                          final c = Get.find<NotificationsController>();
+                          return _RoundIconButton(
+                            icon: CupertinoIcons.bell,
+                            badgeCount: c.unreadCount.value,
+                            onTap: () {
+                              showModalBottomSheet(
+                                context: context,
+                                isScrollControlled: true,
+                                shape: const RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.vertical(
+                                    top: Radius.circular(16),
+                                  ),
                                 ),
-                              ),
-                              backgroundColor: Colors.black,
-                              builder: (context) => NotificationsBottomSheet(),
-                            );
-                          },
-                        ),
+                                backgroundColor: Colors.black,
+                                builder: (context) => const NotificationsBottomSheet(),
+                              );
+                            },
+                          );
+                        }),
                         const SizedBox(width: 8),
                         _RoundIconButton(
                           icon: CupertinoIcons.square_arrow_left,
@@ -366,27 +371,25 @@ class _ShellNavItem extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
   final bool selected;
-  final bool compact;
 
   const _ShellNavItem({
     required this.icon,
     required this.label,
     required this.onTap,
     this.selected = false,
-    this.compact = false,
   });
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(8, compact ? 2 : 5, 18, compact ? 2 : 5),
+      padding: const EdgeInsets.fromLTRB(8, 5, 18, 5),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(10),
         child: Container(
-          padding: EdgeInsets.symmetric(
+          padding: const EdgeInsets.symmetric(
             horizontal: 12,
-            vertical: compact ? 8 : 13,
+            vertical: 13,
           ),
           decoration: BoxDecoration(
             color: selected ? EasyGameTheme.surfaceHigh : Colors.transparent,
@@ -397,7 +400,7 @@ class _ShellNavItem extends StatelessWidget {
               Icon(
                 icon,
                 color: selected ? Colors.white : Colors.white54,
-                size: compact ? 16 : 20,
+                size: 20,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -405,7 +408,7 @@ class _ShellNavItem extends StatelessWidget {
                   label,
                   style: TextStyle(
                     color: selected ? Colors.white : Colors.white54,
-                    fontSize: compact ? 11 : 15,
+                    fontSize: 15,
                     fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
                   ),
                 ),
@@ -477,10 +480,12 @@ class _TopChip extends StatelessWidget {
 class _RoundIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
+  final int badgeCount;
 
   const _RoundIconButton({
     required this.icon,
     this.onTap,
+    this.badgeCount = 0,
   });
 
   @override
@@ -488,14 +493,50 @@ class _RoundIconButton extends StatelessWidget {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(22),
-      child: Container(
+      child: SizedBox(
         width: 42,
         height: 42,
-        decoration: const BoxDecoration(
-          color: EasyGameTheme.surfaceHigh,
-          shape: BoxShape.circle,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Center(
+              child: Container(
+                width: 42,
+                height: 42,
+                decoration: const BoxDecoration(
+                  color: EasyGameTheme.surfaceHigh,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(icon, color: Colors.white70, size: 19),
+              ),
+            ),
+            if (badgeCount > 0)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: const BoxDecoration(
+                    color: Colors.red,
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 16,
+                    minHeight: 16,
+                  ),
+                  child: Text(
+                    badgeCount > 9 ? '9+' : '$badgeCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
-        child: Icon(icon, color: Colors.white70, size: 19),
       ),
     );
   }

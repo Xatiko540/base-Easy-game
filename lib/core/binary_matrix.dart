@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
+
 class BinaryMatrix {
   final List<List<int?>> matrix = [];
   final Map<int, int> recycleCounts = {};
@@ -54,7 +56,9 @@ class BinaryMatrix {
 
   void printMatrix() {
     for (int i = 0; i < matrix.length; i++) {
-      print("Level ${i + 1}: ${matrix[i]}");
+      if (kDebugMode) {
+        print("Level ${i + 1}: ${matrix[i]}");
+      }
     }
   }
 }

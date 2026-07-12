@@ -9,7 +9,6 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:http/http.dart';
 import 'package:lottery_advance/app/models/user.dart';
-import 'package:lottery_advance/app/services/model/contract_linking_models.dart';
 import 'package:lottery_advance/app/services/wallet_service.dart';
 import 'package:lottery_advance/utils/constants.dart';
 // import 'package:lottery_advance/utils/secret.dart';
@@ -20,8 +19,6 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 
 class ContractLinking extends GetxController
     with GetSingleTickerProviderStateMixin {
-  final ContractLinkingModel model = ContractLinkingModel();
-
 /*
       For Emulator
         final String _rpcUrl = "http://10.0.2.2:7545";
@@ -78,32 +75,31 @@ class ContractLinking extends GetxController
 
   late ContractEvent LotteryCreated, WinnerDeclared, PlayerParticipated;
 
-  RxString get managerAddress => model.lottery.managerAddress;
-  RxString get lotryname => model.lottery.name;
-  RxList<String> get lottries => model.lottery.addresses;
-  RxString get userAddress => model.wallet.address;
-  RxString get privateKey => model.wallet.privateKey;
-  RxString get contractBalance => model.lottery.contractBalance;
-  RxString get userBalance => model.wallet.balance;
-  RxString get lastWinner => model.lottery.lastWinner;
-  RxString get name => model.wallet.name;
-  RxString get message => model.operation.message;
-  RxDouble get lotteryETH => model.lottery.entryPriceEth;
-  RxBool get check => model.operation.isValid;
-  RxBool get isLoading => model.operation.isLoading;
-  RxBool get isLoadingParticipate => model.operation.isParticipating;
-  RxBool get isLoadingActivateLottery => model.operation.isActivatingLottery;
-  RxBool get isLoadingDeclareWinner => model.operation.isDeclaringWinner;
-  RxBool get isLoadingLotteryDetail => model.operation.isLoadingLotteryDetail;
-  RxBool get lotteryLive => model.lottery.isLive;
-  RxInt get lotteryLimit => model.lottery.maxEntries;
-  RxInt get lotterySold => model.lottery.soldEntries;
-  RxInt get lotteryBuyCount => model.lottery.playerEntryCount;
-  RxList<String> get players => model.lottery.players;
-  RxList<User> get users => model.wallet.users;
+  final managerAddress = ''.obs;
+  final lotryname = ''.obs;
+  final lottries = [].obs;
+  final userAddress = ''.obs;
+  final privateKey = ''.obs;
+  final contractBalance = ''.obs;
+  final userBalance = ''.obs;
+  final lastWinner = ''.obs;
+  final name = ''.obs;
+  final message = ''.obs;
+  final lotteryETH = 0.0.obs;
+  final check = true.obs;
+  final isLoading = false.obs;
+  final isLoadingParticipate = false.obs;
+  final isLoadingActivateLottery = false.obs;
+  final isLoadingDeclareWinner = false.obs;
+  final isLoadingLotteryDetail = false.obs;
+  final lotteryLive = false.obs;
+  final lotteryLimit = 0.obs;
+  final lotterySold = 0.obs;
+  final lotteryBuyCount = 0.obs;
+  final players = [].obs;
+  final users = <User>[].obs;
   late WalletService walletService;
-  String? get svgCode => model.wallet.avatarSvg;
-  set svgCode(String? value) => model.wallet.avatarSvg = value;
+  String? svgCode;
   final keyController = TextEditingController();
   final nameController = TextEditingController();
   late AnimationController animationController;
@@ -115,7 +111,7 @@ class ContractLinking extends GetxController
     print("[DEBUG] ContractLinking: setup started.");
     print("[DEBUG] ContractLinking: RPC URL: $_rpcUrl");
     print("[DEBUG] ContractLinking: WS URL: $_wsUrl");
-
+    
     _web3client = Web3Client(
       _rpcUrl,
       Client(),
@@ -624,8 +620,7 @@ class ContractLinking extends GetxController
     }
     isLoadingDeclareWinner.value = false;
     _messageTimer2?.cancel();
-    _messageTimer2 =
-        Timer(const Duration(seconds: 10), () => message.value = '');
+    _messageTimer2 = Timer(const Duration(seconds: 10), () => message.value = '');
   }
 
   void selectAccount(User u) {
