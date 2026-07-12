@@ -49,7 +49,7 @@ class _ProgramPanel extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       const Icon(
-                        Icons.circle,
+                        CupertinoIcons.circle,
                         color: EasyGameTheme.gold,
                         size: 15,
                       ),
@@ -109,7 +109,7 @@ class _ProgramPanel extends StatelessWidget {
               Row(
                 children: [
                   Icon(
-                    Icons.help_outline,
+                    CupertinoIcons.question_circle,
                     color: Colors.white.withValues(alpha: 0.42),
                     size: 16,
                   ),
@@ -157,7 +157,7 @@ class _ProgramCta extends StatelessWidget {
       ),
       child: TextButton.icon(
         onPressed: onTap,
-        icon: const Icon(Icons.north_east, color: Colors.white, size: 16),
+        icon: const Icon(CupertinoIcons.arrow_up_right, color: Colors.white, size: 16),
         label: Text(
           compact ? 'profile.programViewShort'.tr : 'profile.programView'.tr,
           style: const TextStyle(
@@ -237,10 +237,10 @@ class _MatrixCell extends StatelessWidget {
               ),
               if (frozen) ...[
                 const SizedBox(height: 3),
-                const Icon(Icons.ac_unit, color: Color(0xFFFFA62B), size: 12),
+                const Icon(CupertinoIcons.snow, color: Color(0xFFFFA62B), size: 12),
               ] else if (active) ...[
                 const SizedBox(height: 3),
-                const Icon(Icons.check, color: Colors.white, size: 12),
+                const Icon(CupertinoIcons.checkmark, color: Colors.white, size: 12),
               ],
             ],
           ),

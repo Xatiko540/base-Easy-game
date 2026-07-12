@@ -56,7 +56,7 @@ class _CoinIcon extends StatelessWidget {
         shape: BoxShape.circle,
       ),
       child: Icon(
-        Icons.token,
+        CupertinoIcons.ticket,
         size: size * 0.68,
         color: Colors.white,
       ),
@@ -296,7 +296,7 @@ class _WeightStrip extends StatelessWidget {
               message: 'levelDetail.totalLevelWeightHint'
                   .trParams({'weight': '$totalWeight'}),
               child: const Icon(
-                Icons.info_outline,
+                CupertinoIcons.info,
                 size: 14,
                 color: Colors.white38,
               ),

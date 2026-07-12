@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
@@ -53,7 +54,7 @@ class StatisticsScreen extends StatelessWidget {
         return _UtilityScaffold(
           title: 'nav.stats'.tr,
           activeSection: 'Statistics',
-          icon: Icons.bar_chart,
+          icon: CupertinoIcons.chart_bar,
           onRefresh: statisticsController.refreshStats,
           children: [
             if (loading)
@@ -76,14 +77,14 @@ class StatisticsScreen extends StatelessWidget {
                         : 4;
                 final cards = [
                   _ArenaStatCard(
-                    icon: Icons.groups_2_outlined,
+                    icon: CupertinoIcons.person_2,
                     title: 'stats.participants'.tr,
                     value: data?.matrixNodes.toString() ?? '-',
                     delta: '+ ${data?.activeLevels ?? 0}',
                     color: EasyGameTheme.teal,
                   ),
                   _ArenaStatCard(
-                    icon: Icons.account_balance_wallet_outlined,
+                    icon: CupertinoIcons.creditcard,
                     title: 'stats.prizeVolume'.tr,
                     value: data == null
                         ? '-'
@@ -92,14 +93,14 @@ class StatisticsScreen extends StatelessWidget {
                     color: Colors.greenAccent,
                   ),
                   _ArenaStatCard(
-                    icon: Icons.sync_alt,
+                    icon: CupertinoIcons.arrow_clockwise,
                     title: 'stats.transactions'.tr,
                     value: data?.matrixNodes.toString() ?? '-',
                     delta: '+${data?.frozenLevels ?? 0} frozen',
                     color: EasyGameTheme.orange,
                   ),
                   _ArenaStatCard(
-                    icon: Icons.trending_up,
+                    icon: CupertinoIcons.arrow_up_right,
                     title: 'stats.weight'.tr,
                     value: data?.totalWeight.toString() ?? '-',
                     delta: 'weighted draw',
@@ -159,7 +160,7 @@ class StatisticsScreen extends StatelessWidget {
               value: data == null
                   ? 'common.loading'.tr
                   : _shortAddress(data.contractAddress),
-              icon: Icons.description,
+              icon: CupertinoIcons.doc_text,
             ),
           ],
         );
@@ -314,7 +315,7 @@ class MemberPreviewScreen extends StatelessWidget {
 
         return _UtilityScaffold(
           title: 'utility.memberPreview'.tr,
-          icon: Icons.manage_search,
+          icon: CupertinoIcons.slider_horizontal_3,
           onRefresh: previewController.refreshPreview,
           children: [
             if (loading)
@@ -333,7 +334,7 @@ class MemberPreviewScreen extends StatelessWidget {
                   ? 'utility.walletAddress'.tr
                   : 'utility.memberId'.tr,
               value: data.isWallet ? data.normalizedAddress : query,
-              icon: data.isWallet ? Icons.account_balance_wallet : Icons.badge,
+              icon: data.isWallet ? CupertinoIcons.creditcard : CupertinoIcons.creditcard,
             ),
             if (!data.isWallet)
               _InfoBlock(
@@ -372,10 +373,10 @@ class MemberPreviewScreen extends StatelessWidget {
                       ? 'common.loading'.tr
                       : '${_formatWei(data.earnedWei)} ${walletService.nativeSymbol}'
                   : 'common.notAvailable'.tr,
-              icon: Icons.payments,
+              icon: CupertinoIcons.money_dollar_circle,
             ),
             _ActionTile(
-              icon: Icons.grid_view,
+              icon: CupertinoIcons.square_grid_2x2,
               title: 'utility.openLevels'.tr,
               subtitle: data.isWallet
                   ? 'utility.openFiltered'.tr
@@ -401,7 +402,7 @@ class InformationScreen extends StatelessWidget {
     return _UtilityScaffold(
       title: 'nav.information'.tr,
       activeSection: 'Information',
-      icon: Icons.info_outline,
+      icon: CupertinoIcons.info,
       children: [
         _InfoHeroCard(
           title: 'info.advanceTitle'.tr,
@@ -437,16 +438,16 @@ class TelegramBotsScreen extends StatelessWidget {
     return _UtilityScaffold(
       title: 'nav.telegramBots'.tr,
       activeSection: 'Telegram',
-      icon: Icons.telegram,
+      icon: CupertinoIcons.paperplane_fill,
       children: [
         _ActionTile(
-          icon: Icons.notifications_active,
+          icon: CupertinoIcons.bell_fill,
           title: 'nav.notifierBot'.tr,
           subtitle: 'utility.openNotifierSetup'.tr,
           onTap: () => Get.to(() => NotifierBotScreen()),
         ),
         _ActionTile(
-          icon: Icons.support_agent,
+          icon: CupertinoIcons.headphones,
           title: 'common.support'.tr,
           subtitle: 'utility.openSupportChannels'.tr,
           onTap: () => Get.to(() => const SupportScreen()),
@@ -474,14 +475,14 @@ class PromoScreen extends StatelessWidget {
     return _UtilityScaffold(
       title: 'nav.promo'.tr,
       activeSection: 'Promo',
-      icon: Icons.campaign,
+      icon: CupertinoIcons.hifispeaker,
       children: [
         _InfoBlock(
           title: 'utility.partnerLink'.tr,
           text: link,
         ),
         _ActionTile(
-          icon: Icons.copy,
+          icon: CupertinoIcons.doc_on_doc,
           title: 'utility.copyPartnerLink'.tr,
           subtitle: 'utility.copyInviteUrl'.tr,
           onTap: () {
@@ -494,7 +495,7 @@ class PromoScreen extends StatelessWidget {
           },
         ),
         _ActionTile(
-          icon: Icons.play_arrow,
+          icon: CupertinoIcons.play_arrow,
           title: 'utility.openLevels'.tr,
           subtitle: 'utility.openProgramView'.tr,
           onTap: () => Get.to(() => LevelsScreen()),
@@ -514,7 +515,7 @@ class NotifierBotScreen extends StatelessWidget {
     return _UtilityScaffold(
       title: 'nav.notifierBot'.tr,
       activeSection: 'Notifier',
-      icon: Icons.notifications,
+      icon: CupertinoIcons.bell,
       children: [
         Obx(
           () => _StatusCard(
@@ -523,7 +524,7 @@ class NotifierBotScreen extends StatelessWidget {
                 ? 'utility.readyFor'
                     .trParams({'wallet': walletService.shortAddress})
                 : 'utility.connectWalletFirst'.tr,
-            icon: Icons.account_circle,
+            icon: CupertinoIcons.person_crop_circle,
           ),
         ),
         _InfoBlock(
@@ -531,7 +532,7 @@ class NotifierBotScreen extends StatelessWidget {
           text: 'utility.eventsToNotifyText'.tr,
         ),
         _ActionTile(
-          icon: Icons.settings,
+          icon: CupertinoIcons.gear,
           title: 'utility.notificationSettings'.tr,
           subtitle: 'utility.notificationSettingsText'.tr,
           onTap: () => Get.to(() => SettingsScreen()),
@@ -550,7 +551,7 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return _UtilityScaffold(
       title: 'common.settings'.tr,
-      icon: Icons.settings,
+      icon: CupertinoIcons.gear,
       children: [
         Obx(
           () => _StatusCard(
@@ -558,7 +559,7 @@ class SettingsScreen extends StatelessWidget {
             value: walletService.isConnected.value
                 ? walletService.currentAddress.value
                 : 'common.notConnected'.tr,
-            icon: Icons.account_balance_wallet,
+            icon: CupertinoIcons.creditcard,
           ),
         ),
         Obx(
@@ -566,11 +567,11 @@ class SettingsScreen extends StatelessWidget {
             title: 'utility.chainId'.tr,
             value:
                 walletService.chainId.value?.toString() ?? 'common.unknown'.tr,
-            icon: Icons.language,
+            icon: CupertinoIcons.globe,
           ),
         ),
         _ActionTile(
-          icon: Icons.network_check,
+          icon: CupertinoIcons.wifi,
           title: 'utility.checkNetwork'.tr,
           subtitle: 'utility.checkNetworkText'.tr,
           onTap: () async {
@@ -592,7 +593,7 @@ class SettingsScreen extends StatelessWidget {
           },
         ),
         _ActionTile(
-          icon: Icons.logout,
+          icon: CupertinoIcons.square_arrow_left,
           title: 'utility.disconnectWallet'.tr,
           subtitle: 'utility.disconnectWalletText'.tr,
           onTap: () {
@@ -612,20 +613,20 @@ class SupportScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return _UtilityScaffold(
       title: 'common.support'.tr,
-      icon: Icons.support_agent,
+      icon: CupertinoIcons.headphones,
       children: [
         _InfoBlock(
           title: 'utility.supportStatus'.tr,
           text: 'utility.supportStatusText'.tr,
         ),
         _ActionTile(
-          icon: Icons.email,
+          icon: CupertinoIcons.envelope,
           title: 'utility.emailSupport'.tr,
           subtitle: 'utility.openMailDraft'.tr,
           onTap: _showContactUnavailable,
         ),
         _ActionTile(
-          icon: Icons.telegram,
+          icon: CupertinoIcons.paperplane_fill,
           title: 'nav.telegramChannel'.tr,
           subtitle: 'utility.telegramChannelText'.tr,
           onTap: _showContactUnavailable,
@@ -642,7 +643,7 @@ class ExpressInfoScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return _UtilityScaffold(
       title: 'utility.about'.tr,
-      icon: Icons.school,
+      icon: CupertinoIcons.book,
       children: [
         _InfoBlock(
           title: 'utility.smartContractGame'.tr,
@@ -664,7 +665,7 @@ class RecentActivityScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return _UtilityScaffold(
       title: 'utility.recentActivity'.tr,
-      icon: Icons.history,
+      icon: CupertinoIcons.clock,
       children: [
         _InfoBlock(
           title: 'utility.currentState'.tr,

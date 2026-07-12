@@ -129,7 +129,7 @@ class _MiniLevelButton extends StatelessWidget {
                   ),
                 ),
                 const Icon(
-                  Icons.monetization_on,
+                  CupertinoIcons.money_dollar,
                   color: Color(0xFFF7C948),
                   size: 15,
                 ),

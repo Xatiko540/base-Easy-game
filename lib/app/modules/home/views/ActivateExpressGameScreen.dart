@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/modules/home/views/levels.dart';
@@ -100,7 +101,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            networkOk ? Icons.check_circle : Icons.warning,
+                            networkOk ? CupertinoIcons.check_mark_circled : CupertinoIcons.exclamationmark_triangle,
                             color: networkOk ? Colors.green : Colors.orange,
                             size: 20,
                           ),
@@ -121,8 +122,8 @@ class ActivateExpressGameScreen extends StatelessWidget {
                         children: [
                           Icon(
                             walletService.isConnected.value
-                                ? Icons.check_circle
-                                : Icons.cancel,
+                                ? CupertinoIcons.check_mark_circled
+                                : CupertinoIcons.xmark_circle,
                             color: walletService.isConnected.value
                                 ? Colors.green
                                 : Colors.red,
@@ -148,7 +149,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                       if (walletService.lastGasEstimate.value != null) ...[
                         const SizedBox(height: 8),
                         _PaymentStateLine(
-                          icon: Icons.local_gas_station,
+                          icon: CupertinoIcons.bolt_fill,
                           color: Colors.lightBlueAccent,
                           label: 'payment.gasEstimate'.tr,
                           value:
@@ -158,7 +159,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                       if (walletService.lastPaymentTxHash.value.isNotEmpty) ...[
                         const SizedBox(height: 8),
                         _PaymentStateLine(
-                          icon: Icons.receipt_long,
+                          icon: CupertinoIcons.doc_text,
                           color: Colors.white70,
                           label: 'payment.transaction'.tr,
                           value:
@@ -257,7 +258,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                             ),
                             Row(
                               children: [
-                                Icon(Icons.monetization_on,
+                                Icon(CupertinoIcons.money_dollar,
                                     color: Colors.yellow, size: 16),
                                 SizedBox(width: 4),
                                 Text(
@@ -356,17 +357,17 @@ class ActivateExpressGameScreen extends StatelessWidget {
   IconData _statusIcon(PaymentFlowStatus status) {
     switch (status) {
       case PaymentFlowStatus.success:
-        return Icons.check_circle;
+        return CupertinoIcons.check_mark_circled;
       case PaymentFlowStatus.failed:
-        return Icons.error;
+        return CupertinoIcons.exclamationmark_circle;
       case PaymentFlowStatus.estimatingGas:
       case PaymentFlowStatus.confirming:
       case PaymentFlowStatus.waitingForWallet:
       case PaymentFlowStatus.preparing:
       case PaymentFlowStatus.submitted:
-        return Icons.pending;
+        return CupertinoIcons.clock;
       case PaymentFlowStatus.idle:
-        return Icons.info_outline;
+        return CupertinoIcons.info;
     }
   }
 

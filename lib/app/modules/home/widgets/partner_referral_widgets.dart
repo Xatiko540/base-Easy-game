@@ -22,7 +22,7 @@ class _PersonalReferralPanel extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.group_outlined, color: EasyGameTheme.teal),
+                const Icon(CupertinoIcons.person_3, color: EasyGameTheme.teal),
                 const SizedBox(width: 10),
                 Text(
                   'partner.personalLink'.tr,
@@ -58,13 +58,13 @@ class _PersonalReferralPanel extends StatelessWidget {
                   const SizedBox(width: 10),
                   _SmallActionButton(
                     label: 'common.copy'.tr,
-                    icon: Icons.copy,
+                    icon: CupertinoIcons.doc_on_doc,
                     onTap: controller.copyReferralLink,
                   ),
                   const SizedBox(width: 8),
                   _SmallActionButton(
                     label: 'common.share'.tr,
-                    icon: Icons.share,
+                    icon: CupertinoIcons.share,
                     gradient: true,
                     onTap: controller.shareReferralLink,
                   ),
@@ -131,7 +131,7 @@ class _ReferralRulesPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.info_outline, color: EasyGameTheme.teal),
+              const Icon(CupertinoIcons.info, color: EasyGameTheme.teal),
               const SizedBox(width: 10),
               Text(
                 'partner.linesHowTitle'.tr,

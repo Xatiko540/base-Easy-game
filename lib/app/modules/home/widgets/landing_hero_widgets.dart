@@ -110,7 +110,7 @@ class _HeroPanel extends StatelessWidget {
                         ),
                         _OutlineButton(
                           label: 'start.helpMe'.tr,
-                          icon: Icons.play_arrow_rounded,
+                          icon: CupertinoIcons.play_arrow,
                           onTap: UiNavigationService.openInformation,
                         ),
                       ],

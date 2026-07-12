@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/language_selector.dart';
 import 'package:lottery_advance/app/services/ui_navigation_service.dart';
@@ -119,72 +120,53 @@ class _ExpressSidebar extends StatelessWidget {
               child: _ExpressLogo(),
             ),
             _ShellNavItem(
-              icon: Icons.grid_view_rounded,
+              icon: CupertinoIcons.square_grid_2x2,
               label: 'nav.dashboard'.tr,
               selected: _isSelected('Dashboard') || _isSelected('Profile'),
               onTap: () => Get.toNamed('/profile'),
             ),
             _ShellNavItem(
-              icon: Icons.grid_on_rounded,
+              icon: CupertinoIcons.square_grid_3x2,
               label: 'nav.easyGames'.tr,
               selected: _isSelected('Levels') || _isSelected('Easy Games'),
               onTap: UiNavigationService.openLevels,
             ),
             _ShellNavItem(
-              icon: Icons.account_tree_outlined,
+              icon: CupertinoIcons.square_list,
               label: 'nav.matrix'.tr,
               selected: _isSelected('Matrix'),
               onTap: UiNavigationService.openMatrix,
             ),
             _ShellNavItem(
-              icon: Icons.donut_large,
+              icon: CupertinoIcons.circle_grid_3x3,
               label: 'nav.stats'.tr,
               selected: _isSelected('Statistics') || _isSelected('Stats'),
               onTap: UiNavigationService.openStatistics,
             ),
             _ShellNavItem(
-              icon: Icons.group_outlined,
+              icon: CupertinoIcons.person_3,
               label: 'nav.partnerBonus'.tr,
               selected: _isSelected('Partner'),
               onTap: () => Get.toNamed('/partner-bonus'),
             ),
             _ShellNavItem(
-              icon: Icons.bookmark_border,
+              icon: CupertinoIcons.bookmark,
               label: 'nav.information'.tr,
               selected: _isSelected('Information'),
               onTap: UiNavigationService.openInformation,
             ),
-            _ShellNavItem(
-              icon: Icons.send_outlined,
-              label: 'nav.telegramBots'.tr,
-              selected: _isSelected('Telegram'),
-              onTap: UiNavigationService.openTelegramBots,
-            ),
-            _ShellNavItem(
-              icon: Icons.campaign_outlined,
-              label: 'nav.promo'.tr,
-              selected: _isSelected('Promo'),
-              onTap: UiNavigationService.openPromo,
-            ),
+
             const Spacer(),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 24, 10),
               child: _ShellNavItem(
-                icon: Icons.notifications_none,
+                icon: CupertinoIcons.bell,
                 label: 'nav.notifierBot'.tr,
                 selected: _isSelected('Notifier'),
                 onTap: UiNavigationService.openNotifierBot,
               ),
             ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(8, 0, 24, 22),
-              child: _ShellNavItem(
-                icon: Icons.telegram,
-                label: 'nav.telegramChannel'.tr,
-                compact: true,
-                onTap: UiNavigationService.openTelegramBots,
-              ),
-            ),
+
           ],
         ),
       ),
@@ -231,7 +213,7 @@ class _ExpressTopBar extends StatelessWidget {
                         if (!compact)
                           Obx(
                             () => _TopChip(
-                              icon: Icons.hexagon,
+                              icon: CupertinoIcons.hexagon,
                               label: walletService.networkLabel,
                             ),
                           ),
@@ -240,7 +222,7 @@ class _ExpressTopBar extends StatelessWidget {
                         const SizedBox(width: 10),
                         Obx(
                           () => _TopChip(
-                            icon: Icons.account_balance_wallet_outlined,
+                            icon: CupertinoIcons.creditcard,
                             label: walletService.isConnected.value
                                 ? walletService.shortAddress
                                 : 'top.signInBase'.tr,
@@ -252,10 +234,10 @@ class _ExpressTopBar extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        _RoundIconButton(icon: Icons.search, onTap: onRefresh),
+                        _RoundIconButton(icon: CupertinoIcons.search, onTap: onRefresh),
                         const SizedBox(width: 8),
                         _RoundIconButton(
-                          icon: Icons.notifications_none,
+                          icon: CupertinoIcons.bell,
                           onTap: () {
                             showModalBottomSheet(
                               context: context,
@@ -272,7 +254,7 @@ class _ExpressTopBar extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         _RoundIconButton(
-                          icon: Icons.logout,
+                          icon: CupertinoIcons.square_arrow_left,
                           onTap: () {
                             walletService.disconnectWallet();
                             Get.offAllNamed('/home');
@@ -326,7 +308,7 @@ class _BalanceChip extends StatelessWidget {
   Widget build(BuildContext context) {
     if (balanceLabel != null) {
       return _TopChip(
-        icon: Icons.monetization_on,
+        icon: CupertinoIcons.money_dollar,
         label: balanceLabel!,
       );
     }
@@ -334,7 +316,7 @@ class _BalanceChip extends StatelessWidget {
     final walletService = Get.find<WalletConnectService>();
     return Obx(
       () => _TopChip(
-        icon: Icons.monetization_on,
+        icon: CupertinoIcons.money_dollar,
         label:
             '${_formatShellWei(walletService.nativeBalanceWei.value ?? BigInt.zero)} ${walletService.nativeSymbol}',
       ),
@@ -530,22 +512,16 @@ class _FloatingHelpButtons extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          _FloatingPill(
-            icon: Icons.send,
-            label: 'floating.news'.tr,
-            color: EasyGameTheme.blue,
-            onTap: UiNavigationService.openTelegramBots,
-          ),
           const SizedBox(height: 12),
           _FloatingPill(
-            icon: Icons.language,
+            icon: CupertinoIcons.globe,
             label: 'floating.language'.tr,
             color: EasyGameTheme.blue,
             onTap: () => showLanguageSelector(context),
           ),
           const SizedBox(height: 16),
           _FloatingPill(
-            icon: Icons.chat_bubble_outline,
+            icon: CupertinoIcons.chat_bubble,
             label: 'floating.chat'.tr,
             color: const Color(0xFF351083),
             onTap: UiNavigationService.openSupport,

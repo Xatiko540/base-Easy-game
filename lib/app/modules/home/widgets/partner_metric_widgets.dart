@@ -13,21 +13,21 @@ class _PartnerMetricGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final cards = [
       _PartnerMetricCard(
-        icon: Icons.group_outlined,
+        icon: CupertinoIcons.person_3,
         title: 'partner.tickets'.tr,
         value: data.totalTickets.toString(),
         delta: '+${data.baseWeight} wt',
         color: EasyGameTheme.teal,
       ),
       _PartnerMetricCard(
-        icon: Icons.person_outline,
+        icon: CupertinoIcons.person,
         title: 'partner.teamWeight'.tr,
         value: data.referralWeight.toString(),
         delta: '+ referral',
         color: EasyGameTheme.purple,
       ),
       _PartnerMetricCard(
-        icon: Icons.show_chart,
+        icon: CupertinoIcons.chart_bar,
         title: 'partner.ratio'.tr,
         value: data.totalWeight == BigInt.zero
             ? '0%'
@@ -36,7 +36,7 @@ class _PartnerMetricGrid extends StatelessWidget {
         color: Colors.greenAccent,
       ),
       _PartnerMetricCard(
-        icon: Icons.monetization_on_outlined,
+        icon: CupertinoIcons.money_dollar,
         title: 'partner.profits'.tr,
         value: '${formatPartnerWei(data.claimableReferralBonusWei)} $currency',
         delta: '+ claimable',

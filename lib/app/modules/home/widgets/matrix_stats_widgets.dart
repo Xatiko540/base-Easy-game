@@ -107,7 +107,7 @@ class _PayoutDistributionPanel extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.track_changes, color: EasyGameTheme.teal),
+              const Icon(CupertinoIcons.location, color: EasyGameTheme.teal),
               const SizedBox(width: 10),
               Text(
                 'stats.payoutDistribution'.tr,

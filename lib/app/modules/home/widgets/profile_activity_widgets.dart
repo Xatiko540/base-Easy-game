@@ -132,7 +132,7 @@ class _ActivityRow extends StatelessWidget {
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
-                    entry.state.frozen ? Icons.ac_unit : Icons.arrow_downward,
+                    entry.state.frozen ? CupertinoIcons.snow : CupertinoIcons.chevron_down,
                     color: entry.state.frozen
                         ? EasyGameTheme.gold
                         : EasyGameTheme.teal,

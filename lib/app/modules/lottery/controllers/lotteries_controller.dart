@@ -4,7 +4,7 @@ import 'package:lottery_advance/app/services/contract_linking.dart';
 class LotteriesController extends GetxController {
   final contractLink = Get.find<ContractLinking>();
 
-  setup() async {
+  Future<void> setup() async {
     await contractLink.getAbi();
     await contractLink.getCredentials();
     await contractLink.getDeployedContractLotteryGenerator();

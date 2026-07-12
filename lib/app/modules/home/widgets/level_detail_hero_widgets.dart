@@ -62,7 +62,7 @@ class _LevelHeroPanel extends StatelessWidget {
                     backgroundColor: Colors.orangeAccent,
                     radius: 12,
                     child: Icon(
-                      Icons.monetization_on,
+                      CupertinoIcons.money_dollar,
                       size: 16,
                       color: Colors.white,
                     ),
@@ -86,7 +86,7 @@ class _LevelHeroPanel extends StatelessWidget {
               border: Border.all(color: const Color(0xFF2AF598), width: 2),
             ),
             child: const Icon(
-              Icons.account_tree,
+              CupertinoIcons.square_list,
               color: Color(0xFF2AF598),
               size: 38,
             ),

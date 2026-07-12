@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/language_selector.dart';
 import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
@@ -271,7 +272,7 @@ class _InviteAvatar extends StatelessWidget {
           shape: BoxShape.circle,
         ),
         child: const Icon(
-          Icons.person,
+          CupertinoIcons.person,
           color: Color(0xFF45A6A8),
           size: 54,
         ),
@@ -292,21 +293,21 @@ class _InviteFloatingButtons extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           _FloatingActionPill(
-            icon: Icons.send,
+            icon: CupertinoIcons.paperplane,
             label: 'floating.news'.tr,
             color: const Color(0xFF426CF8),
             onTap: UiNavigationService.openTelegramBots,
           ),
           const SizedBox(height: 16),
           _FloatingActionPill(
-            icon: Icons.language,
+            icon: CupertinoIcons.globe,
             label: 'floating.language'.tr,
             color: const Color(0xFF426CF8),
             onTap: () => showLanguageSelector(context),
           ),
           const SizedBox(height: 20),
           _FloatingActionPill(
-            icon: Icons.chat_bubble_outline,
+            icon: CupertinoIcons.chat_bubble,
             label: 'floating.chat'.tr,
             color: const Color(0xFF351083),
             onTap: UiNavigationService.openSupport,

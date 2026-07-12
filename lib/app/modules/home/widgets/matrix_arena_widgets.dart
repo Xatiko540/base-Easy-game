@@ -40,7 +40,7 @@ class _ArenaSkillsPanel extends StatelessWidget {
           Row(
             children: [
               Icon(
-                data.playerFrozen ? Icons.ac_unit : Icons.shield_outlined,
+                data.playerFrozen ? CupertinoIcons.snow : CupertinoIcons.shield,
                 color: data.playerFrozen
                     ? Colors.lightBlueAccent
                     : Colors.greenAccent,
@@ -92,13 +92,13 @@ class _ArenaSkillsPanel extends StatelessWidget {
             runSpacing: 10,
             children: [
               _SkillActionButton(
-                icon: Icons.ac_unit,
+                icon: CupertinoIcons.snow,
                 label: '${'matrix.buyFreeze'.tr} · 0.30 USDC',
                 onPressed:
                     actionsBusy || !data.playerActive ? null : onBuyFreeze,
               ),
               _SkillActionButton(
-                icon: Icons.gps_fixed,
+                icon: CupertinoIcons.location,
                 label: 'matrix.freezeSelected'.tr,
                 onPressed: actionsBusy ||
                         selectedOpponent.isEmpty ||
@@ -107,7 +107,7 @@ class _ArenaSkillsPanel extends StatelessWidget {
                     : onFreeze,
               ),
               _SkillActionButton(
-                icon: Icons.water_drop_outlined,
+                icon: CupertinoIcons.drop,
                 label:
                     '${'matrix.unfreezeNow'.tr} · ${_usdc(status?.unfreezePriceUsdc ?? BigInt.from(1000000))} USDC',
                 onPressed:
@@ -141,10 +141,10 @@ class _ArenaSkillsPanel extends StatelessWidget {
                       : (_) => onSelectOpponent(participant.wallet),
                   avatar: Icon(
                     participant.skillStatus?.frozen == true
-                        ? Icons.ac_unit
+                        ? CupertinoIcons.snow
                         : participant.isInvited
-                            ? Icons.group_add_outlined
-                            : Icons.person_outline,
+                            ? CupertinoIcons.person_badge_plus
+                            : CupertinoIcons.person,
                     size: 16,
                     color: participant.skillStatus?.frozen == true
                         ? Colors.lightBlueAccent
@@ -287,12 +287,12 @@ class _RoundSettlementPanel extends StatelessWidget {
             runSpacing: 10,
             children: [
               _SkillActionButton(
-                icon: Icons.fact_check_outlined,
+                icon: CupertinoIcons.doc_checkmark,
                 label: 'matrix.settleRound'.tr,
                 onPressed: actionsBusy || !data.canSettle ? null : onSettle,
               ),
               _SkillActionButton(
-                icon: Icons.account_balance_wallet_outlined,
+                icon: CupertinoIcons.creditcard,
                 label: 'matrix.claimSettlement'.tr,
                 onPressed: actionsBusy || !claimable.hasReward ? null : onClaim,
               ),

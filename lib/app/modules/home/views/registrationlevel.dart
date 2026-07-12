@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/controllers/registration_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/registration_models.dart';
@@ -220,7 +221,7 @@ class RegistrationScreen extends StatelessWidget {
                             children: [
                               Expanded(
                                 child: _CheckPill(
-                                  icon: Icons.hub,
+                                  icon: CupertinoIcons.arrow_2_circlepath,
                                   label: networkChecked
                                       ? 'registration.networkOk'.tr
                                       : 'registration.networkCheck'.tr,
@@ -232,7 +233,7 @@ class RegistrationScreen extends StatelessWidget {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: _CheckPill(
-                                  icon: Icons.monetization_on,
+                                  icon: CupertinoIcons.money_dollar,
                                   label: balanceChecked
                                       ? 'registration.balanceOk'.tr
                                       : balanceMessage.isEmpty

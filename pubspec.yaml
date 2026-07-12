@@ -60,11 +60,13 @@ dependencies:
 
 
 dependency_overrides:
+  cupertino_icons: ^1.0.9
 
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
 
 
   # The "flutter_lints" package below contains a set of recommended lints to

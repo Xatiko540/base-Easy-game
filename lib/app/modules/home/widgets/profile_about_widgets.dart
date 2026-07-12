@@ -81,7 +81,7 @@ class _AboutEasyGamePanel extends StatelessWidget {
               final compact = constraints.maxWidth < 640;
               final cards = [
                 _ClaimMiniCard(
-                  icon: Icons.workspace_premium_outlined,
+                  icon: CupertinoIcons.rosette,
                   value:
                       '${formatWeiToEth(data.claimablePrizeWei)} ${walletService.nativeSymbol}',
                   label: 'levelDetail.claimablePrize'.tr,
@@ -90,7 +90,7 @@ class _AboutEasyGamePanel extends StatelessWidget {
                   onTap: () => Get.to(() => LevelsScreen()),
                 ),
                 _ClaimMiniCard(
-                  icon: Icons.link_rounded,
+                  icon: CupertinoIcons.link,
                   value:
                       '${formatWeiToEth(data.referralBonusWei)} ${walletService.nativeSymbol}',
                   label: 'levelDetail.referralBonus'.tr,
@@ -99,7 +99,7 @@ class _AboutEasyGamePanel extends StatelessWidget {
                   onTap: () => Get.to(() => PartnerBonusScreen()),
                 ),
                 _ClaimMiniCard(
-                  icon: Icons.inventory_2_outlined,
+                  icon: CupertinoIcons.tray_full,
                   value: data.boxTokens.toString(),
                   label: 'profile.boxTokens'.tr,
                   action: null,
@@ -292,7 +292,7 @@ class _ContractsStatsPanel extends StatelessWidget {
                 InkWell(
                   onTap: onCopyContract,
                   child: const Icon(
-                    Icons.copy,
+                    CupertinoIcons.doc_on_doc,
                     color: Colors.white38,
                     size: 15,
                   ),

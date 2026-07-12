@@ -22,7 +22,7 @@ class _LevelStateBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.info_outline, color: Colors.orangeAccent),
+          const Icon(CupertinoIcons.info, color: Colors.orangeAccent),
           const SizedBox(width: 10),
           Expanded(
             child: Text(

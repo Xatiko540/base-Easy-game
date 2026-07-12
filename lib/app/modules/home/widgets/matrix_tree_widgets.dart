@@ -84,22 +84,22 @@ class _MatrixArenaPanel extends StatelessWidget {
             runSpacing: 10,
             children: [
               _PowerChip(
-                icon: Icons.emoji_events_outlined,
+                icon: CupertinoIcons.star,
                 label: 'levelDetail.prizePool'.tr,
                 value: '${_formatWei(data.prizePoolWei)} $currency',
               ),
               _PowerChip(
-                icon: Icons.bolt,
+                icon: CupertinoIcons.bolt,
                 label: 'levelDetail.playerWeight'.tr,
                 value: data.playerWeight.toString(),
               ),
               _PowerChip(
-                icon: Icons.percent,
+                icon: CupertinoIcons.percent,
                 label: 'levelDetail.chance'.tr,
                 value: _formatChance(data.chanceBps),
               ),
               _PowerChip(
-                icon: Icons.inventory_2_outlined,
+                icon: CupertinoIcons.tray_full,
                 label: 'levelDetail.boxTokens'.tr,
                 value: data.boxTokens.toString(),
               ),
@@ -218,13 +218,13 @@ class _MatrixTree extends StatelessWidget {
 
   IconData _nodeIcon(int cellId, _MatrixArenaSnapshot data) {
     final id = BigInt.from(cellId);
-    if (data.playerFrozen && data.playerCellId == id) return Icons.ac_unit;
-    if (cellId == 7 || cellId == 15) return Icons.emoji_events_outlined;
-    if (data.nextOpenParentId == id) return Icons.sync;
+    if (data.playerFrozen && data.playerCellId == id) return CupertinoIcons.snow;
+    if (cellId == 7 || cellId == 15) return CupertinoIcons.star;
+    if (data.nextOpenParentId == id) return CupertinoIcons.refresh;
     if (id <= data.activeCells || data.playerCellId == id) {
-      return Icons.person_outline;
+      return CupertinoIcons.person;
     }
-    return Icons.circle_outlined;
+    return CupertinoIcons.circle;
   }
 }
 

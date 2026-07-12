@@ -22,7 +22,7 @@ class _StartTimerStrip extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.timer, color: Colors.white, size: 15),
+                const Icon(CupertinoIcons.timer, color: Colors.white, size: 15),
                 const SizedBox(width: 8),
                 Flexible(
                   child: Text(
@@ -72,11 +72,11 @@ class _FeatureGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     const items = [
       _FeatureItem(
-          Icons.shield_outlined, 'start.smartContract', 'start.onChain'),
+          CupertinoIcons.shield, 'start.smartContract', 'start.onChain'),
       _FeatureItem(
-          Icons.trending_up, 'start.levelsCount', 'start.weightedMatrix'),
-      _FeatureItem(Icons.groups_2_outlined, '67 000+', 'start.activeNetwork'),
-      _FeatureItem(Icons.bolt_outlined, '100%', 'start.walletPayouts'),
+          CupertinoIcons.arrow_up_right, 'start.levelsCount', 'start.weightedMatrix'),
+      _FeatureItem(CupertinoIcons.person_2, '67 000+', 'start.activeNetwork'),
+      _FeatureItem(CupertinoIcons.bolt, '100%', 'start.walletPayouts'),
     ];
 
     return LayoutBuilder(

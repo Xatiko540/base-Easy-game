@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
@@ -170,7 +171,7 @@ class LevelsScreen extends StatelessWidget {
                           ),
                           child: Row(
                             children: [
-                              const Icon(Icons.help,
+                              const Icon(CupertinoIcons.question_circle,
                                   color: Colors.white, size: 14),
                               const SizedBox(width: 6),
                               Text(
@@ -264,7 +265,7 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                         _LevelNavButton(
                           label: 'levels.levelTitle'.trParams(
                               {'level': '${level <= 1 ? 1 : level - 1}'}),
-                          icon: Icons.arrow_back_ios,
+                          icon: CupertinoIcons.chevron_back,
                           enabled: level > 1,
                           onTap: () => Get.off(
                             () => EasyGameLevelDetailScreen(level: level - 1),
@@ -275,7 +276,7 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                             'level':
                                 '${level >= easyGameLevelCount ? easyGameLevelCount : level + 1}'
                           }),
-                          icon: Icons.arrow_forward_ios,
+                          icon: CupertinoIcons.chevron_forward,
                           trailing: true,
                           enabled: level < easyGameLevelCount,
                           onTap: () => Get.off(

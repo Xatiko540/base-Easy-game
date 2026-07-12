@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/language_service.dart';
 
@@ -144,7 +145,7 @@ class _LanguageOption extends StatelessWidget {
             ),
             if (selected)
               const Icon(
-                Icons.check_circle,
+                CupertinoIcons.check_mark_circled,
                 color: Color(0xFF7CFF85),
                 size: 22,
               ),

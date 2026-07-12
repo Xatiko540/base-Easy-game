@@ -91,7 +91,7 @@ class _UserIdentity extends StatelessWidget {
                 ],
               ),
               child: const Icon(
-                Icons.person,
+                CupertinoIcons.person,
                 color: Color(0xFF63D3BE),
                 size: 46,
               ),

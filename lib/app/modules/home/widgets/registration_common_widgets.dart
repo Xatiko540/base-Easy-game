@@ -38,7 +38,7 @@ class _CheckPill extends StatelessWidget {
     return OutlinedButton.icon(
       onPressed: onPressed,
       icon: Icon(
-        active ? Icons.check_circle_outline : icon,
+        active ? CupertinoIcons.check_mark_circled : icon,
         color: active ? const Color(0xFF7CFF85) : const Color(0xFF67DCCB),
         size: 18,
       ),

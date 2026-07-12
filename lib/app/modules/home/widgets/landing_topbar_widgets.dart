@@ -16,14 +16,14 @@ class _LandingTopBar extends StatelessWidget {
         const Spacer(),
         Obx(
           () => _TopPill(
-            icon: Icons.hexagon,
+            icon: CupertinoIcons.hexagon,
             label: walletService.networkLabel,
           ),
         ),
         const SizedBox(width: 12),
         Obx(
           () => _TopPill(
-            icon: Icons.account_balance_wallet_outlined,
+            icon: CupertinoIcons.creditcard,
             label: walletService.isConnected.value
                 ? walletService.shortAddress
                 : 'start.connectWallet'.tr,

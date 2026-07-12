@@ -94,19 +94,19 @@ class _ReferralFlowPanel extends StatelessWidget {
               title: 'partner.direct'.tr,
               percent: '9.5%',
               weight: '+100 wt',
-              icon: Icons.person_add_alt_1,
+              icon: CupertinoIcons.person_badge_plus,
             ),
             _FlowStep(
               title: 'partner.secondLineShort'.tr,
               percent: '6%',
               weight: '+50 wt',
-              icon: Icons.account_tree_outlined,
+              icon: CupertinoIcons.square_list,
             ),
             _FlowStep(
               title: 'partner.thirdLineShort'.tr,
               percent: '4%',
               weight: '+25 wt',
-              icon: Icons.hub_outlined,
+              icon: CupertinoIcons.arrow_2_circlepath,
             ),
           ];
 
@@ -134,7 +134,7 @@ class _ReferralFlowPanel extends StatelessWidget {
                       const Padding(
                         padding: EdgeInsets.symmetric(horizontal: 10),
                         child: Icon(
-                          Icons.arrow_forward,
+                          CupertinoIcons.chevron_forward,
                           color: EasyGameTheme.textDim,
                         ),
                       ),

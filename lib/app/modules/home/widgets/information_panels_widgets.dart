@@ -10,7 +10,7 @@ class _InfoMatrixStructurePanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _InfoSectionTitle(
-            icon: Icons.account_tree_outlined,
+            icon: CupertinoIcons.square_list,
             title: 'info.structure'.tr,
           ),
           const SizedBox(height: 16),
@@ -70,7 +70,7 @@ class _InfoPaymentSplitPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _InfoSectionTitle(
-            icon: Icons.pie_chart_outline,
+            icon: CupertinoIcons.chart_pie,
             title: 'info.paymentRouteTitle'.tr,
           ),
           const SizedBox(height: 16),
@@ -96,12 +96,12 @@ class _InfoRoundLifecyclePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final steps = [
-      _InfoFlowStep(Icons.wallet, 'info.stepConnect'.tr),
-      _InfoFlowStep(Icons.confirmation_number_outlined, 'info.stepTicket'.tr),
-      _InfoFlowStep(Icons.grid_on_rounded, 'info.stepMatrix'.tr),
-      _InfoFlowStep(Icons.sync, 'info.stepRecycle'.tr),
-      _InfoFlowStep(Icons.emoji_events_outlined, 'info.stepPrize'.tr),
-      _InfoFlowStep(Icons.savings_outlined, 'info.stepClaim'.tr),
+      _InfoFlowStep(CupertinoIcons.creditcard, 'info.stepConnect'.tr),
+      _InfoFlowStep(CupertinoIcons.ticket, 'info.stepTicket'.tr),
+      _InfoFlowStep(CupertinoIcons.square_grid_3x2, 'info.stepMatrix'.tr),
+      _InfoFlowStep(CupertinoIcons.refresh, 'info.stepRecycle'.tr),
+      _InfoFlowStep(CupertinoIcons.star, 'info.stepPrize'.tr),
+      _InfoFlowStep(CupertinoIcons.money_dollar_circle, 'info.stepClaim'.tr),
     ];
 
     return _Panel(
@@ -109,7 +109,7 @@ class _InfoRoundLifecyclePanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _InfoSectionTitle(
-            icon: Icons.route,
+            icon: CupertinoIcons.location,
             title: 'info.roundLifecycleTitle'.tr,
           ),
           const SizedBox(height: 16),
@@ -158,7 +158,7 @@ class _InfoWinningCellsPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _InfoSectionTitle(
-            icon: Icons.emoji_events_outlined,
+            icon: CupertinoIcons.star,
             title: 'info.winningCellsTitle'.tr,
           ),
           const SizedBox(height: 12),
@@ -178,7 +178,7 @@ class _InfoWinningCellsPanel extends StatelessWidget {
               for (final cell in cells)
                 _InfoCellChip(
                   label: '$cell',
-                  icon: Icons.emoji_events_outlined,
+                  icon: CupertinoIcons.star,
                   color: EasyGameTheme.gold,
                 ),
             ],
@@ -196,25 +196,25 @@ class _InfoGameResourcesPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final resources = [
       _InfoResource(
-        Icons.inventory_2_outlined,
+        CupertinoIcons.tray_full,
         'boxToken',
         'info.boxTokenText'.tr,
         EasyGameTheme.gold,
       ),
       _InfoResource(
-        Icons.ac_unit,
+        CupertinoIcons.snow,
         'freezeToken',
         'info.freezeTokenText'.tr,
         EasyGameTheme.teal,
       ),
       _InfoResource(
-        Icons.shield_outlined,
+        CupertinoIcons.shield,
         'shieldToken',
         'info.shieldTokenText'.tr,
         EasyGameTheme.blue,
       ),
       _InfoResource(
-        Icons.bolt,
+        CupertinoIcons.bolt,
         'weightBoost',
         'info.weightBoostText'.tr,
         EasyGameTheme.purple,
@@ -225,7 +225,7 @@ class _InfoGameResourcesPanel extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _InfoSectionTitle(
-            icon: Icons.auto_awesome,
+            icon: CupertinoIcons.wand_stars,
             title: 'info.resourcesTitle'.tr,
           ),
           const SizedBox(height: 16),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
@@ -16,7 +17,7 @@ class NotificationsBottomSheet extends StatelessWidget {
         "subtitle": "Easy Games , level 4 от ID 310375",
         "description": "Congratulations!",
         "time": "1 minute",
-        "icon": Icons.card_giftcard,
+        "icon": CupertinoIcons.gift,
         "iconColor": Colors.greenAccent,
       },
       {
@@ -24,7 +25,7 @@ class NotificationsBottomSheet extends StatelessWidget {
         "subtitle": "Easy Games, level 4 от ID 310112",
         "description": "Congratulations!",
         "time": "about 1 hour",
-        "icon": Icons.people,
+        "icon": CupertinoIcons.person_2,
         "iconColor": Colors.green,
       },
       {
@@ -32,7 +33,7 @@ class NotificationsBottomSheet extends StatelessWidget {
         "subtitle": "ID 310112 has joined your team!",
         "description": "",
         "time": "about 1 hour",
-        "icon": Icons.person_add,
+        "icon": CupertinoIcons.person_badge_plus,
         "iconColor": Colors.blueAccent,
       },
     ];
@@ -110,7 +111,7 @@ class NotificationsBottomSheet extends StatelessWidget {
                             notification["time"] as String,
                             style: TextStyle(color: Colors.grey, fontSize: 12),
                           ),
-                          Icon(Icons.share, color: Colors.grey, size: 20),
+                          Icon(CupertinoIcons.share, color: Colors.grey, size: 20),
                         ],
                       ),
                     ],

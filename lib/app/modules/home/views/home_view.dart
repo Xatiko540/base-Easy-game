@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_shimmer/flutter_shimmer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/contract_linking.dart';
@@ -93,7 +93,7 @@ class HomeView extends StatelessWidget {
           //                     title: Row(
           //                       mainAxisSize: MainAxisSize.min,
           //                       children: [
-          //                         const Icon(FontAwesomeIcons.user)
+          //                         const Icon(CupertinoIcons.person)
           //                             .paddingOnly(right: 16),
           //                         const Text(
           //                           'Accounts',
@@ -119,7 +119,7 @@ class HomeView extends StatelessWidget {
           //                                 : Icons.dark_mode)),
           //                         IconButton(
           //                             onPressed: Get.back,
-          //                             icon: const Icon(Icons.clear)),
+          //                             icon: const Icon(CupertinoIcons.clear)),
           //                       ],
           //                     ),
           //                   ),
@@ -212,7 +212,7 @@ class HomeView extends StatelessWidget {
           //                                         BorderRadius.circular(8)),
           //                                 isThreeLine: true,
           //                                 trailing: const Icon(
-          //                                         Icons.arrow_forward_ios)
+          //                                         CupertinoIcons.chevron_forward)
           //                                     .paddingSymmetric(vertical: 16),
           //                                 leading: Container(
           //                                   height: avatarSize / 2,
@@ -250,7 +250,7 @@ class HomeView extends StatelessWidget {
           //         ),
           //       );
           //     },
-          //     icon: const Icon(FontAwesomeIcons.user)),
+          //     icon: const Icon(CupertinoIcons.person)),
 
           Center(
             child: Column(
@@ -310,8 +310,8 @@ class HomeView extends StatelessWidget {
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
-                          const FaIcon(
-                            FontAwesomeIcons.wallet,
+                          const Icon(
+                            CupertinoIcons.creditcard,
                             color: primaryColor,
                             size: 36,
                           ),
@@ -366,14 +366,14 @@ class HomeView extends StatelessWidget {
                     decoration: borderedInputDecoration(
                       fillColor: primaryColor,
                       hint: 'Copy private key from Metamask and paste here',
-                      icon: const FaIcon(
-                        FontAwesomeIcons.userLock,
+                      icon: const Icon(
+                        CupertinoIcons.lock_shield,
                         color: primaryColor,
                       ),
                       suffixIcon: IconButton(
                         onPressed: contractLink.keyController.clear,
                         icon: const Icon(
-                          Icons.clear,
+                          CupertinoIcons.clear,
                           color: primaryColor,
                         ),
                       ),
@@ -400,8 +400,8 @@ class HomeView extends StatelessWidget {
                     () => contractLink.userAddress.value.isNotEmpty
                         ? ListTile(
                             contentPadding: const EdgeInsets.all(0),
-                            leading: const FaIcon(
-                              FontAwesomeIcons.user,
+                            leading: const Icon(
+                              CupertinoIcons.person,
                               color: primaryColor,
                             ),
                             title: const Text(
@@ -427,8 +427,8 @@ class HomeView extends StatelessWidget {
                     () => contractLink.userBalance.value.isNotEmpty
                         ? ListTile(
                             contentPadding: const EdgeInsets.all(0),
-                            leading: const FaIcon(
-                              FontAwesomeIcons.ethereum,
+                            leading: const Icon(
+                              CupertinoIcons.money_dollar_circle,
                               color: primaryColor,
                             ),
                             title: const Text(
@@ -469,8 +469,8 @@ class HomeView extends StatelessWidget {
                             decoration: borderedInputDecoration(
                                 fillColor: primaryColor,
                                 hint: 'Enter name of account to save',
-                                icon: const FaIcon(
-                                  FontAwesomeIcons.userAstronaut,
+                                icon: const Icon(
+                                  CupertinoIcons.person_crop_circle_badge_checkmark,
                                   color: primaryColor,
                                 )),
                           )
@@ -501,7 +501,7 @@ class HomeView extends StatelessWidget {
                                   IconButton(
                                     onPressed: () =>
                                         contractLink.generateSvg(force: true),
-                                    icon: const Icon(Icons.refresh),
+                                    icon: const Icon(CupertinoIcons.refresh),
                                   ),
                                 GestureDetector(
                                   onTap: contractLink.check.toggle,
@@ -512,7 +512,7 @@ class HomeView extends StatelessWidget {
                                       onPressed: () {
                                         contractLink.check.value = true;
                                       },
-                                      icon: const Icon(Icons.check)),
+                                      icon: const Icon(CupertinoIcons.checkmark)),
                                 if (contractLink.check.value)
                                   const SizedBox(
                                     width: 32,

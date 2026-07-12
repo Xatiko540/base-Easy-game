@@ -188,7 +188,7 @@ class _ActionTile extends StatelessWidget {
           leading: Icon(icon, color: Colors.white),
           title: Text(title, style: const TextStyle(color: Colors.white)),
           subtitle: Text(subtitle, style: const TextStyle(color: Colors.grey)),
-          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+          trailing: const Icon(CupertinoIcons.chevron_right, color: Colors.grey),
           onTap: onTap,
         ),
       ),

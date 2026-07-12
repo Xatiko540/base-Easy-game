@@ -28,7 +28,7 @@ class _LevelCardPresenter extends StatelessWidget {
               currencySymbol: currencySymbol,
               title: 'round.unavailable'.tr,
               subtitle: 'levels.scheduleUnavailable'.tr,
-              icon: Icons.event_busy_outlined,
+              icon: CupertinoIcons.calendar_badge_minus,
               color: Colors.orangeAccent,
             )
           : null;
@@ -40,7 +40,7 @@ class _LevelCardPresenter extends StatelessWidget {
         currencySymbol: currencySymbol,
         title: 'round.configurationMismatch'.tr,
         subtitle: 'round.actionsUnavailable'.tr,
-        icon: Icons.gpp_bad_outlined,
+        icon: CupertinoIcons.shield_slash,
         color: Colors.redAccent,
       );
     }
@@ -63,7 +63,7 @@ class _LevelCardPresenter extends StatelessWidget {
           currencySymbol: currencySymbol,
           title: 'levels.availableIn'.tr,
           subtitle: round.countdownLabel,
-          icon: Icons.timer_outlined,
+          icon: CupertinoIcons.timer,
           color: Colors.orangeAccent,
         );
       case GameRoundPhase.locked:
@@ -73,7 +73,7 @@ class _LevelCardPresenter extends StatelessWidget {
           currencySymbol: currencySymbol,
           title: 'round.locked'.tr,
           subtitle: round.countdownLabel,
-          icon: Icons.lock_clock_outlined,
+          icon: CupertinoIcons.clock,
           color: Colors.orangeAccent,
           onTap: detailTap,
         );
@@ -84,7 +84,7 @@ class _LevelCardPresenter extends StatelessWidget {
           currencySymbol: currencySymbol,
           title: 'round.settlementReady'.tr,
           subtitle: 'round.waitingSettlement'.tr,
-          icon: Icons.account_balance_outlined,
+          icon: CupertinoIcons.building_2_fill,
           color: EasyGameTheme.tealSoft,
           onTap: detailTap,
         );
@@ -97,8 +97,8 @@ class _LevelCardPresenter extends StatelessWidget {
           title: roundPhaseTranslationKey(round.phase).tr,
           subtitle: 'round.actionsUnavailable'.tr,
           icon: round.phase == GameRoundPhase.paused
-              ? Icons.pause_circle_outline
-              : Icons.cancel_outlined,
+              ? CupertinoIcons.pause_circle
+              : CupertinoIcons.xmark_circle,
           color: Colors.redAccent,
           onTap: detailTap,
         );
@@ -110,7 +110,7 @@ class _LevelCardPresenter extends StatelessWidget {
             currencySymbol: currencySymbol,
             title: 'round.settled'.tr,
             subtitle: 'round.finished'.tr,
-            icon: Icons.emoji_events_outlined,
+            icon: CupertinoIcons.star,
             color: EasyGameTheme.tealSoft,
           );
         }
@@ -130,7 +130,7 @@ class _LevelCardPresenter extends StatelessWidget {
           currencySymbol: currencySymbol,
           title: 'levels.availableIn'.tr,
           subtitle: 'levels.scheduleUnavailable'.tr,
-          icon: Icons.timer_outlined,
+          icon: CupertinoIcons.timer,
           color: Colors.orangeAccent,
         );
       case LevelStatus.frozen:
@@ -140,7 +140,7 @@ class _LevelCardPresenter extends StatelessWidget {
           currencySymbol: currencySymbol,
           title: 'common.frozen'.tr,
           subtitle: 'levels.activateNext'.tr,
-          icon: Icons.ac_unit,
+          icon: CupertinoIcons.snow,
           color: Colors.lightBlueAccent,
           onTap: () => Get.to(
             () => EasyGameLevelDetailScreen(level: level.levelNumber),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/lottery/controllers/lottery_detail_controller.dart';
 import 'package:lottery_advance/app/services/contract_linking.dart';
@@ -66,7 +66,7 @@ class LotteryDetail extends StatelessWidget {
                               children: [
                                 IconButton(
                                   onPressed: Get.back,
-                                  icon: const Icon(Icons.arrow_back),
+                                  icon: const Icon(CupertinoIcons.chevron_back),
                                 ),
                                 (Get.find<ContractLinking>()
                                                 .managerAddress
@@ -122,8 +122,8 @@ class LotteryDetail extends StatelessWidget {
                           children: [
                             Column(
                               children: [
-                                const FaIcon(
-                                  FontAwesomeIcons.award,
+                                const Icon(
+                                  CupertinoIcons.rosette,
                                   color: primaryColor,
                                   size: 22,
                                 ).marginOnly(bottom: 5),
@@ -138,7 +138,7 @@ class LotteryDetail extends StatelessWidget {
                             Column(
                               children: [
                                 const Icon(
-                                  Icons.groups,
+                                  CupertinoIcons.person_3,
                                   color: primaryColor,
                                   size: 22,
                                 ).marginOnly(bottom: 5),
@@ -150,10 +150,10 @@ class LotteryDetail extends StatelessWidget {
                             ),
                             Column(
                               children: [
-                                FaIcon(
+                                Icon(
                                   Get.find<ContractLinking>().lotteryLive.value
-                                      ? FontAwesomeIcons.toggleOn
-                                      : FontAwesomeIcons.toggleOff,
+                                      ? CupertinoIcons.check_mark_circled
+                                      : CupertinoIcons.xmark_circle,
                                   color: primaryColor,
                                   size: 22,
                                 ).marginOnly(bottom: 5),
@@ -168,8 +168,8 @@ class LotteryDetail extends StatelessWidget {
                           ],
                         ).marginSymmetric(vertical: 20),
                         ListTile(
-                          leading: const FaIcon(
-                            FontAwesomeIcons.gift,
+                          leading: const Icon(
+                            CupertinoIcons.gift,
                             color: primaryColor,
                           ),
                           title: const Text(
@@ -183,8 +183,8 @@ class LotteryDetail extends StatelessWidget {
                           ),
                         ),
                         ListTile(
-                          leading: const FaIcon(
-                            FontAwesomeIcons.ticketSimple,
+                          leading: const Icon(
+                            CupertinoIcons.ticket,
                             color: primaryColor,
                           ),
                           title: Text(
@@ -200,8 +200,8 @@ class LotteryDetail extends StatelessWidget {
                         if (Get.find<ContractLinking>().managerAddress.value ==
                             Get.find<ContractLinking>().userAddress.value)
                           ListTile(
-                            leading: const FaIcon(
-                              FontAwesomeIcons.clipboardCheck,
+                            leading: const Icon(
+                              CupertinoIcons.doc_checkmark,
                               color: primaryColor,
                             ),
                             title: const Text(
@@ -421,13 +421,13 @@ class LotteryDetail extends StatelessWidget {
                   fillColor: primaryColor,
                   hint: 'Ex: 10',
                   icon: const Icon(
-                    Icons.groups,
+                    CupertinoIcons.person_3,
                     color: primaryColor,
                   ),
                   suffixIcon: IconButton(
                     onPressed: controller.lotteryMaxEntryController.clear,
                     icon: const Icon(
-                      Icons.clear,
+                      CupertinoIcons.clear,
                       color: primaryColor,
                     ),
                   ),
@@ -439,14 +439,14 @@ class LotteryDetail extends StatelessWidget {
                 decoration: borderedInputDecoration(
                   fillColor: primaryColor,
                   hint: 'Ex: 1',
-                  icon: const FaIcon(
-                    FontAwesomeIcons.ethereum,
+                  icon: const Icon(
+                    CupertinoIcons.money_dollar_circle,
                     color: primaryColor,
                   ),
                   suffixIcon: IconButton(
                     onPressed: controller.lotteryETHRequiredController.clear,
                     icon: const Icon(
-                      Icons.clear,
+                      CupertinoIcons.clear,
                       color: primaryColor,
                     ),
                   ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/lottery/lottery_detail.dart';
 import 'package:lottery_advance/app/services/contract_linking.dart';
@@ -27,8 +27,8 @@ class LotteriesView extends StatelessWidget {
         actions: [
           Row(
             children: [
-              const FaIcon(
-                FontAwesomeIcons.ethereum,
+              const Icon(
+                CupertinoIcons.money_dollar_circle,
                 color: Colors.white,
                 size: 22,
               ).marginOnly(right: 5),
@@ -60,16 +60,16 @@ class LotteriesView extends StatelessWidget {
                           }
                           return ListTile(
                             key: UniqueKey(),
-                            leading: const FaIcon(
-                              FontAwesomeIcons.ticketSimple,
+                            leading: const Icon(
+                              CupertinoIcons.ticket,
                               color: primaryColor,
                             ),
                             title: Text(
                               contractLink.lottries[index],
                               style: bodySemiBold,
                             ),
-                            trailing: const FaIcon(
-                              FontAwesomeIcons.circleRight,
+                            trailing: const Icon(
+                              CupertinoIcons.chevron_right_circle,
                               color: primaryColor,
                             ),
                             onTap: () async {
@@ -86,7 +86,7 @@ class LotteriesView extends StatelessWidget {
       ),
       floatingActionButton: FloatingActionButton(
         backgroundColor: primaryColor,
-        child: const Icon(Icons.add),
+        child: const Icon(CupertinoIcons.add),
         onPressed: () {
           Get.defaultDialog(
               title: "Create Lottery",
@@ -99,14 +99,14 @@ class LotteriesView extends StatelessWidget {
                   decoration: borderedInputDecoration(
                     fillColor: primaryColor,
                     hint: 'Diwali lottery',
-                    icon: const FaIcon(
-                      FontAwesomeIcons.ticketSimple,
+                    icon: const Icon(
+                      CupertinoIcons.ticket,
                       color: primaryColor,
                     ),
                     suffixIcon: IconButton(
                       onPressed: lotteryNameController.clear,
                       icon: const Icon(
-                        Icons.clear,
+                        CupertinoIcons.clear,
                         color: primaryColor,
                       ),
                     ),

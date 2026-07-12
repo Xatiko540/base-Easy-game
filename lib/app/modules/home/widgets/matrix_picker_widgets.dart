@@ -103,13 +103,13 @@ class _MatrixLegend extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      _LegendItem('matrix.you'.tr, EasyGameTheme.teal, Icons.person_outline),
-      _LegendItem('common.active'.tr, Colors.greenAccent, Icons.person_outline),
-      _LegendItem('matrix.empty'.tr, Colors.white24, Icons.circle_outlined),
-      _LegendItem('common.frozen'.tr, EasyGameTheme.teal, Icons.ac_unit),
-      _LegendItem('matrix.recycle'.tr, EasyGameTheme.orange, Icons.sync),
+      _LegendItem('matrix.you'.tr, EasyGameTheme.teal, CupertinoIcons.person),
+      _LegendItem('common.active'.tr, Colors.greenAccent, CupertinoIcons.person),
+      _LegendItem('matrix.empty'.tr, Colors.white24, CupertinoIcons.circle),
+      _LegendItem('common.frozen'.tr, EasyGameTheme.teal, CupertinoIcons.snow),
+      _LegendItem('matrix.recycle'.tr, EasyGameTheme.orange, CupertinoIcons.refresh),
       _LegendItem(
-          'matrix.winningCell'.tr, EasyGameTheme.gold, Icons.emoji_events),
+          'matrix.winningCell'.tr, EasyGameTheme.gold, CupertinoIcons.star_fill),
     ];
     return _Panel(
       child: Column(
