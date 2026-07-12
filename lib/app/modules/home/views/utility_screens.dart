@@ -336,7 +336,9 @@ class MemberPreviewScreen extends StatelessWidget {
                   ? 'utility.walletAddress'.tr
                   : 'utility.memberId'.tr,
               value: data.isWallet ? data.normalizedAddress : query,
-              icon: data.isWallet ? CupertinoIcons.creditcard : CupertinoIcons.creditcard,
+              icon: data.isWallet
+                  ? CupertinoIcons.creditcard
+                  : CupertinoIcons.creditcard,
             ),
             if (!data.isWallet)
               _InfoBlock(
@@ -410,15 +412,7 @@ class InformationScreen extends StatelessWidget {
           title: 'info.advanceTitle'.tr,
           text: 'info.advanceText'.tr,
         ),
-        _InfoBlock(
-          title: 'info.matrixTitle'.tr,
-          text: 'info.matrixText'.tr,
-        ),
         const _InfoMatrixStructurePanel(),
-        _InfoBlock(
-          title: 'info.rewardTitle'.tr,
-          text: 'info.rewardText'.tr,
-        ),
         const _InfoPaymentSplitPanel(),
         const _InfoRoundLifecyclePanel(),
         const _InfoWinningCellsPanel(),

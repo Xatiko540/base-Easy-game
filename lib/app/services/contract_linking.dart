@@ -73,7 +73,7 @@ class ContractLinking extends GetxController
       ethToParticipate,
       getLotterySoldCount;
 
-  late ContractEvent lotteryCreated, winnerDeclared, playerParticipated;
+  late ContractEvent LotteryCreated, WinnerDeclared, PlayerParticipated;
 
   final managerAddress = ''.obs;
   final lotryname = ''.obs;
@@ -108,47 +108,32 @@ class ContractLinking extends GetxController
   Timer? _messageTimer2;
 
   Future<void> setup() async {
-    if (kDebugMode) {
-      print("[DEBUG] ContractLinking: setup started.");
-      print("[DEBUG] ContractLinking: RPC URL: $_rpcUrl");
-      print("[DEBUG] ContractLinking: WS URL: $_wsUrl");
-    }
-
+    print("[DEBUG] ContractLinking: setup started.");
+    print("[DEBUG] ContractLinking: RPC URL: $_rpcUrl");
+    print("[DEBUG] ContractLinking: WS URL: $_wsUrl");
     
     _web3client = Web3Client(
       _rpcUrl,
       Client(),
       socketConnector: () {
-        if (kDebugMode) {
-          print("[DEBUG] ContractLinking: Connecting WebSocket...");
-        }
+        print("[DEBUG] ContractLinking: Connecting WebSocket...");
         return WebSocketChannel.connect(Uri.parse(_wsUrl)).cast<String>();
       },
     );
     try {
-      if (kDebugMode) {
-        print("[DEBUG] ContractLinking: Fetching ChainId...");
-      }
+      print("[DEBUG] ContractLinking: Fetching ChainId...");
       _chainId = (await _web3client.getChainId()).toInt();
-      if (kDebugMode) {
-        print("[DEBUG] ContractLinking: ChainId: $_chainId");
-      }
+      print("[DEBUG] ContractLinking: ChainId: $_chainId");
     } catch (e) {
-      if (kDebugMode) {
-        print("[DEBUG] ContractLinking: Error fetching ChainId: $e");
-      }
+      print("[DEBUG] ContractLinking: Error fetching ChainId: $e");
       _chainId = null;
     }
     // await getAbi();
     // await getCredentials();
     // await getDeployedContractLotteryGenerator();
-    if (kDebugMode) {
-      print("[DEBUG] ContractLinking: Loading users...");
-    }
+    print("[DEBUG] ContractLinking: Loading users...");
     await loadUsers();
-    if (kDebugMode) {
-      print("[DEBUG] ContractLinking: Generating SVG...");
-    }
+    print("[DEBUG] ContractLinking: Generating SVG...");
     await generateSvg();
     // await getPlayers();
     // await getLotteryBalance();
@@ -160,9 +145,7 @@ class ContractLinking extends GetxController
     keyController.addListener(() {
       privateKey.value = keyController.text;
     });
-    if (kDebugMode) {
-      print("[DEBUG] ContractLinking: setup completed.");
-    }
+    print("[DEBUG] ContractLinking: setup completed.");
   }
 
   Future<void> getAbi() async {
@@ -197,7 +180,7 @@ class ContractLinking extends GetxController
     if (kDebugMode) {
       // print("Contract Address Lottery : ${_contractAddressLottery}");
       print(
-          "Contract Address LotteryGenerator : $_contractAddressLotteryGenerator");
+          "Contract Address LotteryGenerator : ${_contractAddressLotteryGenerator}");
     }
     // isLoading.value =false;
   }
@@ -222,7 +205,7 @@ class ContractLinking extends GetxController
     getLotteries = _deployedContractLotteryGenerator.function('getLotteries');
     createLottery = _deployedContractLotteryGenerator.function('createLottery');
     deleteLottery = _deployedContractLotteryGenerator.function('deleteLottery');
-    lotteryCreated = _deployedContractLotteryGenerator.event('lotteryCreated');
+    LotteryCreated = _deployedContractLotteryGenerator.event('LotteryCreated');
     await getLotteriesList();
     // isLoading.value =true;
   }
@@ -250,8 +233,8 @@ class ContractLinking extends GetxController
     maxEntriesForPlayer =
         _deployedContractLottery.function('maxEntriesForPlayer');
     ethToParticipate = _deployedContractLottery.function('ethToParticipate');
-    winnerDeclared = _deployedContractLottery.event('winnerDeclared');
-    playerParticipated = _deployedContractLottery.event('playerParticipated');
+    WinnerDeclared = _deployedContractLottery.event('WinnerDeclared');
+    PlayerParticipated = _deployedContractLottery.event('PlayerParticipated');
 
     await getManager();
     await getLotteryName();
@@ -321,9 +304,7 @@ class ContractLinking extends GetxController
   }
 
   Future<void> createLotteryFunc(String name) async {
-    if (kDebugMode) {
-      print("Entered createLotteryFunc");
-    }
+    print("Entered createLotteryFunc");
     isLoading.value = true;
     await _web3client.sendTransaction(
       _credentials,
@@ -335,9 +316,7 @@ class ContractLinking extends GetxController
       chainId: _chainId,
     );
     isLoading.value = false;
-    if (kDebugMode) {
-      print("Exited createLotteryFunc");
-    }
+    print("Exited createLotteryFunc");
   }
 
   Stream<FilterEvent> listenLotteryCreatedEvent() {
@@ -347,7 +326,7 @@ class ContractLinking extends GetxController
       toBlock: const BlockNum.current(),
       topics: [
         [
-          bytesToHex(lotteryCreated.signature,
+          bytesToHex(LotteryCreated.signature,
               padToEvenLength: true, include0x: true)
         ],
       ],
@@ -363,7 +342,7 @@ class ContractLinking extends GetxController
       toBlock: const BlockNum.current(),
       topics: [
         [
-          bytesToHex(playerParticipated.signature,
+          bytesToHex(PlayerParticipated.signature,
               padToEvenLength: true, include0x: true)
         ],
       ],
@@ -372,14 +351,14 @@ class ContractLinking extends GetxController
     return event;
   }
 
-  Stream<FilterEvent> listenwinnerDeclared() {
+  Stream<FilterEvent> listenWinnerDeclared() {
     FilterOptions options = FilterOptions(
       address: _contractAddressLottery,
       fromBlock: const BlockNum.genesis(),
       toBlock: const BlockNum.current(),
       topics: [
         [
-          bytesToHex(winnerDeclared.signature,
+          bytesToHex(WinnerDeclared.signature,
               padToEvenLength: true, include0x: true)
         ],
       ],
@@ -546,9 +525,7 @@ class ContractLinking extends GetxController
     } catch (e) {
       // Обработка ошибок
       Get.rawSnackbar(message: 'Error initializing wallet: $e');
-      if (kDebugMode) {
-        print('Error initializing wallet: $e');
-      }
+      print('Error initializing wallet: $e');
     } finally {
       isLoading.value = false; // Скрываем индикатор загрузки
     }
@@ -720,14 +697,10 @@ class ContractLinking extends GetxController
 
   @override
   Future<void> onInit() async {
-    if (kDebugMode) {
-      print("[DEBUG] ContractLinking: onInit started.");
-    }
+    print("[DEBUG] ContractLinking: onInit started.");
     await setup();
     super.onInit();
-    if (kDebugMode) {
-      print("[DEBUG] ContractLinking: onInit completed.");
-    }
+    print("[DEBUG] ContractLinking: onInit completed.");
   }
 
   @override

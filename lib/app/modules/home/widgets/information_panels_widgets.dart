@@ -1,7 +1,15 @@
 part of '../views/utility_screens.dart';
 
-class _InfoMatrixStructurePanel extends StatelessWidget {
+class _InfoMatrixStructurePanel extends StatefulWidget {
   const _InfoMatrixStructurePanel();
+
+  @override
+  State<_InfoMatrixStructurePanel> createState() =>
+      _InfoMatrixStructurePanelState();
+}
+
+class _InfoMatrixStructurePanelState extends State<_InfoMatrixStructurePanel> {
+  bool _isExpanded = true;
 
   @override
   Widget build(BuildContext context) {
@@ -9,41 +17,67 @@ class _InfoMatrixStructurePanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _InfoSectionTitle(
-            icon: CupertinoIcons.square_list,
-            title: 'info.structure'.tr,
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: _InfoSectionTitle(
+                icon: CupertinoIcons.square_list,
+                title: 'info.structure'.tr,
+                trailing: AnimatedRotation(
+                  turns: _isExpanded ? 0 : -0.25,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  child: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: EasyGameTheme.teal,
+                    size: 27,
+                  ),
+                ),
+              ),
+            ),
           ),
-          const SizedBox(height: 16),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final compact = constraints.maxWidth < 620;
-              final diagram = _BinaryTreeDiagram(compact: compact);
-              final rules = _InfoRuleList(
-                rules: [
-                  'info.ruleTicketCell'.tr,
-                  'info.ruleFillLeftRight'.tr,
-                  'info.ruleRecycle'.tr,
-                  'info.ruleChance'.tr,
-                ],
-              );
-              if (compact) {
-                return Column(
-                  children: [
-                    diagram,
-                    const SizedBox(height: 16),
-                    rules,
-                  ],
-                );
-              }
-              return Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(flex: 6, child: diagram),
-                  const SizedBox(width: 18),
-                  Expanded(flex: 5, child: rules),
-                ],
-              );
-            },
+          AnimatedSize(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeInOutCubic,
+            alignment: Alignment.topCenter,
+            child: _isExpanded
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final compact = constraints.maxWidth < 620;
+                        final diagram = _BinaryTreeDiagram(compact: compact);
+                        final rules = _InfoRuleList(
+                          rules: [
+                            'info.ruleTicketCell'.tr,
+                            'info.ruleFillLeftRight'.tr,
+                            'info.ruleRecycle'.tr,
+                            'info.ruleChance'.tr,
+                          ],
+                        );
+                        if (compact) {
+                          return Column(
+                            children: [
+                              diagram,
+                              const SizedBox(height: 16),
+                              rules,
+                            ],
+                          );
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(flex: 6, child: diagram),
+                            const SizedBox(width: 18),
+                            Expanded(flex: 5, child: rules),
+                          ],
+                        );
+                      },
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),
@@ -51,13 +85,25 @@ class _InfoMatrixStructurePanel extends StatelessWidget {
   }
 }
 
-class _InfoPaymentSplitPanel extends StatelessWidget {
+class _InfoPaymentSplitPanel extends StatefulWidget {
   const _InfoPaymentSplitPanel();
+
+  @override
+  State<_InfoPaymentSplitPanel> createState() => _InfoPaymentSplitPanelState();
+}
+
+class _InfoPaymentSplitPanelState extends State<_InfoPaymentSplitPanel> {
+  bool _isExpanded = true;
 
   @override
   Widget build(BuildContext context) {
     final rows = [
-      _InfoSplitRow('75.5%', 'info.splitPool'.tr, EasyGameTheme.teal, 0.755),
+      _InfoSplitRow(
+        '75.5%',
+        'info.splitPool'.tr,
+        EasyGameTheme.teal,
+        0.755,
+      ),
       _InfoSplitRow('9.5%', 'info.splitDirect'.tr, EasyGameTheme.purple, 0.095),
       _InfoSplitRow('6.0%', 'info.splitSecond'.tr, EasyGameTheme.blue, 0.06),
       _InfoSplitRow(
@@ -69,20 +115,78 @@ class _InfoPaymentSplitPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _InfoSectionTitle(
-            icon: CupertinoIcons.chart_pie,
-            title: 'info.paymentRouteTitle'.tr,
-          ),
-          const SizedBox(height: 16),
-          for (final row in rows) _InfoSplitBar(row: row),
-          const SizedBox(height: 12),
-          Text(
-            'info.paymentRouteText'.tr,
-            style: const TextStyle(
-              color: Colors.white54,
-              height: 1.5,
-              fontWeight: FontWeight.w700,
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: _InfoSectionTitle(
+                icon: CupertinoIcons.chart_pie,
+                title: 'info.paymentRouteTitle'.tr,
+                trailing: AnimatedRotation(
+                  turns: _isExpanded ? 0 : -0.25,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  child: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: EasyGameTheme.teal,
+                    size: 27,
+                  ),
+                ),
+              ),
             ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeInOutCubic,
+            alignment: Alignment.topCenter,
+            child: _isExpanded
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'info.rewardSystemIntro'.tr,
+                          style: const TextStyle(
+                            color: EasyGameTheme.textMuted,
+                            height: 1.55,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        for (final row in rows) _InfoSplitBar(row: row),
+                        const SizedBox(height: 8),
+                        Text(
+                          'info.splitPoolDescription'.tr,
+                          style: const TextStyle(
+                            color: EasyGameTheme.textMuted,
+                            height: 1.5,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          'info.paymentRouteText'.tr,
+                          style: const TextStyle(
+                            color: Colors.white54,
+                            height: 1.5,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Text(
+                          'info.rewardSystemTotal'.tr,
+                          style: const TextStyle(
+                            color: EasyGameTheme.textMuted,
+                            height: 1.5,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
           ),
         ],
       ),
