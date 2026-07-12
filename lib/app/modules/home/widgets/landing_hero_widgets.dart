@@ -137,105 +137,35 @@ class _HeroPanel extends StatelessWidget {
 class _HeroMatrixPreview extends StatelessWidget {
   const _HeroMatrixPreview();
 
+  Map<String, CellState> _buildPreviewStates() {
+    return {
+      '0:-2': CellState.goldUser,
+      '-1:-1': CellState.purpleStar,
+      '1:-1': CellState.cyanUser,
+      '-2:0': CellState.greenUser,
+      '0:0': CellState.cyanGlow,
+      '2:0': CellState.greenGlow,
+      '-2:1': CellState.inactive,
+      '-1:1': CellState.inactive,
+      '1:1': CellState.inactive,
+      '2:1': CellState.inactive,
+      '-2:2': CellState.inactive,
+      '-1:2': CellState.inactive,
+      '0:2': CellState.inactive,
+      '1:2': CellState.inactive,
+      '2:2': CellState.inactive,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     return AspectRatio(
       aspectRatio: 1.28,
-      child: CustomPaint(
-        painter: _MatrixPreviewPainter(),
-        child: Center(
-          child: Container(
-            width: 92,
-            height: 92,
-            decoration: BoxDecoration(
-              color: EasyGameTheme.surfaceHigh,
-              borderRadius: BorderRadius.circular(28),
-              boxShadow: [
-                BoxShadow(
-                  color: EasyGameTheme.teal.withValues(alpha: 0.28),
-                  blurRadius: 28,
-                ),
-              ],
-            ),
-            child: const Icon(
-              Icons.account_tree_rounded,
-              color: EasyGameTheme.tealSoft,
-              size: 44,
-            ),
-          ),
-        ),
+      child: NeonHoneycomb(
+        padding: 12,
+        states: _buildPreviewStates(),
       ),
     );
   }
 }
 
-class _MatrixPreviewPainter extends CustomPainter {
-  Path _hexPath(Offset center, double radius) {
-    final half = radius * 0.5;
-    final side = radius * 0.8660254038;
-    return Path()
-      ..moveTo(center.dx, center.dy - radius)
-      ..lineTo(center.dx + side, center.dy - half)
-      ..lineTo(center.dx + side, center.dy + half)
-      ..lineTo(center.dx, center.dy + radius)
-      ..lineTo(center.dx - side, center.dy + half)
-      ..lineTo(center.dx - side, center.dy - half)
-      ..close();
-  }
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final linePaint = Paint()
-      ..color = Colors.white.withValues(alpha: 0.16)
-      ..strokeWidth = 1.4;
-    final nodes = <Offset>[
-      Offset(size.width * 0.5, size.height * 0.22),
-      Offset(size.width * 0.26, size.height * 0.48),
-      Offset(size.width * 0.74, size.height * 0.48),
-      Offset(size.width * 0.14, size.height * 0.76),
-      Offset(size.width * 0.38, size.height * 0.76),
-      Offset(size.width * 0.62, size.height * 0.76),
-      Offset(size.width * 0.86, size.height * 0.76),
-    ];
-    final links = const [
-      [0, 1],
-      [0, 2],
-      [1, 3],
-      [1, 4],
-      [2, 5],
-      [2, 6],
-    ];
-    for (final link in links) {
-      canvas.drawLine(nodes[link[0]], nodes[link[1]], linePaint);
-    }
-    for (var i = 0; i < nodes.length; i++) {
-      final color = i == 0
-            ? EasyGameTheme.gold
-            : i.isEven
-                ? EasyGameTheme.purple
-                : EasyGameTheme.teal;
-      final radius = i == 0 ? 18.0 : 14.0;
-      final path = _hexPath(nodes[i], radius);
-      canvas.drawShadow(
-        path,
-        color.withValues(alpha: 0.38),
-        10,
-        false,
-      );
-      canvas.drawPath(
-        path,
-        Paint()..color = color.withValues(alpha: i == 0 ? 0.96 : 0.86),
-      );
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = i == 0 ? 2.1 : 1.7
-          ..color = Colors.white.withValues(alpha: 0.22),
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
