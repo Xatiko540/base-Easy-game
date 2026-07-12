@@ -77,6 +77,7 @@ contract EasyGameArenaSkills {
         attacker.freezeTokens -= 1;
         targetStatus.freezeHits += 1;
         uint256 duration = (config.freezeClosesAt - config.startsAt) / config.freezeLimit;
+        if (duration == 0) duration = 1;
         uint256 until = block.timestamp + duration;
         if (until > config.freezeClosesAt) until = config.freezeClosesAt;
         targetStatus.frozenUntil = uint64(until);

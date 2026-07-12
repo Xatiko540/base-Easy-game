@@ -9,6 +9,8 @@ class _MatrixArenaPanel extends StatelessWidget {
   final VoidCallback onBuyFreeze;
   final VoidCallback onFreeze;
   final VoidCallback onUnfreeze;
+  final VoidCallback onSettle;
+  final VoidCallback onClaimSettlement;
 
   const _MatrixArenaPanel({
     required this.data,
@@ -19,6 +21,8 @@ class _MatrixArenaPanel extends StatelessWidget {
     required this.onBuyFreeze,
     required this.onFreeze,
     required this.onUnfreeze,
+    required this.onSettle,
+    required this.onClaimSettlement,
   });
 
   @override
@@ -110,6 +114,13 @@ class _MatrixArenaPanel extends StatelessWidget {
             onBuyFreeze: onBuyFreeze,
             onFreeze: onFreeze,
             onUnfreeze: onUnfreeze,
+          ),
+          const SizedBox(height: 18),
+          _RoundSettlementPanel(
+            data: data,
+            actionsBusy: actionsBusy,
+            onSettle: onSettle,
+            onClaim: onClaimSettlement,
           ),
           const SizedBox(height: 18),
           _InfoBlock(

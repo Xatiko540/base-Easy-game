@@ -38,6 +38,7 @@ abstract contract EasyGameAdvanceStorage {
     address public treasuryWallet;
     address public operatorWallet;
     address public roundManager;
+    address public settlementContract;
     bool public legacyActivationEnabled;
     IERC20Minimal public usdcToken;
 

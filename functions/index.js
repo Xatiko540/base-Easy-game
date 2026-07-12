@@ -17,6 +17,7 @@ const {
 } = require("ethers");
 const crypto = require("crypto");
 const { GAME_ABI } = require("./game_abi");
+const { buildWinningCellTree } = require("./round_merkle");
 
 initializeApp();
 
@@ -32,6 +33,9 @@ const roundScheduleSignerParam = defineString("EASY_GAME_ROUND_SCHEDULE_SIGNER",
   default: "",
 });
 const arenaSkillsAddressParam = defineString("EASY_GAME_ARENA_SKILLS_ADDRESS", {
+  default: "",
+});
+const roundSettlementAddressParam = defineString("EASY_GAME_ROUND_SETTLEMENT_ADDRESS", {
   default: "",
 });
 const chainIdParam = defineString("EASY_GAME_CHAIN_ID", { default: "8453" });
@@ -125,6 +129,7 @@ function requireUser(request) {
 }
 
 function requireApp(request) {
+  if (environmentParam.value() === "local") return;
   if (!request.app) throw new HttpsError("failed-precondition", "Firebase App Check required");
 }
 
@@ -597,6 +602,12 @@ exports.publishRoundManifest = onCall({
 
   const source = request.data?.config;
   const signature = String(request.data?.signature || "");
+  let winningCells;
+  try {
+    winningCells = (request.data?.winningCells || []).map((value) => BigInt(value));
+  } catch (_) {
+    throw new HttpsError("invalid-argument", "Invalid winning cells");
+  }
   if (!source || !/^0x[0-9a-fA-F]{130}$/.test(signature)) {
     throw new HttpsError("invalid-argument", "Invalid round config or signature");
   }
@@ -625,15 +636,25 @@ exports.publishRoundManifest = onCall({
     freezeLimit: integer("freezeLimit"),
     paymentSplitVersion: integer("paymentSplitVersion"),
   };
+  winningCells.sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
+  if (
+    winningCells.length !== Number(config.maxWinners) ||
+    winningCells.some((cell, index) => cell <= 0n || (index > 0 && cell === winningCells[index - 1]))
+  ) {
+    throw new HttpsError("invalid-argument", "Complete unique winning cells are required");
+  }
+  const winningTree = buildWinningCellTree(config.roundId, winningCells);
   if (
     config.level < 1n || config.level > 17n ||
     config.startsAt >= config.entriesCloseAt ||
     config.entriesCloseAt >= config.endsAt ||
     config.freezeClosesAt < config.startsAt ||
-    config.freezeClosesAt > config.entriesCloseAt ||
+    config.freezeClosesAt > config.endsAt ||
     config.maxPlayers === 0n || config.maxWinners === 0n ||
-    config.maxWinners > 8n || config.paymentSplitVersion !== 1n ||
-    !/^0x[0-9a-fA-F]{64}$/.test(config.winningCellsRoot)
+    config.maxWinners > 8n || config.freezeLimit === 0n ||
+    config.paymentSplitVersion !== 1n ||
+    !/^0x[0-9a-fA-F]{64}$/.test(config.winningCellsRoot) ||
+    winningTree.root.toLowerCase() !== config.winningCellsRoot.toLowerCase()
   ) {
     throw new HttpsError("invalid-argument", "Round constraints are invalid");
   }
@@ -685,8 +706,40 @@ exports.publishRoundManifest = onCall({
       },
       createdAt: FieldValue.serverTimestamp(),
     });
+    winningCells.forEach((cellId, index) => {
+      transaction.create(roundRef.collection("winningCells").doc(cellId.toString()), {
+        cellId: cellId.toString(),
+        proof: winningTree.proofs[index],
+        createdAt: FieldValue.serverTimestamp(),
+      });
+    });
   });
   return { roundId: config.roundId.toString(), configHash };
+});
+
+exports.getRoundSettlementProofs = onCall({
+  region,
+  // requireApp() enforces verified App Check in non-local environments.
+  enforceAppCheck: false,
+}, async (request) => {
+  requireApp(request);
+  const roundId = String(request.data?.roundId || "");
+  if (!/^\d+$/.test(roundId)) {
+    throw new HttpsError("invalid-argument", "Invalid round ID");
+  }
+  const roundRef = db.collection("rounds").doc(roundId);
+  const round = await roundRef.get();
+  if (!round.exists) throw new HttpsError("not-found", "Round not found");
+  const endsAt = round.get("config.endsAt");
+  if (!(endsAt instanceof Timestamp) || Date.now() < endsAt.toMillis()) {
+    throw new HttpsError("failed-precondition", "Winning cells are still sealed");
+  }
+  const snapshot = await roundRef.collection("winningCells").get();
+  const cells = snapshot.docs.map((document) => ({
+    cellId: document.get("cellId"),
+    proof: document.get("proof") || [],
+  })).sort((left, right) => BigInt(left.cellId) < BigInt(right.cellId) ? -1 : 1);
+  return { roundId, cells };
 });
 
 exports.getAppConfig = onCall({
@@ -710,6 +763,7 @@ exports.getAppConfig = onCall({
     roundManagerAddress: publicOptionalAddress(roundManagerAddressParam),
     roundScheduleSigner: publicOptionalAddress(roundScheduleSignerParam),
     arenaSkillsAddress: publicOptionalAddress(arenaSkillsAddressParam),
+    roundSettlementAddress: publicOptionalAddress(roundSettlementAddressParam),
     usdcTokenAddress,
     easyGameInviter: publicOptionalAddress(easyGameInviterParam),
     paymentReceiver: publicOptionalAddress(paymentReceiverParam),

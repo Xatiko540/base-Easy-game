@@ -13,6 +13,7 @@ import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/game_round_chain_models.dart';
 import 'package:lottery_advance/app/models/matrix_round_models.dart';
+import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
 import 'app_config_service.dart';
 
 class AppNetworkConfig {
@@ -149,6 +150,7 @@ class WalletConnectService extends GetxService {
   final RxString easyGameAddress = ''.obs;
   final RxString roundManagerAddress = ''.obs;
   final RxString arenaSkillsAddress = ''.obs;
+  final RxString roundSettlementAddress = ''.obs;
   final RxString referralInviter = ''.obs;
   final Rxn<AppNetworkConfig> activeNetwork = Rxn<AppNetworkConfig>();
 
@@ -1397,6 +1399,98 @@ class WalletConnectService extends GetxService {
     );
     return _submitEasyGameTransaction(
       contractAddress: skills,
+      data: data,
+      paymentWei: BigInt.zero,
+      waitForReceipt: true,
+    );
+  }
+
+  Future<String> resolveRoundSettlementAddress() async {
+    final configured =
+        Get.find<AppConfigService>().get('roundSettlementAddress');
+    if (configured.isNotEmpty) {
+      roundSettlementAddress.value = configured;
+      return configured;
+    }
+    if (roundSettlementAddress.value.isNotEmpty) {
+      return roundSettlementAddress.value;
+    }
+    final artifact = jsonDecode(
+      await rootBundle.loadString(
+        'src/artifacts/EasyGameRoundSettlement.json',
+      ),
+    ) as Map<String, dynamic>;
+    final networks = artifact['networks'] as Map<String, dynamic>? ?? {};
+    final chainKey = '${chainId.value ?? targetNetwork.chainId}';
+    final address =
+        (networks[chainKey] as Map<String, dynamic>?)?['address'] as String?;
+    if (address == null || address.isEmpty) {
+      throw Exception(
+        'EasyGameRoundSettlement is not deployed for chain $chainKey.',
+      );
+    }
+    roundSettlementAddress.value = address;
+    return address;
+  }
+
+  Future<SettlementClaimable> getSettlementClaimable() async {
+    if (currentAddress.value.isEmpty) return SettlementClaimable.zero;
+    final settlement = await resolveRoundSettlementAddress();
+    final player = wallet.EthereumAddress.fromHex(
+      _normalizeAddress(currentAddress.value),
+    );
+    final values = await Future.wait([
+      _abiCall(
+        artifactName: 'EasyGameRoundSettlement',
+        contractAddress: settlement,
+        functionName: 'claimableEth',
+        parameters: [player],
+      ),
+      _abiCall(
+        artifactName: 'EasyGameRoundSettlement',
+        contractAddress: settlement,
+        functionName: 'claimableUsdc',
+        parameters: [player],
+      ),
+    ]);
+    return SettlementClaimable(
+      ethAmount: values[0].first as BigInt,
+      usdcAmount: values[1].first as BigInt,
+    );
+  }
+
+  Future<String> settleEasyGameRound(RoundSettlementProofs settlement) async {
+    final address = await resolveRoundSettlementAddress();
+    final data = await _abiCallData(
+      artifactName: 'EasyGameRoundSettlement',
+      functionName: 'settleRound',
+      parameters: [
+        settlement.roundId,
+        settlement.cells.map((cell) => cell.cellId).toList(growable: false),
+        settlement.cells
+            .map(
+              (cell) => cell.proof.map(_hexBytes).toList(growable: false),
+            )
+            .toList(growable: false),
+      ],
+    );
+    return _submitEasyGameTransaction(
+      contractAddress: address,
+      data: data,
+      paymentWei: BigInt.zero,
+      waitForReceipt: true,
+    );
+  }
+
+  Future<String> claimSettlementPrize() async {
+    final address = await resolveRoundSettlementAddress();
+    final data = await _abiCallData(
+      artifactName: 'EasyGameRoundSettlement',
+      functionName: 'claimPrize',
+      parameters: const [],
+    );
+    return _submitEasyGameTransaction(
+      contractAddress: address,
       data: data,
       paymentWei: BigInt.zero,
       waitForReceipt: true,

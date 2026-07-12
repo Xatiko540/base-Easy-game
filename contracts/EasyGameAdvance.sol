@@ -20,24 +20,7 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface, R
     );
     event ProjectFeesWithdrawn(address indexed wallet, uint256 amount);
     event TokenProjectFeesWithdrawn(address indexed token, address indexed wallet, uint256 amount);
-    event DrawRequested(
-        uint8 indexed level,
-        uint256 randomSeed,
-        uint256 totalWeight
-    );
-    event DrawWon(
-        address indexed winner,
-        uint8 indexed level,
-        uint256 amount,
-        bool pending
-    );
-    event TokenDrawWon(
-        address indexed winner,
-        uint8 indexed level,
-        address indexed token,
-        uint256 amount,
-        bool pending
-    );
+    event RoundPoolsReleased(uint256 indexed roundId, address indexed settlement, uint256 ethAmount, uint256 usdcAmount);
     event ReferralBonusClaimed(address indexed player, uint256 amount);
     event PrizeClaimed(address indexed player, uint8 indexed level, uint256 amount);
     event TokenReferralBonusClaimed(address indexed player, address indexed token, uint256 amount);
@@ -102,41 +85,6 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface, R
         for (uint8 level = 3; level <= LEVEL_COUNT; level++) {
             levelAvailable[level] = true;
         }
-    }
-
-    receive() external payable {
-        revert("Use activateLevel");
-    }
-
-    function activateLevel(uint8 level, address inviter) external payable nonReentrant {
-        if (!legacyActivationEnabled) revert LegacyActivationDisabled();
-        _validateLevel(level);
-        require(levelAvailable[level], "Level is not available yet");
-        require(msg.value == levelPrices[level], "Incorrect payment amount");
-
-        uint256 cellId = _activateLevelState(level, msg.sender, inviter);
-        _splitPayment(level, msg.sender, msg.value);
-
-        emit LevelActivated(msg.sender, level, msg.value, cellId);
-    }
-
-    function activateLevelWithUSDC(uint8 level, address inviter) external nonReentrant {
-        if (!legacyActivationEnabled) revert LegacyActivationDisabled();
-        _validateLevel(level);
-        require(levelAvailable[level], "Level is not available yet");
-        require(address(usdcToken) != address(0), "USDC token not configured");
-
-        uint256 amount = levelPricesUsdc[level];
-        require(amount > 0, "USDC price is not configured");
-        require(
-            usdcToken.transferFrom(msg.sender, address(this), amount),
-            "USDC transfer failed"
-        );
-
-        uint256 cellId = _activateLevelState(level, msg.sender, inviter);
-        _splitUsdcPayment(level, msg.sender, amount);
-
-        emit LevelActivated(msg.sender, level, amount, cellId);
     }
 
     function activateRound(
@@ -209,28 +157,6 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface, R
             revert InvalidRoundCell(roundId, cellId);
         }
         return roundMatrixNodes[roundId][cellId];
-    }
-
-    function _activateLevelState(uint8 level, address playerAddress, address inviter)
-        private
-        returns (uint256 cellId)
-    {
-        Player storage player = players[playerAddress];
-        PlayerLevel storage state = playerLevels[playerAddress][level];
-        require(!state.active, "Level is already active");
-
-        _registerPlayer(player, playerAddress, inviter);
-
-        state.active = true;
-        state.frozen = false;
-        state.tickets += 1;
-        player.totalTickets += 1;
-        player.lastActiveAt = block.timestamp;
-
-        cellId = _placePlayer(level, playerAddress);
-        _addWeight(playerAddress, level, BASE_ACTIVATION_WEIGHT, 0);
-        _unfreezeLowerLevels(playerAddress, level);
-        _processPendingRecycles(level, MAX_RECYCLE_STEPS_PER_TX);
     }
 
     function claimReferralBonus() external nonReentrant {
@@ -306,21 +232,24 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface, R
         emit TokenProjectFeesWithdrawn(address(usdcToken), projectWallet, amount);
     }
 
-    function requestDraw(uint8 level) external view onlyOwner {
-        _validateLevel(level);
-        revert WeightedDrawDisabled();
-    }
-
-    function processPendingRecycles(uint8 level, uint8 maxSteps)
+    function releaseRoundPools(uint256 roundId)
         external
         nonReentrant
-        returns (uint256 processed)
+        returns (uint256 ethAmount, uint256 usdcAmount)
     {
-        _validateLevel(level);
-        if (maxSteps == 0 || maxSteps > MAX_RECYCLE_STEPS_PER_TX) {
-            revert InvalidRecycleBatch(maxSteps, MAX_RECYCLE_STEPS_PER_TX);
-        }
-        return _processPendingRecycles(level, maxSteps);
+        require(msg.sender == settlementContract, "Only settlement");
+        require(
+            IEasyGameRoundManager(roundManager).getRoundPhase(roundId) ==
+                RoundPhase.SettlementReady,
+            "Round is not ready"
+        );
+        ethAmount = roundPrizePools[roundId];
+        usdcAmount = roundPrizePoolsUsdc[roundId];
+        roundPrizePools[roundId] = 0;
+        roundPrizePoolsUsdc[roundId] = 0;
+        _safeTransfer(payable(settlementContract), ethAmount);
+        _safeTransferToken(usdcToken, settlementContract, usdcAmount);
+        emit RoundPoolsReleased(roundId, settlementContract, ethAmount, usdcAmount);
     }
 
 }

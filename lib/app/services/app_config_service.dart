@@ -19,6 +19,8 @@ class AppConfigService extends GetxService {
       String.fromEnvironment('EASY_GAME_ROUND_MANAGER_ADDRESS');
   static const _envArenaSkillsAddress =
       String.fromEnvironment('EASY_GAME_ARENA_SKILLS_ADDRESS');
+  static const _envRoundSettlementAddress =
+      String.fromEnvironment('EASY_GAME_ROUND_SETTLEMENT_ADDRESS');
   static const _envEasyGameInviter =
       String.fromEnvironment('EASY_GAME_INVITER');
   static const _envPaymentReceiver = String.fromEnvironment('PAYMENT_RECEIVER');
@@ -111,6 +113,8 @@ class AppConfigService extends GetxService {
         return _envRoundManagerAddress;
       case 'arenaSkillsAddress':
         return _envArenaSkillsAddress;
+      case 'roundSettlementAddress':
+        return _envRoundSettlementAddress;
       case 'easyGameInviter':
         return _envEasyGameInviter;
       case 'paymentReceiver':

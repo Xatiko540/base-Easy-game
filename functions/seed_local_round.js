@@ -3,6 +3,7 @@ const { getFirestore, Timestamp, FieldValue } = require("firebase-admin/firestor
 const { Contract, HDNodeWallet, JsonRpcProvider, TypedDataEncoder } = require("ethers");
 const coreArtifact = require("../src/artifacts/EasyGameAdvance.json");
 const managerArtifact = require("../src/artifacts/EasyGameRoundManager.json");
+const { buildWinningCellTree } = require("./round_merkle");
 
 process.env.FIRESTORE_EMULATOR_HOST ||= "127.0.0.1:8080";
 initializeApp({ projectId: "lottery-advance" });
@@ -38,19 +39,19 @@ const types = {
 async function main() {
   const now = Math.floor(Date.now() / 1000);
   const roundId = BigInt(now);
+  const winningCells = [1n, 3n, 7n, 15n];
+  const winners = buildWinningCellTree(roundId, winningCells);
   const config = {
     seasonId: 1n,
     roundId,
     level: 5,
-    startsAt: BigInt(now + 15),
+    startsAt: BigInt(now - 5),
     entriesCloseAt: BigInt(now + 60 * 60),
     endsAt: BigInt(now + 2 * 60 * 60),
     freezeClosesAt: BigInt(now + 2 * 60 * 60),
     maxPlayers: 1024,
-    maxWinners: 4,
-    winningCellsRoot: TypedDataEncoder.hashStruct("WinningSeed", {
-      WinningSeed: [{ name: "seed", type: "string" }],
-    }, { seed: `local-${roundId}` }),
+    maxWinners: winningCells.length,
+    winningCellsRoot: winners.root,
     ethPrice: 200000000000000000n,
     usdcPrice: 200000n,
     freezeLimit: 10,
@@ -72,6 +73,26 @@ async function main() {
   );
   if (!(await manager.verifyRoundConfig(config, signature))) {
     throw new Error("Round manager rejected the generated manifest");
+  }
+  const players = Array.from({ length: 7 }, (_, index) =>
+    HDNodeWallet.fromPhrase(
+      mnemonic,
+      "",
+      `m/44'/60'/0'/0/${index}`
+    ).connect(provider)
+  );
+  const game = new Contract(coreAddress, coreArtifact.abi, provider);
+  for (let index = 0; index < players.length; index++) {
+    const inviter = index === 0
+      ? "0x0000000000000000000000000000000000000000"
+      : players[0].address;
+    const transaction = await game.connect(players[index]).activateRound(
+      config,
+      signature,
+      inviter,
+      { value: config.ethPrice }
+    );
+    await transaction.wait();
   }
   const db = getFirestore();
   const previousRounds = await db
@@ -115,6 +136,17 @@ async function main() {
     },
     createdAt: FieldValue.serverTimestamp(),
   });
+  const winnerBatch = db.batch();
+  winningCells.forEach((cellId, index) => {
+    const ref = db.collection("rounds").doc(roundId.toString())
+      .collection("winningCells").doc(cellId.toString());
+    winnerBatch.create(ref, {
+      cellId: cellId.toString(),
+      proof: winners.proofs[index],
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  await winnerBatch.commit();
   await db.collection("users").doc(`${chainId}_${signer.address.toLowerCase()}`).set({
     wallet: signer.address.toLowerCase(),
     chainId,
@@ -125,7 +157,15 @@ async function main() {
     registeredAt: FieldValue.serverTimestamp(),
     updatedAt: FieldValue.serverTimestamp(),
   }, { merge: true });
-  console.log(JSON.stringify({ roundId: roundId.toString(), level: 5, startsAt: Number(config.startsAt), coreAddress, managerAddress, signer: signer.address }, null, 2));
+  console.log(JSON.stringify({
+    roundId: roundId.toString(),
+    level: 5,
+    startsAt: Number(config.startsAt),
+    coreAddress,
+    managerAddress,
+    signer: signer.address,
+    participants: players.map((player) => player.address),
+  }, null, 2));
 }
 
 main().catch((error) => {

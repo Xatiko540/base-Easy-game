@@ -37,7 +37,8 @@ function updateAppArtifact(contractName, chainId, address) {
 }
 
 async function main() {
-  const [deployer] = await hre.ethers.getSigners();
+  const signers = await hre.ethers.getSigners();
+  const [deployer] = signers;
   const network = await hre.ethers.provider.getNetwork();
   const chainId = Number(network.chainId);
   const isLocalNetwork = [1337, 31337, 5777].includes(chainId);
@@ -53,11 +54,12 @@ async function main() {
     ? deployer.address
     : process.env.OPERATOR_WALLET || deployer.address;
   let usdcAddress = process.env.USDC_ADDRESS || "";
+  let mockUsdc;
   const deployLegacyLottery = process.env.DEPLOY_LEGACY_LOTTERY === "true";
 
   if (isLocalNetwork && process.env.LOCAL_USE_MOCK_USDC !== "false") {
     const MockUSDC = await hre.ethers.getContractFactory("MockUSDC");
-    const mockUsdc = await MockUSDC.deploy();
+    mockUsdc = await MockUSDC.deploy();
     await mockUsdc.waitForDeployment();
     usdcAddress = await mockUsdc.getAddress();
     console.log(`MockUSDC deployed to: ${usdcAddress}`);
@@ -132,9 +134,34 @@ async function main() {
   const arenaSkillsAddress = await arenaSkills.getAddress();
   console.log(`EasyGameArenaSkills deployed to: ${arenaSkillsAddress}`);
 
+  const EasyGameRoundSettlement = await hre.ethers.getContractFactory(
+    "EasyGameRoundSettlement"
+  );
+  const settlement = await EasyGameRoundSettlement.deploy(
+    easyGameAddress,
+    roundManagerAddress,
+    arenaSkillsAddress,
+    usdcAddress
+  );
+  await settlement.waitForDeployment();
+  const settlementAddress = await settlement.getAddress();
+  console.log(`EasyGameRoundSettlement deployed to: ${settlementAddress}`);
+
+  await (await easyGame.setSettlementContract(settlementAddress)).wait();
+  await (await roundManager.setSettlementContract(settlementAddress)).wait();
+  console.log("Settlement linked to core and round manager");
+
+  if (mockUsdc) {
+    for (const signer of signers.slice(0, 10)) {
+      await (await mockUsdc.mint(signer.address, 1_000_000_000n)).wait();
+    }
+    console.log("Minted 1000 MockUSDC to the first 10 local accounts");
+  }
+
   updateAppArtifact("EasyGameRoundManager", network.chainId, roundManagerAddress);
   updateAppArtifact("EasyGameAdvance", network.chainId, easyGameAddress);
   updateAppArtifact("EasyGameArenaSkills", network.chainId, arenaSkillsAddress);
+  updateAppArtifact("EasyGameRoundSettlement", network.chainId, settlementAddress);
 }
 
 main().catch((error) => {

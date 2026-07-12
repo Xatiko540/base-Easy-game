@@ -216,6 +216,7 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
             config.maxPlayers == 0 ||
             config.maxWinners == 0 ||
             config.maxWinners > MAX_WINNERS_PER_ROUND ||
+            config.freezeLimit == 0 ||
             config.winningCellsRoot == bytes32(0)
         ) {
             revert InvalidRoundCapacity();

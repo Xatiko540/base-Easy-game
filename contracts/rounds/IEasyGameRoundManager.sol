@@ -21,4 +21,6 @@ interface IEasyGameRoundManager {
         returns (RoundState memory);
 
     function getRoundPhase(uint256 roundId) external view returns (RoundPhase);
+
+    function markRoundSettled(uint256 roundId, uint16 winnersRegistered) external;
 }

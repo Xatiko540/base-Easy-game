@@ -130,7 +130,10 @@ class GameRoundSchedule {
     if (freezeClosesAt.isAfter(endsAt)) {
       throw const FormatException('Freeze window cannot outlive the round');
     }
-    if (maxPlayers <= 0 || maxWinners <= 0 || maxWinners > 8) {
+    if (maxPlayers <= 0 ||
+        maxWinners <= 0 ||
+        maxWinners > 8 ||
+        freezeLimit <= 0) {
       throw const FormatException('Invalid round capacity');
     }
     if (paymentSplitVersion != 1) {

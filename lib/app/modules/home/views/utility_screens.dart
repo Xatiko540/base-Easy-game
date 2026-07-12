@@ -10,7 +10,11 @@ import 'package:lottery_advance/app/services/firebase_data_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/models/matrix_round_models.dart';
+import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
+import 'package:lottery_advance/app/models/game_round_phase.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
+import 'package:lottery_advance/app/services/game_settlement_service.dart';
+import 'package:lottery_advance/app/services/game_round_blockchain_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
 import '../models/levels_models.dart';
 
@@ -243,6 +247,9 @@ class MatrixArenaScreen extends StatelessWidget {
                         onFreeze: () =>
                             matrixController.freezeClosestOpponent(),
                         onUnfreeze: () => matrixController.buyUnfreezeSkill(),
+                        onSettle: () => matrixController.settleRound(),
+                        onClaimSettlement: () =>
+                            matrixController.claimSettlementPrize(),
                       );
                       if (compact) {
                         return Column(

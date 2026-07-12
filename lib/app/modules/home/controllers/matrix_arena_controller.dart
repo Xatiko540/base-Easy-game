@@ -2,6 +2,8 @@ part of '../views/utility_screens.dart';
 
 class _MatrixArenaController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final GameSettlementService settlementService =
+      Get.find<GameSettlementService>();
 
   _MatrixArenaController();
 
@@ -106,12 +108,16 @@ class _MatrixArenaController extends GetxController {
     RoundPlayerState? playerRound;
     ArenaSkillStatus? playerSkill;
     EasyGamePlayerSummary? player;
+    var settlementClaimable = SettlementClaimable.zero;
     if (walletService.isConnected.value) {
       playerRound = await walletService.getRoundPlayerState(roundId);
       player = await walletService.getEasyGamePlayerSummary();
       if (playerRound.active) {
         playerSkill = await walletService.getArenaSkillStatus(roundId);
       }
+      try {
+        settlementClaimable = await settlementService.getClaimable();
+      } catch (_) {}
     }
     final count = math.min(stats.activeCells.toInt(), 15);
     final participants = <MatrixParticipant>[];
@@ -172,6 +178,10 @@ class _MatrixArenaController extends GetxController {
       ),
       participants: participants,
       playerSkillStatus: playerSkill,
+      settlementClaimable: settlementClaimable,
+      canSettle: walletService.isConnected.value &&
+          round.phase == GameRoundPhase.settlementReady,
+      roundSettled: round.phase == GameRoundPhase.settled,
     );
   }
 
@@ -207,6 +217,21 @@ class _MatrixArenaController extends GetxController {
     await _runSkillAction(
       () => walletService.buyArenaUnfreeze(snapshot.value.roundId),
       'matrix.unfreezeSkillTitle'.tr,
+    );
+  }
+
+  Future<void> settleRound() async {
+    await _runSkillAction(
+      () => settlementService.settleRound(snapshot.value.roundId),
+      'matrix.settleRoundTitle'.tr,
+    );
+    await Get.find<GameRoundBlockchainService>().refreshAll();
+  }
+
+  Future<void> claimSettlementPrize() async {
+    await _runSkillAction(
+      settlementService.claimPrize,
+      'matrix.claimSettlementTitle'.tr,
     );
   }
 

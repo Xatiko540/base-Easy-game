@@ -15,6 +15,7 @@ abstract contract AdminInterface is EasyGameAdvanceStorage, GameLogic {
     event UsdcTokenChanged(address indexed oldToken, address indexed newToken);
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event RoundManagerChanged(address indexed oldManager, address indexed newManager);
+    event SettlementContractChanged(address indexed oldSettlement, address indexed newSettlement);
     event LegacyActivationChanged(bool enabled);
 
     modifier onlyOwner() {
@@ -67,6 +68,13 @@ abstract contract AdminInterface is EasyGameAdvanceStorage, GameLogic {
         address oldManager = roundManager;
         roundManager = newManager;
         emit RoundManagerChanged(oldManager, newManager);
+    }
+
+    function setSettlementContract(address newSettlement) external onlyOwner {
+        if (newSettlement == address(0)) revert ZeroAddress();
+        address oldSettlement = settlementContract;
+        settlementContract = newSettlement;
+        emit SettlementContractChanged(oldSettlement, newSettlement);
     }
 
     function setLegacyActivationEnabled(bool enabled) external onlyOwner {

@@ -480,6 +480,25 @@
         {
           "indexed": true,
           "internalType": "address",
+          "name": "oldSettlement",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newSettlement",
+          "type": "address"
+        }
+      ],
+      "name": "SettlementContractChanged",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
           "name": "inviter",
           "type": "address"
         },
@@ -2607,6 +2626,19 @@
       "inputs": [
         {
           "internalType": "address",
+          "name": "newSettlement",
+          "type": "address"
+        }
+      ],
+      "name": "setSettlementContract",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
           "name": "newToken",
           "type": "address"
         }
@@ -2637,6 +2669,19 @@
       "name": "setWallets",
       "outputs": [],
       "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "settlementContract",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
+        }
+      ],
+      "stateMutability": "view",
       "type": "function"
     },
     {

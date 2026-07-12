@@ -6,6 +6,7 @@ const contracts = [
   "EasyGameAdvance",
   "EasyGameRoundManager",
   "EasyGameArenaSkills",
+  "EasyGameRoundSettlement",
   "Lottery",
   "LotteryGenerator",
   "Migrations",

@@ -67,6 +67,9 @@ class _MatrixArenaSnapshot {
   final _MatrixSkillRules skillRules;
   final List<MatrixParticipant> participants;
   final ArenaSkillStatus? playerSkillStatus;
+  final SettlementClaimable settlementClaimable;
+  final bool canSettle;
+  final bool roundSettled;
 
   const _MatrixArenaSnapshot({
     required this.level,
@@ -87,6 +90,9 @@ class _MatrixArenaSnapshot {
     required this.skillRules,
     required this.participants,
     required this.playerSkillStatus,
+    required this.settlementClaimable,
+    required this.canSettle,
+    required this.roundSettled,
   });
 
   factory _MatrixArenaSnapshot.empty(int level) {
@@ -109,6 +115,9 @@ class _MatrixArenaSnapshot {
       skillRules: _MatrixSkillRules.empty(),
       participants: const [],
       playerSkillStatus: null,
+      settlementClaimable: SettlementClaimable.zero,
+      canSettle: false,
+      roundSettled: false,
     );
   }
 

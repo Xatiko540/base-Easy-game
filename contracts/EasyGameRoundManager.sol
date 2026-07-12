@@ -12,6 +12,10 @@ contract EasyGameRoundManager is RoundScheduleLogic {
     event GameCoreChanged(address indexed oldCore, address indexed newCore);
     event RoundPauseChanged(uint256 indexed roundId, bool paused);
     event RoundCancelled(uint256 indexed roundId);
+    event SettlementContractChanged(address indexed oldSettlement, address indexed newSettlement);
+    event RoundSettled(uint256 indexed roundId, uint16 winnersRegistered);
+
+    address public settlementContract;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -30,6 +34,29 @@ contract EasyGameRoundManager is RoundScheduleLogic {
         address oldCore = gameCore;
         gameCore = newCore;
         emit GameCoreChanged(oldCore, newCore);
+    }
+
+    function setSettlementContract(address newSettlement) external onlyOwner {
+        if (newSettlement == address(0)) revert ZeroAddress();
+        address oldSettlement = settlementContract;
+        settlementContract = newSettlement;
+        emit SettlementContractChanged(oldSettlement, newSettlement);
+    }
+
+    function markRoundSettled(uint256 roundId, uint16 winnersRegistered) external {
+        require(msg.sender == settlementContract, "Only settlement");
+        RoundState storage state = _roundStates[roundId];
+        if (!state.initialized) revert RoundNotInitialized(roundId);
+        if (state.settled) revert RoundAlreadySettled(roundId);
+        require(getRoundPhase(roundId) == RoundPhase.SettlementReady, "Round is not ready");
+        state.settled = true;
+        state.winnersRegistered = winnersRegistered;
+        state.paused = false;
+        RoundConfig storage config = _roundConfigs[roundId];
+        if (activeRoundByLevel[config.level] == roundId) {
+            activeRoundByLevel[config.level] = 0;
+        }
+        emit RoundSettled(roundId, winnersRegistered);
     }
 
     function setScheduleSigner(address newSigner) external onlyOwner {

@@ -221,3 +221,94 @@ class _SkillActionButton extends StatelessWidget {
     );
   }
 }
+
+class _RoundSettlementPanel extends StatelessWidget {
+  final _MatrixArenaSnapshot data;
+  final bool actionsBusy;
+  final VoidCallback onSettle;
+  final VoidCallback onClaim;
+
+  const _RoundSettlementPanel({
+    required this.data,
+    required this.actionsBusy,
+    required this.onSettle,
+    required this.onClaim,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final claimable = data.settlementClaimable;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFF171829),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: EasyGameTheme.borderSoft),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'matrix.settlementTitle'.tr,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            data.roundSettled
+                ? 'matrix.settlementComplete'.tr
+                : data.canSettle
+                    ? 'matrix.settlementReadyText'.tr
+                    : 'matrix.settlementWaitingText'.tr,
+            style: const TextStyle(color: Colors.white54, height: 1.45),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            children: [
+              Text(
+                '${'matrix.claimableEth'.tr}: ${_formatWei(claimable.ethAmount)} ETH',
+                style: const TextStyle(color: EasyGameTheme.teal),
+              ),
+              Text(
+                '${'matrix.claimableUsdc'.tr}: ${_formatSettlementUsdc(claimable.usdcAmount)} USDC',
+                style: const TextStyle(color: EasyGameTheme.purple),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              _SkillActionButton(
+                icon: Icons.fact_check_outlined,
+                label: 'matrix.settleRound'.tr,
+                onPressed: actionsBusy || !data.canSettle ? null : onSettle,
+              ),
+              _SkillActionButton(
+                icon: Icons.account_balance_wallet_outlined,
+                label: 'matrix.claimSettlement'.tr,
+                onPressed: actionsBusy || !claimable.hasReward ? null : onClaim,
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatSettlementUsdc(BigInt amount) {
+    final whole = amount ~/ BigInt.from(1000000);
+    final fraction = (amount % BigInt.from(1000000))
+        .toString()
+        .padLeft(6, '0')
+        .replaceFirst(RegExp(r'0+$'), '');
+    return fraction.isEmpty ? '$whole' : '$whole.$fraction';
+  }
+}

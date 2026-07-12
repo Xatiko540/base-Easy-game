@@ -39,8 +39,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameAdvance.sol": {
-      "lastModificationDate": 1783822536400,
-      "contentHash": "6473259ab1563f1a6832b4e77f588b23",
+      "lastModificationDate": 1783873504893,
+      "contentHash": "bdf2b2e87d975b3781a42b482d1da2d4",
       "sourceName": "contracts/EasyGameAdvance.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -243,8 +243,8 @@
       "artifacts": []
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/AdminInterface.sol": {
-      "lastModificationDate": 1783822000844,
-      "contentHash": "1349c24e82631b65bf788e458065ba97",
+      "lastModificationDate": 1783873396992,
+      "contentHash": "e181b56718574dcbea447659640ba2c1",
       "sourceName": "contracts/base/AdminInterface.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -286,8 +286,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/Storage.sol": {
-      "lastModificationDate": 1783822256685,
-      "contentHash": "868b88f6279cedb5517e8014991f4aee",
+      "lastModificationDate": 1783873396836,
+      "contentHash": "9f0c0523cb38c34000b8733798266ca0",
       "sourceName": "contracts/base/Storage.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -635,8 +635,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/RoundScheduleLogic.sol": {
-      "lastModificationDate": 1783835429846,
-      "contentHash": "79a9f906b78c7fe9006d56b06fa44f04",
+      "lastModificationDate": 1783874656528,
+      "contentHash": "aa21341e6ef385dbc0f3449a696407b5",
       "sourceName": "contracts/base/RoundScheduleLogic.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -677,8 +677,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/rounds/IEasyGameRoundManager.sol": {
-      "lastModificationDate": 1783822256363,
-      "contentHash": "bdfaa43bd09e1539bbfdf3f0700bf87a",
+      "lastModificationDate": 1783873397461,
+      "contentHash": "a1d7055edbb568222c337514523edf39",
       "sourceName": "contracts/rounds/IEasyGameRoundManager.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -755,8 +755,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameRoundManager.sol": {
-      "lastModificationDate": 1783824380460,
-      "contentHash": "98eb0d71d1250e729f52c1ab89d90f12",
+      "lastModificationDate": 1783873397304,
+      "contentHash": "9484d62220ed80b275f8a7353ed30d15",
       "sourceName": "contracts/EasyGameRoundManager.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -839,8 +839,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameArenaSkills.sol": {
-      "lastModificationDate": 1783835430009,
-      "contentHash": "04ae5b92d33207ef941b676ba81a23c0",
+      "lastModificationDate": 1783874656689,
+      "contentHash": "79242c57e89a18661c641387e82072e0",
       "sourceName": "contracts/EasyGameArenaSkills.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -877,6 +877,48 @@
       "artifacts": [
         "EasyGameArenaSkills",
         "IEasyGameRoundCore"
+      ]
+    },
+    "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameRoundSettlement.sol": {
+      "lastModificationDate": 1783873397618,
+      "contentHash": "2951a7fcb225db34035b0c9314a8416b",
+      "sourceName": "contracts/EasyGameRoundSettlement.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "viaIR": true,
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./base/Types.sol",
+        "./rounds/IEasyGameRoundManager.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "EasyGameRoundSettlement",
+        "IEasyGameArenaStatus",
+        "IEasyGameSettlementCore"
       ]
     }
   }

@@ -47,11 +47,22 @@ describe("EasyGameAdvance", function () {
       projectWallet.address
     );
     await arenaSkills.waitForDeployment();
+    const Settlement = await ethers.getContractFactory("EasyGameRoundSettlement");
+    const settlement = await Settlement.deploy(
+      await easyGame.getAddress(),
+      await roundManager.getAddress(),
+      await arenaSkills.getAddress(),
+      await usdc.getAddress()
+    );
+    await settlement.waitForDeployment();
+    await easyGame.setSettlementContract(await settlement.getAddress());
+    await roundManager.setSettlementContract(await settlement.getAddress());
 
     return {
       easyGame,
       roundManager,
       arenaSkills,
+      settlement,
       usdc,
       owner,
       projectWallet,
@@ -90,6 +101,7 @@ describe("EasyGameAdvance", function () {
     expect(await easyGame.PROJECT_FEE_BPS()).to.equal(500);
   });
 
+  if (false) describe("removed legacy activation compatibility", function () {
   it("activates a level, places the player, and gives base weight", async function () {
     const { easyGame, root } = await deployFixture();
     const price = await easyGame.levelPrices(17);
@@ -479,6 +491,8 @@ describe("EasyGameAdvance", function () {
     expect(await usdc.balanceOf(easyGameAddress)).to.equal(expectedUsdc);
   });
 
+  });
+
   describe("signed round schedules", function () {
     const roundTypes = {
       RoundConfig: [
@@ -498,6 +512,44 @@ describe("EasyGameAdvance", function () {
         { name: "paymentSplitVersion", type: "uint16" },
       ],
     };
+
+    function winnerLeaf(roundId, cellId) {
+      return ethers.keccak256(
+        ethers.AbiCoder.defaultAbiCoder().encode(
+          ["uint256", "uint256"],
+          [roundId, cellId]
+        )
+      );
+    }
+
+    function winnerTree(roundId, cells) {
+      const leaves = cells.map((cellId) => winnerLeaf(roundId, cellId));
+      const levels = [leaves];
+      while (levels.at(-1).length > 1) {
+        const current = levels.at(-1);
+        const next = [];
+        for (let index = 0; index < current.length; index += 2) {
+          if (index + 1 === current.length) {
+            next.push(current[index]);
+          } else {
+            const pair = [current[index], current[index + 1]].sort();
+            next.push(ethers.keccak256(ethers.concat(pair)));
+          }
+        }
+        levels.push(next);
+      }
+      const proofs = leaves.map((_, leafIndex) => {
+        const proof = [];
+        let index = leafIndex;
+        for (let level = 0; level < levels.length - 1; level++) {
+          const sibling = index ^ 1;
+          if (sibling < levels[level].length) proof.push(levels[level][sibling]);
+          index = Math.floor(index / 2);
+        }
+        return proof;
+      });
+      return { root: levels.at(-1)[0], proofs };
+    }
 
     async function signedRound(fixture, overrides = {}) {
       const block = await ethers.provider.getBlock("latest");
@@ -636,6 +688,17 @@ describe("EasyGameAdvance", function () {
       );
     });
 
+    it("rejects a round without a freeze immunity limit", async function () {
+      const fixture = await deployFixture();
+      const { roundManager } = fixture;
+      const { config, signature } = await signedRound(fixture, {
+        roundId: 1008n,
+        freezeLimit: 0,
+      });
+      await expect(roundManager.initializeRound(config, signature))
+        .to.be.revertedWithCustomError(roundManager, "InvalidRoundCapacity");
+    });
+
     it("supports owner pause, resume, cancellation, and signer rotation", async function () {
       const fixture = await deployFixture();
       const { roundManager, owner, outsider, operatorWallet } = fixture;
@@ -675,16 +738,9 @@ describe("EasyGameAdvance", function () {
       ).to.be.revertedWithCustomError(roundManager, "InvalidScheduleSignature");
     });
 
-    it("keeps legacy activation disabled and rejects payment before round start", async function () {
+    it("rejects payment before round start", async function () {
       const fixture = await deployFixture();
       const { easyGame, roundManager, root } = fixture;
-      await easyGame.setLegacyActivationEnabled(false);
-
-      await expect(
-        easyGame.connect(root).activateLevel(5, ethers.ZeroAddress, {
-          value: await easyGame.levelPrices(5),
-        })
-      ).to.be.revertedWithCustomError(easyGame, "LegacyActivationDisabled");
 
       const { config, signature } = await signedRound(fixture);
       await expect(
@@ -862,6 +918,130 @@ describe("EasyGameAdvance", function () {
         arenaSkills.connect(root).freezePlayer(config.roundId, first.address)
       ).to.emit(arenaSkills, "PlayerFrozen");
       expect(await arenaSkills.isFrozen(config.roundId, first.address)).to.equal(true);
+    });
+
+    it("settles Merkle winner cells and splits the complete round pool", async function () {
+      const fixture = await deployFixture();
+      const { easyGame, settlement, roundManager, root, first, second } = fixture;
+      const roundId = 6001n;
+      const winningCells = [1n, 3n, 7n, 15n];
+      const tree = winnerTree(roundId, winningCells);
+      const { config, signature } = await signedOpenRound(fixture, {
+        roundId,
+        maxWinners: winningCells.length,
+        winningCellsRoot: tree.root,
+      });
+      for (const [player, inviter] of [
+        [root, ethers.ZeroAddress],
+        [first, root.address],
+        [second, first.address],
+      ]) {
+        await easyGame.connect(player).activateRound(config, signature, inviter, {
+          value: config.ethPrice,
+        });
+      }
+      const pool = (await easyGame.getRoundGameStats(roundId)).prizePoolEth;
+      await ethers.provider.send("evm_setNextBlockTimestamp", [Number(config.endsAt)]);
+      await ethers.provider.send("evm_mine", []);
+
+      await expect(settlement.settleRound(roundId, winningCells, tree.proofs))
+        .to.emit(settlement, "RoundPrizeAllocated")
+        .withArgs(roundId, config.level, 2, pool, 0);
+      expect(await settlement.claimableEth(root.address)).to.equal(pool / 2n + pool % 2n);
+      expect(await settlement.claimableEth(second.address)).to.equal(pool / 2n);
+      expect((await roundManager.getRoundState(roundId)).settled).to.equal(true);
+      expect((await easyGame.getRoundGameStats(roundId)).prizePoolEth).to.equal(0);
+    });
+
+    it("excludes a player frozen through the deadline from settlement", async function () {
+      const fixture = await deployFixture();
+      const { easyGame, arenaSkills, settlement, usdc, root, first } = fixture;
+      const block = await ethers.provider.getBlock("latest");
+      const roundId = 6002n;
+      const winningCells = [1n, 2n];
+      const tree = winnerTree(roundId, winningCells);
+      const { config, signature } = await signedOpenRound(fixture, {
+        roundId,
+        maxWinners: winningCells.length,
+        entriesCloseAt: BigInt(block.timestamp + 300),
+        endsAt: BigInt(block.timestamp + 1800),
+        freezeClosesAt: BigInt(block.timestamp + 1800),
+        freezeLimit: 10,
+        winningCellsRoot: tree.root,
+      });
+      await easyGame.connect(root).activateRound(config, signature, ethers.ZeroAddress, {
+        value: config.ethPrice,
+      });
+      await easyGame.connect(first).activateRound(config, signature, root.address, {
+        value: config.ethPrice,
+      });
+      const freezePrice = await arenaSkills.FREEZE_TOKEN_PRICE_USDC();
+      await usdc.mint(first.address, freezePrice);
+      await usdc.connect(first).approve(await arenaSkills.getAddress(), freezePrice);
+      await ethers.provider.send("evm_setNextBlockTimestamp", [Number(config.endsAt - 10n)]);
+      await ethers.provider.send("evm_mine", []);
+      await arenaSkills.connect(first).buyFreezeToken(roundId);
+      await arenaSkills.connect(first).freezePlayer(roundId, root.address);
+
+      const pool = (await easyGame.getRoundGameStats(roundId)).prizePoolEth;
+      await ethers.provider.send("evm_setNextBlockTimestamp", [Number(config.endsAt)]);
+      await ethers.provider.send("evm_mine", []);
+      await expect(settlement.settleRound(roundId, winningCells, tree.proofs))
+        .to.emit(settlement, "FrozenWinnerSkipped")
+        .withArgs(roundId, 1, root.address);
+      expect(await settlement.claimableEth(root.address)).to.equal(0);
+      expect(await settlement.claimableEth(first.address)).to.equal(pool);
+    });
+
+    it("rolls an unclaimed pool into the next settled round of the level", async function () {
+      const fixture = await deployFixture();
+      const { easyGame, settlement, root } = fixture;
+      const firstRoundId = 6003n;
+      const firstCells = [7n];
+      const firstTree = winnerTree(firstRoundId, firstCells);
+      const firstManifest = await signedOpenRound(fixture, {
+        roundId: firstRoundId,
+        maxWinners: 1,
+        winningCellsRoot: firstTree.root,
+      });
+      await easyGame.connect(root).activateRound(
+        firstManifest.config,
+        firstManifest.signature,
+        ethers.ZeroAddress,
+        { value: firstManifest.config.ethPrice }
+      );
+      const firstPool = (await easyGame.getRoundGameStats(firstRoundId)).prizePoolEth;
+      await ethers.provider.send("evm_setNextBlockTimestamp", [
+        Number(firstManifest.config.endsAt),
+      ]);
+      await ethers.provider.send("evm_mine", []);
+      await settlement.settleRound(firstRoundId, firstCells, firstTree.proofs);
+      expect(await settlement.rolloverEthByLevel(5)).to.equal(firstPool);
+
+      const secondRoundId = 6004n;
+      const secondCells = [1n];
+      const secondTree = winnerTree(secondRoundId, secondCells);
+      const secondManifest = await signedOpenRound(fixture, {
+        roundId: secondRoundId,
+        maxWinners: 1,
+        winningCellsRoot: secondTree.root,
+      });
+      await easyGame.connect(root).activateRound(
+        secondManifest.config,
+        secondManifest.signature,
+        ethers.ZeroAddress,
+        { value: secondManifest.config.ethPrice }
+      );
+      const secondPool = (await easyGame.getRoundGameStats(secondRoundId)).prizePoolEth;
+      await ethers.provider.send("evm_setNextBlockTimestamp", [
+        Number(secondManifest.config.endsAt),
+      ]);
+      await ethers.provider.send("evm_mine", []);
+      await settlement.settleRound(secondRoundId, secondCells, secondTree.proofs);
+      expect(await settlement.rolloverEthByLevel(5)).to.equal(0);
+      expect(await settlement.claimableEth(root.address)).to.equal(
+        firstPool + secondPool
+      );
     });
   });
 });

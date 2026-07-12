@@ -10,6 +10,7 @@ import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/game_clock_service.dart';
 import 'package:lottery_advance/app/services/game_schedule_service.dart';
 import 'package:lottery_advance/app/services/game_round_blockchain_service.dart';
+import 'package:lottery_advance/app/services/game_settlement_service.dart';
 import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
 import 'package:lottery_advance/app/repositories/game_user_repository.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
@@ -52,6 +53,7 @@ void main() async {
     Get.put(GameClockService(), permanent: true);
     Get.put(GameScheduleService(), permanent: true);
     Get.put(GameRoundBlockchainService().bind(), permanent: true);
+    Get.put(GameSettlementService(), permanent: true);
     Get.put(GameRoundsRepository().bind(), permanent: true);
     Get.put(GameRoundsController(), permanent: true);
     Get.put(GameUserRepository().bind(), permanent: true);
