@@ -170,7 +170,7 @@ class _MatrixTree extends StatelessWidget {
             width: size,
             height: size,
             child: NeonHoneycomb(
-              zoomFactor: 2.0,
+              zoomFactor: 1.0,
               states: states,
               onCellTap: (cellId) {
                 final participant = data.participantAt(cellId);
@@ -185,8 +185,6 @@ class _MatrixTree extends StatelessWidget {
     );
   }
 }
-
-
 
 class _MatrixMiniStat extends StatelessWidget {
   final String value;
@@ -375,5 +373,3 @@ class _MatrixProgressBar extends StatelessWidget {
     );
   }
 }
-
-
