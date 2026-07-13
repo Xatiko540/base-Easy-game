@@ -412,7 +412,8 @@ class InformationScreen extends StatelessWidget {
           title: 'info.advanceTitle'.tr,
           text: 'info.advanceText'.tr,
         ),
-        _InfoBlock(
+        _InfoTextCard(
+          icon: CupertinoIcons.checkmark_shield,
           title: 'info.deploymentStatusTitle'.tr,
           text: 'info.deploymentStatusText'.tr,
         ),
@@ -420,7 +421,8 @@ class InformationScreen extends StatelessWidget {
         const _InfoPaymentSplitPanel(),
         const _InfoRoundLifecyclePanel(),
         const _InfoWinningCellsPanel(),
-        _InfoBlock(
+        _InfoTextCard(
+          icon: CupertinoIcons.snow,
           title: 'info.freezeTitle'.tr,
           text: 'info.freezeText'.tr,
         ),

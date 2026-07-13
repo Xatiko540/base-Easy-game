@@ -9,12 +9,20 @@ const {
   Contract,
   Interface,
   JsonRpcProvider,
+  Wallet,
   TypedDataEncoder,
   getAddress,
   isAddress,
-  verifyMessage,
+  parseUnits,
   verifyTypedData,
 } = require("ethers");
+const {
+  createPublicClient,
+  defineChain,
+  getAddress: getViemAddress,
+  http,
+} = require("viem");
+const { getPaymentStatus } = require("@base-org/account");
 const crypto = require("crypto");
 const { GAME_ABI } = require("./game_abi");
 const { buildWinningCellTree } = require("./round_merkle");
@@ -38,6 +46,10 @@ const arenaSkillsAddressParam = defineString("EASY_GAME_ARENA_SKILLS_ADDRESS", {
 const roundSettlementAddressParam = defineString("EASY_GAME_ROUND_SETTLEMENT_ADDRESS", {
   default: "",
 });
+const basePayGatewayAddressParam = defineString("EASY_GAME_BASE_PAY_GATEWAY_ADDRESS", {
+  default: "",
+});
+const basePayFulfillerKey = defineSecret("BASE_PAY_FULFILLER_PRIVATE_KEY");
 const chainIdParam = defineString("EASY_GAME_CHAIN_ID", { default: "8453" });
 const confirmationsParam = defineString("EASY_GAME_CONFIRMATIONS", { default: "5" });
 const startBlockParam = defineString("EASY_GAME_START_BLOCK", { default: "0" });
@@ -76,6 +88,39 @@ const roundTypes = {
     { name: "paymentSplitVersion", type: "uint16" },
   ],
 };
+const basePayGatewayAbi = [
+  "function fulfillRound(bytes32 paymentId,(uint256 seasonId,uint256 roundId,uint8 level,uint64 startsAt,uint64 entriesCloseAt,uint64 endsAt,uint64 freezeClosesAt,uint32 maxPlayers,uint16 maxWinners,bytes32 winningCellsRoot,uint256 ethPrice,uint256 usdcPrice,uint16 freezeLimit,uint16 paymentSplitVersion) config,bytes signature,address player,address inviter)",
+  "function processedPayments(bytes32 paymentId) view returns (bool)",
+  "function fulfiller() view returns (address)",
+];
+
+function walletVerificationClient() {
+  const chainId = Number(chainIdParam.value());
+  const endpoint = rpcUrl.value();
+  const chain = defineChain({
+    id: chainId,
+    name: chainId === 84532 ? "Base Sepolia" : chainId === 8453 ? "Base" : `Chain ${chainId}`,
+    nativeCurrency: { name: "Ether", symbol: "ETH", decimals: 18 },
+    rpcUrls: { default: { http: [endpoint] } },
+  });
+  return createPublicClient({ chain, transport: http(endpoint) });
+}
+
+async function verifyWalletSignature(address, message, signature) {
+  try {
+    return await walletVerificationClient().verifyMessage({
+      address: getViemAddress(address),
+      message,
+      signature,
+    });
+  } catch (error) {
+    logger.warn("Wallet signature verification failed", {
+      wallet: address,
+      error: String(error?.message || error).slice(0, 300),
+    });
+    return false;
+  }
+}
 
 function publicContractAddress() {
   const address = contractAddress.value();
@@ -121,6 +166,40 @@ function jsonValue(value) {
     return result;
   }
   return value;
+}
+
+function roundConfigFromDocument(round) {
+  const source = round.get("config");
+  const timestampSeconds = (name) => {
+    const value = source?.[name];
+    if (!(value instanceof Timestamp)) {
+      throw new HttpsError("failed-precondition", `Round ${name} is invalid`);
+    }
+    return BigInt(Math.floor(value.toMillis() / 1000));
+  };
+  const integer = (name, alias = name) => {
+    try {
+      return BigInt(source?.[alias]);
+    } catch (_) {
+      throw new HttpsError("failed-precondition", `Round ${name} is invalid`);
+    }
+  };
+  return {
+    seasonId: integer("seasonId"),
+    roundId: integer("roundId"),
+    level: integer("level"),
+    startsAt: timestampSeconds("startsAt"),
+    entriesCloseAt: timestampSeconds("entriesCloseAt"),
+    endsAt: timestampSeconds("endsAt"),
+    freezeClosesAt: timestampSeconds("freezeClosesAt"),
+    maxPlayers: integer("maxPlayers"),
+    maxWinners: integer("maxWinners"),
+    winningCellsRoot: String(source?.winningCellsRoot || ""),
+    ethPrice: integer("ethPrice", "ethPriceWei"),
+    usdcPrice: integer("usdcPrice"),
+    freezeLimit: integer("freezeLimit"),
+    paymentSplitVersion: integer("paymentSplitVersion"),
+  };
 }
 
 function requireUser(request) {
@@ -387,7 +466,11 @@ exports.requestWalletNonce = onCall({ region, enforceAppCheck: true }, async (re
   return { message, expiresAt: expiresAt.toMillis() };
 });
 
-exports.linkWallet = onCall({ region, enforceAppCheck: true }, async (request) => {
+exports.linkWallet = onCall({
+  region,
+  enforceAppCheck: true,
+  secrets: [rpcUrl],
+}, async (request) => {
   requireApp(request);
   const uid = requireUser(request);
   await enforceRateLimit("linkWallet", uid, 10, 10 * 60);
@@ -399,11 +482,15 @@ exports.linkWallet = onCall({ region, enforceAppCheck: true }, async (request) =
   if (!nonceDoc.exists) throw new HttpsError("failed-precondition", "Request nonce first");
   const nonce = nonceDoc.data();
   if (nonce.used || nonce.expiresAt.toMillis() < Date.now()) throw new HttpsError("deadline-exceeded", "Nonce expired");
-  let recovered;
-  try { recovered = verifyMessage(nonce.message, signature).toLowerCase(); } catch (_) {
+  const verified = await verifyWalletSignature(
+    nonce.wallet,
+    nonce.message,
+    signature,
+  );
+  if (!verified) {
     throw new HttpsError("invalid-argument", "Invalid wallet signature");
   }
-  if (recovered !== nonce.wallet) throw new HttpsError("permission-denied", "Signature does not match wallet");
+  const recovered = nonce.wallet;
   await db.runTransaction(async (transaction) => {
     const freshNonceDoc = await transaction.get(nonceDoc.ref);
     if (!freshNonceDoc.exists) throw new HttpsError("failed-precondition", "Request nonce first");
@@ -742,6 +829,195 @@ exports.getRoundSettlementProofs = onCall({
   return { roundId, cells };
 });
 
+exports.fulfillBasePayRound = onCall({
+  region,
+  enforceAppCheck: true,
+  secrets: [rpcUrl, basePayFulfillerKey],
+  timeoutSeconds: 120,
+}, async (request) => {
+  requireApp(request);
+  const uid = requireUser(request);
+  await enforceRateLimit("fulfillBasePayRound", uid, 10, 60 * 60);
+
+  const paymentId = String(request.data?.paymentId || "");
+  const roundId = String(request.data?.roundId || "");
+  const inviter = wallet(request.data?.inviter) || zeroAddress;
+  if (!/^0x[0-9a-fA-F]{64}$/.test(paymentId) || !/^\d+$/.test(roundId)) {
+    throw new HttpsError("invalid-argument", "Valid payment and round IDs are required");
+  }
+
+  const gatewayAddress = publicOptionalAddress(basePayGatewayAddressParam);
+  if (!gatewayAddress) {
+    throw new HttpsError("failed-precondition", "Base Pay gateway is not configured");
+  }
+  const link = await db.collection("walletLinks").doc(uid).get();
+  const player = link.exists ? wallet(link.get("wallet")) : null;
+  if (!player || Number(link.get("chainId")) !== Number(chainIdParam.value())) {
+    throw new HttpsError("failed-precondition", "Link the current Base wallet first");
+  }
+
+  const round = await db.collection("rounds").doc(roundId).get();
+  if (!round.exists) throw new HttpsError("not-found", "Round not found");
+  if (
+    Number(round.get("chainId")) !== Number(chainIdParam.value()) ||
+    String(round.get("contractAddress") || "").toLowerCase() !== publicContractAddress().toLowerCase()
+  ) {
+    throw new HttpsError("failed-precondition", "Round deployment does not match Base Pay config");
+  }
+  const config = roundConfigFromDocument(round);
+  if (config.roundId.toString() !== roundId || config.usdcPrice <= 0n) {
+    throw new HttpsError("failed-precondition", "Round does not accept USDC");
+  }
+  const now = BigInt(Math.floor(Date.now() / 1000));
+  if (now < config.startsAt || now >= config.entriesCloseAt) {
+    throw new HttpsError("failed-precondition", "Round entries are closed");
+  }
+
+  const testnet = Number(chainIdParam.value()) === 84532;
+  let payment;
+  try {
+    payment = await getPaymentStatus({ id: paymentId, testnet });
+  } catch (error) {
+    logger.error("Base Pay status lookup failed", error);
+    throw new HttpsError("unavailable", "Unable to verify Base Pay transaction");
+  }
+  if (payment.status !== "completed") {
+    throw new HttpsError("failed-precondition", `Base Pay status is ${payment.status}`);
+  }
+  const sender = wallet(payment.sender);
+  const recipient = wallet(payment.recipient);
+  let paidAmount;
+  try {
+    paidAmount = parseUnits(String(payment.amount), 6);
+  } catch (_) {
+    throw new HttpsError("data-loss", "Base Pay returned an invalid amount");
+  }
+  if (sender !== player) throw new HttpsError("permission-denied", "Base Pay sender mismatch");
+  if (recipient !== gatewayAddress.toLowerCase()) {
+    throw new HttpsError("permission-denied", "Base Pay recipient mismatch");
+  }
+  if (paidAmount !== config.usdcPrice) {
+    throw new HttpsError("permission-denied", "Base Pay amount mismatch");
+  }
+
+  const paymentRef = db.collection("basePayPayments").doc(
+    `${chainIdParam.value()}_${paymentId.toLowerCase()}`,
+  );
+  const existing = await paymentRef.get();
+  if (existing.exists) {
+    if (existing.get("uid") !== uid || existing.get("wallet") !== player) {
+      throw new HttpsError("already-exists", "Base Pay transaction already belongs to another order");
+    }
+    if (existing.get("status") === "fulfilled") {
+      return {
+        paymentId,
+        transactionHash: existing.get("fulfillmentTransactionHash"),
+        status: "fulfilled",
+      };
+    }
+    if (["submitted", "submitted_unknown"].includes(existing.get("status"))) {
+      const submittedHash = String(existing.get("fulfillmentTransactionHash") || "");
+      if (/^0x[0-9a-fA-F]{64}$/.test(submittedHash)) {
+        const provider = new JsonRpcProvider(rpcUrl.value(), Number(chainIdParam.value()));
+        const receipt = await provider.getTransactionReceipt(submittedHash);
+        if (receipt?.status === 1) {
+          await paymentRef.set({
+            status: "fulfilled",
+            fulfillmentBlockNumber: receipt.blockNumber,
+            fulfilledAt: FieldValue.serverTimestamp(),
+            updatedAt: FieldValue.serverTimestamp(),
+          }, { merge: true });
+          return { paymentId, transactionHash: submittedHash, status: "fulfilled" };
+        }
+        if (!receipt) {
+          throw new HttpsError("aborted", "Base Pay fulfillment is awaiting confirmation");
+        }
+        await paymentRef.set({
+          status: "failed",
+          error: "Previous fulfillment transaction reverted",
+          updatedAt: FieldValue.serverTimestamp(),
+        }, { merge: true });
+      }
+    }
+    if (existing.get("status") === "processing") {
+      const updatedAt = existing.get("updatedAt");
+      if (updatedAt instanceof Timestamp && Date.now() - updatedAt.toMillis() < 5 * 60 * 1000) {
+        throw new HttpsError("aborted", "Base Pay fulfillment is already processing");
+      }
+      await paymentRef.set({
+        status: "failed",
+        error: "Stale fulfillment lock recovered",
+        updatedAt: FieldValue.serverTimestamp(),
+      }, { merge: true });
+    }
+  }
+
+  await db.runTransaction(async (transaction) => {
+    const fresh = await transaction.get(paymentRef);
+    if (fresh.exists && fresh.get("status") !== "failed") {
+      throw new HttpsError("already-exists", "Base Pay transaction is already processing");
+    }
+    transaction.set(paymentRef, {
+      uid,
+      wallet: player,
+      chainId: Number(chainIdParam.value()),
+      paymentId: paymentId.toLowerCase(),
+      roundId,
+      inviter,
+      recipient: gatewayAddress.toLowerCase(),
+      amountUsdc: config.usdcPrice.toString(),
+      status: "processing",
+      verifiedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    });
+  });
+
+  let fulfillmentHash = "";
+  try {
+    const provider = new JsonRpcProvider(rpcUrl.value(), Number(chainIdParam.value()));
+    const signer = new Wallet(basePayFulfillerKey.value(), provider);
+    const gateway = new Contract(gatewayAddress, basePayGatewayAbi, signer);
+    if (getAddress(await gateway.fulfiller()) !== signer.address) {
+      throw new Error("Firebase fulfiller does not match the Base Pay gateway");
+    }
+    const signature = String(round.get("operatorSignature") || "");
+    if (!/^0x[0-9a-fA-F]{130}$/.test(signature)) {
+      throw new Error("Round operator signature is invalid");
+    }
+    const transaction = await gateway.fulfillRound(
+      paymentId,
+      config,
+      signature,
+      player,
+      inviter,
+    );
+    fulfillmentHash = transaction.hash;
+    await paymentRef.set({
+      fulfillmentTransactionHash: fulfillmentHash,
+      status: "submitted",
+      submittedAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    const receipt = await transaction.wait(Number(confirmationsParam.value()));
+    if (!receipt || receipt.status !== 1) throw new Error("Base Pay fulfillment reverted");
+    await paymentRef.set({
+      status: "fulfilled",
+      fulfillmentBlockNumber: receipt.blockNumber,
+      fulfilledAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    return { paymentId, transactionHash: fulfillmentHash, status: "fulfilled" };
+  } catch (error) {
+    logger.error("Base Pay fulfillment failed", { paymentId, roundId, fulfillmentHash, error });
+    await paymentRef.set({
+      status: fulfillmentHash ? "submitted_unknown" : "failed",
+      error: String(error?.message || error).slice(0, 500),
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
+    throw new HttpsError("internal", "Base Pay was verified but round fulfillment failed");
+  }
+});
+
 exports.getAppConfig = onCall({
   region,
   secrets: [recaptchaSiteKey, vapidKey],
@@ -764,6 +1040,7 @@ exports.getAppConfig = onCall({
     roundScheduleSigner: publicOptionalAddress(roundScheduleSignerParam),
     arenaSkillsAddress: publicOptionalAddress(arenaSkillsAddressParam),
     roundSettlementAddress: publicOptionalAddress(roundSettlementAddressParam),
+    basePayGatewayAddress: publicOptionalAddress(basePayGatewayAddressParam),
     usdcTokenAddress,
     easyGameInviter: publicOptionalAddress(easyGameInviterParam),
     paymentReceiver: publicOptionalAddress(paymentReceiverParam),
@@ -775,12 +1052,55 @@ exports.getAppConfig = onCall({
   };
 });
 
-exports.health = onRequest({ region, cors: false }, async (_request, response) => {
+exports.health = onRequest({
+  region,
+  cors: false,
+  secrets: [rpcUrl],
+  timeoutSeconds: 30,
+}, async (_request, response) => {
   const chainId = Number(chainIdParam.value());
-  const checkpoint = await db.collection("system").doc(`indexer_${chainId}`).get();
-  response.status(checkpoint.exists ? 200 : 503).json({
-    ok: checkpoint.exists,
-    status: checkpoint.exists ? checkpoint.get("status") || "unknown" : "missing",
-    updatedAt: checkpoint.exists ? checkpoint.get("updatedAt") || null : null,
-  });
+  const addresses = {
+    core: publicOptionalAddress(contractAddress),
+    roundManager: publicOptionalAddress(roundManagerAddressParam),
+    arenaSkills: publicOptionalAddress(arenaSkillsAddressParam),
+    settlement: publicOptionalAddress(roundSettlementAddressParam),
+    basePayGateway: publicOptionalAddress(basePayGatewayAddressParam),
+    usdc: publicOptionalAddress(usdcTokenAddressParam),
+  };
+  const missingConfig = Object.entries(addresses)
+    .filter(([, address]) => !address)
+    .map(([name]) => name);
+  if (missingConfig.length > 0) {
+    response.status(503).json({
+      ok: false,
+      status: "config-incomplete",
+      chainId,
+      missing: missingConfig,
+    });
+    return;
+  }
+
+  try {
+    const provider = new JsonRpcProvider(rpcUrl.value(), chainId);
+    const entries = Object.entries(addresses);
+    const codes = await Promise.all(
+      entries.map(([, address]) => provider.getCode(address)),
+    );
+    const missingCode = entries
+      .filter((_, index) => codes[index] === "0x")
+      .map(([name]) => name);
+    response.status(missingCode.length === 0 ? 200 : 503).json({
+      ok: missingCode.length === 0,
+      status: missingCode.length === 0 ? "ready" : "contracts-missing",
+      chainId,
+      missing: missingCode,
+    });
+  } catch (error) {
+    logger.error("Health RPC check failed", error);
+    response.status(503).json({
+      ok: false,
+      status: "rpc-unavailable",
+      chainId,
+    });
+  }
 });

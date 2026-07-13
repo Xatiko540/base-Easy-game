@@ -65,6 +65,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Verified Base Pay orders. Only the linked Firebase user can inspect its
+    // fulfillment status; all writes are performed through Admin SDK.
+    match /basePayPayments/{paymentId} {
+      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
     // Wallet links — only own uid
     match /walletLinks/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;

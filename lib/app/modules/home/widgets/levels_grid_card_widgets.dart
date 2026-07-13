@@ -1,43 +1,25 @@
 part of '../views/levels.dart';
 
 class LevelCard extends StatelessWidget {
-  final int level;
+  final RoundLevelCardState data;
+  final BigInt roundId;
   final String currencySymbol;
-  final double coin, partnerBonus, levelProfit, fillPercent;
-  final BigInt cycles;
-  final BigInt positionId;
-  final BigInt earnedWei;
-  final BigInt matrixSize;
-  final BigInt prizePoolWei;
-  final BigInt totalWeight;
-  final BigInt activeCells;
-  final BigInt playerWeight;
-  final BigInt playerChanceBps;
 
   const LevelCard({
     Key? key,
-    required this.level,
+    required this.data,
+    required this.roundId,
     required this.currencySymbol,
-    required this.coin,
-    required this.partnerBonus,
-    required this.levelProfit,
-    required this.fillPercent,
-    required this.cycles,
-    required this.positionId,
-    required this.earnedWei,
-    required this.matrixSize,
-    required this.prizePoolWei,
-    required this.totalWeight,
-    required this.activeCells,
-    required this.playerWeight,
-    required this.playerChanceBps,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final displayProgress = fillPercent <= 0 ? 32.04 : fillPercent;
+    final displayProgress = data.fillPercent;
     return GestureDetector(
-      onTap: () => Get.to(() => EasyGameLevelDetailScreen(level: level)),
+      onTap: () => Get.to(() => EasyGameLevelDetailScreen(
+            level: data.level,
+            roundId: roundId,
+          )),
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -58,8 +40,8 @@ class LevelCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _CardHeader(
-                      level: level,
-                      coin: coin,
+                      level: data.level,
+                      coin: weiToEthDouble(data.ethPriceWei),
                       currencySymbol: currencySymbol,
                     ),
                     const Spacer(),
@@ -107,9 +89,9 @@ class LevelCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     _WeightStrip(
-                      weight: playerWeight,
-                      chanceBps: playerChanceBps,
-                      totalWeight: totalWeight,
+                      weight: data.playerWeight,
+                      chanceBps: data.playerChanceBps,
+                      totalWeight: data.totalWeight,
                     ),
                     const Spacer(),
                     Row(
@@ -117,13 +99,13 @@ class LevelCard extends StatelessWidget {
                       children: [
                         _SmallMetric(
                           value:
-                              '${formatWeiToEth(prizePoolWei)} $currencySymbol',
+                              '${formatWeiToEth(data.prizePoolWei)} $currencySymbol',
                           label: 'levelDetail.prizePool'.tr,
                           alignEnd: false,
                         ),
                         _SmallMetric(
-                          value: '${formatWeiToEth(earnedWei)} $currencySymbol',
-                          label: 'levels.levelProfits'.tr,
+                          value: data.positionId.toString(),
+                          label: 'levelDetail.position'.tr,
                           alignEnd: true,
                         ),
                       ],
@@ -137,7 +119,7 @@ class LevelCard extends StatelessWidget {
             top: -18,
             right: 18,
             child: Text(
-              'куплено',
+              'levels.owned'.tr,
               style: TextStyle(
                 color: const Color(0xFF7CFF85).withValues(alpha: 0.95),
                 fontSize: 12,
@@ -155,7 +137,6 @@ class ActivateCard extends StatelessWidget {
   final int level;
   final double coin;
   final String currencySymbol;
-  final LevelStatus status;
   final GameRoundViewState? round;
 
   const ActivateCard({
@@ -163,7 +144,6 @@ class ActivateCard extends StatelessWidget {
     required this.level,
     required this.coin,
     required this.currencySymbol,
-    required this.status,
     this.round,
   }) : super(key: key);
 
@@ -201,7 +181,7 @@ class ActivateCard extends StatelessWidget {
             onTap: () {
               Get.to(
                 () => RegistrationScreen(
-                  status,
+                  LevelStatus.waiting,
                   level: level,
                   amount: coin,
                   inviter: Get.find<WalletConnectService>().activeInviter,

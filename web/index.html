@@ -33,7 +33,11 @@
   <title>Easy Games</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css" />
-  <script src="https://unpkg.com/@base-org/account/dist/base-account.min.js"></script>
+  <script
+    src="https://unpkg.com/@base-org/account@2.5.7/dist/base-account.min.js"
+    integrity="sha384-z/H3F7/mCsCBw2Y+lmSTDyeznQ75MEFzPVd7+iEpu8dGb//Z7OYTeS/hImUfDzZL"
+    crossorigin="anonymous"
+  ></script>
   <script>
     window.easyGameBaseAccount = {
       provider: null,
@@ -98,6 +102,29 @@
           }
           throw error;
         }
+      },
+      async pay(amount, to, testnet, dataSuffix) {
+        if (!window.base || typeof window.base.pay !== 'function') {
+          throw new Error('Base Pay SDK is not loaded');
+        }
+        const options = {
+          amount: String(amount),
+          to: String(to),
+          testnet: Boolean(testnet),
+        };
+        if (typeof dataSuffix === 'string' && /^0x[0-9a-fA-F]+$/.test(dataSuffix)) {
+          options.dataSuffix = dataSuffix;
+        }
+        return window.base.pay(options);
+      },
+      async getPaymentStatus(id, testnet) {
+        if (!window.base || typeof window.base.getPaymentStatus !== 'function') {
+          throw new Error('Base Pay SDK is not loaded');
+        }
+        return window.base.getPaymentStatus({
+          id: String(id),
+          testnet: Boolean(testnet),
+        });
       },
       async request(method, params) {
         if (!this.provider) {

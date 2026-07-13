@@ -4,6 +4,7 @@ import 'package:lottery_advance/app/services/app_config_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/services/notifications_service.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
+import 'package:lottery_advance/app/services/base_pay_service.dart';
 import 'package:lottery_advance/app/services/firebase_data_service.dart';
 import 'package:lottery_advance/app/services/language_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
@@ -12,6 +13,7 @@ import 'package:lottery_advance/app/services/game_schedule_service.dart';
 import 'package:lottery_advance/app/services/game_round_blockchain_service.dart';
 import 'package:lottery_advance/app/services/game_settlement_service.dart';
 import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
+import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
 import 'package:lottery_advance/app/repositories/game_user_repository.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/controllers/notifications_controller.dart';
@@ -66,19 +68,21 @@ void main() async {
     Get.put(AppConfigService(), permanent: true);
     Get.put(NotificationsService(), permanent: true);
     Get.put(FirebaseBackendService(), permanent: true);
+    Get.put(BasePayService(), permanent: true);
     Get.put(FirebaseDataService(), permanent: true);
     Get.put(GameClockService(), permanent: true);
     Get.put(GameScheduleService(), permanent: true);
     Get.put(GameRoundBlockchainService().bind(), permanent: true);
     Get.put(GameSettlementService(), permanent: true);
     Get.put(GameRoundsRepository().bind(), permanent: true);
+    Get.put(RoundLevelsRepository(), permanent: true);
     Get.put(GameRoundsController(), permanent: true);
     Get.put(GameUserRepository().bind(), permanent: true);
     Get.put(NotificationsController(), permanent: true);
     if (kDebugMode) {
       print(kIsWeb
-        ? "[DEBUG] main: Web services registered."
-        : "[DEBUG] main: Mobile services registered.");
+          ? "[DEBUG] main: Web services registered."
+          : "[DEBUG] main: Mobile services registered.");
     }
 
     if (kDebugMode) {
@@ -106,14 +110,12 @@ void main() async {
       print("[DEBUG] main: Initializing background services...");
     }
 
-
     _initializeBackgroundServices();
   } catch (e, stacktrace) {
     if (kDebugMode) {
       print("[DEBUG] main: FATAL ERROR during initialization: $e");
       print("[DEBUG] main: Stacktrace: $stacktrace");
     }
-
   }
 }
 

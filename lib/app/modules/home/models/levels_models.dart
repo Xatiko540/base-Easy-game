@@ -1,4 +1,6 @@
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
+import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
 
 const int easyGameLevelCount = 17;
 
@@ -24,7 +26,6 @@ double levelPrice(int level) {
   };
   return prices[level] ?? 0.05;
 }
-
 
 String formatUsdc(BigInt amount, {int decimals = 2}) {
   final base = BigInt.from(10).pow(6); // USDC имеет 6 дециклов
@@ -154,22 +155,14 @@ class Level {
 }
 
 class LevelDetailSnapshot {
-  final EasyGameLevelState state;
-  final EasyGameMatrixStats stats;
-  final EasyGameAdvanceLevelStats advanceStats;
-  final BigInt priceWei;
+  final RoundLevelCardState card;
   final EasyGamePlayerSummary? player;
-  final BigInt playerWeight;
-  final BigInt playerChanceBps;
+  final SettlementClaimable settlement;
 
   const LevelDetailSnapshot({
-    required this.state,
-    required this.stats,
-    required this.advanceStats,
-    required this.priceWei,
+    required this.card,
     required this.player,
-    required this.playerWeight,
-    required this.playerChanceBps,
+    required this.settlement,
   });
 }
 

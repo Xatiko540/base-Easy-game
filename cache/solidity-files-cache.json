@@ -39,8 +39,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameAdvance.sol": {
-      "lastModificationDate": 1783873504893,
-      "contentHash": "bdf2b2e87d975b3781a42b482d1da2d4",
+      "lastModificationDate": 1783907479132,
+      "contentHash": "07b7c83317a75406951eb93f99f58d33",
       "sourceName": "contracts/EasyGameAdvance.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -85,8 +85,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/Types.sol": {
-      "lastModificationDate": 1783822256202,
-      "contentHash": "35a9f641c97e773ebd59d19e1f0c49ef",
+      "lastModificationDate": 1783907478633,
+      "contentHash": "99e025b9fda593e2c7d265c0635a348a",
       "sourceName": "contracts/base/Types.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -243,8 +243,8 @@
       "artifacts": []
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/AdminInterface.sol": {
-      "lastModificationDate": 1783873396992,
-      "contentHash": "e181b56718574dcbea447659640ba2c1",
+      "lastModificationDate": 1783907478972,
+      "contentHash": "20d8cb4e120265d053b40aa17b38534f",
       "sourceName": "contracts/base/AdminInterface.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -286,8 +286,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/Storage.sol": {
-      "lastModificationDate": 1783873396836,
-      "contentHash": "9f0c0523cb38c34000b8733798266ca0",
+      "lastModificationDate": 1783907478808,
+      "contentHash": "611946da9e9f0a092a7df8382d7310cb",
       "sourceName": "contracts/base/Storage.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -919,6 +919,46 @@
         "EasyGameRoundSettlement",
         "IEasyGameArenaStatus",
         "IEasyGameSettlementCore"
+      ]
+    },
+    "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameBasePayGateway.sol": {
+      "lastModificationDate": 1783907479292,
+      "contentHash": "6f82370b437195748d15d5d78460a21d",
+      "sourceName": "contracts/EasyGameBasePayGateway.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "viaIR": true,
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "./base/Types.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "EasyGameBasePayGateway",
+        "IEasyGameBasePayCore"
       ]
     }
   }

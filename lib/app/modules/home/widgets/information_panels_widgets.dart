@@ -281,7 +281,7 @@ class _InfoRoundLifecyclePanelState extends State<_InfoRoundLifecyclePanel> {
                             crossAxisCount: columns,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
-                            mainAxisExtent: 96,
+                            mainAxisExtent: columns == 1 ? 108 : 100,
                           ),
                           itemBuilder: (context, index) {
                             final step = steps[index];
@@ -458,7 +458,7 @@ class _InfoGameResourcesPanelState extends State<_InfoGameResourcesPanel> {
                             crossAxisCount: columns,
                             crossAxisSpacing: 12,
                             mainAxisSpacing: 12,
-                            mainAxisExtent: 148,
+                            mainAxisExtent: columns == 1 ? 176 : 160,
                           ),
                           itemBuilder: (context, index) {
                             final resource = resources[index];

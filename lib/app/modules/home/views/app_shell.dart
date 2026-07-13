@@ -79,6 +79,7 @@ class ExpressAppShell extends StatelessWidget {
                               breadcrumb: breadcrumb,
                               balanceLabel: balanceLabel,
                               onRefresh: onRefresh,
+                              activeSection: activeSection ?? title,
                             ),
                           ),
                         ),
@@ -156,7 +157,6 @@ class _ExpressSidebar extends StatelessWidget {
               selected: _isSelected('Information'),
               onTap: UiNavigationService.openInformation,
             ),
-
             const Spacer(),
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 0, 24, 10),
@@ -167,7 +167,6 @@ class _ExpressSidebar extends StatelessWidget {
                 onTap: UiNavigationService.openNotifierBot,
               ),
             ),
-
           ],
         ),
       ),
@@ -180,12 +179,14 @@ class _ExpressTopBar extends StatelessWidget {
   final String? breadcrumb;
   final String? balanceLabel;
   final VoidCallback? onRefresh;
+  final String activeSection;
 
   const _ExpressTopBar({
     required this.title,
     this.breadcrumb,
     this.balanceLabel,
     this.onRefresh,
+    required this.activeSection,
   });
 
   @override
@@ -195,7 +196,15 @@ class _ExpressTopBar extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(20, 14, 22, 0),
       child: LayoutBuilder(
         builder: (context, constraints) {
+          final mobile = constraints.maxWidth < 600;
           final compact = constraints.maxWidth < 820;
+          if (mobile) {
+            return _MobileTopBar(
+              title: title,
+              activeSection: activeSection,
+              walletService: walletService,
+            );
+          }
           return Row(
             children: [
               if (MediaQuery.of(context).size.width < 920) ...[
@@ -226,7 +235,7 @@ class _ExpressTopBar extends StatelessWidget {
                             icon: CupertinoIcons.creditcard,
                             label: walletService.isConnected.value
                                 ? walletService.shortAddress
-                                : 'top.signInBase'.tr,
+                                : 'Base',
                             emphasized: !walletService.isConnected.value,
                             onTap: () => _handleWalletChipTap(
                               context,
@@ -235,12 +244,25 @@ class _ExpressTopBar extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        _RoundIconButton(icon: CupertinoIcons.search, onTap: onRefresh),
+                        if (onRefresh != null) ...[
+                          _RoundIconButton(
+                            icon: CupertinoIcons.refresh,
+                            tooltip: 'common.refresh'.tr,
+                            onTap: onRefresh,
+                          ),
+                          const SizedBox(width: 8),
+                        ],
+                        _RoundIconButton(
+                          icon: CupertinoIcons.search,
+                          tooltip: 'common.search'.tr,
+                          onTap: UiNavigationService.openMemberSearchDialog,
+                        ),
                         const SizedBox(width: 8),
                         Obx(() {
                           final c = Get.find<NotificationsController>();
                           return _RoundIconButton(
                             icon: CupertinoIcons.bell,
+                            tooltip: 'nav.notifierBot'.tr,
                             badgeCount: c.unreadCount.value,
                             onTap: () {
                               showModalBottomSheet(
@@ -252,7 +274,8 @@ class _ExpressTopBar extends StatelessWidget {
                                   ),
                                 ),
                                 backgroundColor: Colors.black,
-                                builder: (context) => const NotificationsBottomSheet(),
+                                builder: (context) =>
+                                    const NotificationsBottomSheet(),
                               );
                             },
                           );
@@ -260,6 +283,7 @@ class _ExpressTopBar extends StatelessWidget {
                         const SizedBox(width: 8),
                         _RoundIconButton(
                           icon: CupertinoIcons.square_arrow_left,
+                          tooltip: 'common.logout'.tr,
                           onTap: () {
                             walletService.disconnectWallet();
                             Get.offAllNamed('/home');
@@ -302,6 +326,248 @@ class _ExpressTopBar extends StatelessWidget {
       );
     }
   }
+}
+
+class _MobileTopBar extends StatelessWidget {
+  final String title;
+  final String activeSection;
+  final WalletConnectService walletService;
+
+  const _MobileTopBar({
+    required this.title,
+    required this.activeSection,
+    required this.walletService,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        _RoundIconButton(
+          icon: CupertinoIcons.bars,
+          tooltip: 'common.menu'.tr,
+          onTap: () => _showMobileShellMenu(
+            context,
+            activeSection,
+            walletService,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+        ),
+        const SizedBox(width: 6),
+        Obx(
+          () => _TopChip(
+            icon: CupertinoIcons.hexagon,
+            label: 'Base',
+            emphasized: !walletService.isConnected.value,
+            onTap: () => _handleMobileWalletTap(context, walletService),
+          ),
+        ),
+        const SizedBox(width: 6),
+        _RoundIconButton(
+          icon: CupertinoIcons.search,
+          tooltip: 'common.search'.tr,
+          onTap: UiNavigationService.openMemberSearchDialog,
+        ),
+        const SizedBox(width: 6),
+        Obx(() {
+          final notifications = Get.find<NotificationsController>();
+          return _RoundIconButton(
+            icon: CupertinoIcons.bell,
+            tooltip: 'nav.notifierBot'.tr,
+            badgeCount: notifications.unreadCount.value,
+            onTap: () => _showNotifications(context),
+          );
+        }),
+      ],
+    );
+  }
+}
+
+Future<void> _handleMobileWalletTap(
+  BuildContext context,
+  WalletConnectService walletService,
+) async {
+  if (walletService.isConnected.value) {
+    await walletService.refreshNativeBalance();
+    return;
+  }
+  try {
+    await walletService.connectBaseAccount();
+    if (Get.isRegistered<FirebaseBackendService>()) {
+      final backend = Get.find<FirebaseBackendService>();
+      if (backend.isReady.value) await backend.ensureCurrentWalletLinked();
+    }
+  } catch (error) {
+    Get.snackbar(
+      'common.error'.tr,
+      error.toString(),
+      snackPosition: SnackPosition.BOTTOM,
+    );
+  }
+}
+
+void _showNotifications(BuildContext context) {
+  showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+    ),
+    backgroundColor: Colors.black,
+    builder: (context) => const NotificationsBottomSheet(),
+  );
+}
+
+void _showMobileShellMenu(
+  BuildContext context,
+  String activeSection,
+  WalletConnectService walletService,
+) {
+  showModalBottomSheet<void>(
+    context: context,
+    backgroundColor: EasyGameTheme.shell,
+    showDragHandle: true,
+    builder: (context) => SafeArea(
+      child: _MobileShellMenu(
+        activeSection: activeSection,
+        walletService: walletService,
+      ),
+    ),
+  );
+}
+
+class _MobileShellMenu extends StatelessWidget {
+  final String activeSection;
+  final WalletConnectService walletService;
+
+  const _MobileShellMenu({
+    required this.activeSection,
+    required this.walletService,
+  });
+
+  bool _selected(String value) =>
+      activeSection.toLowerCase().contains(value.toLowerCase());
+
+  void _open(VoidCallback action) {
+    Get.back<void>();
+    action();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final items = <_MobileMenuItem>[
+      _MobileMenuItem(
+        icon: CupertinoIcons.square_grid_2x2,
+        label: 'nav.dashboard'.tr,
+        selected: _selected('Dashboard') || _selected('Profile'),
+        onTap: () => Get.toNamed('/profile'),
+      ),
+      _MobileMenuItem(
+        icon: CupertinoIcons.square_grid_3x2,
+        label: 'nav.easyGames'.tr,
+        selected: _selected('Levels') || _selected('Easy Games'),
+        onTap: UiNavigationService.openLevels,
+      ),
+      _MobileMenuItem(
+        icon: CupertinoIcons.square_list,
+        label: 'nav.matrix'.tr,
+        selected: _selected('Matrix'),
+        onTap: UiNavigationService.openMatrix,
+      ),
+      _MobileMenuItem(
+        icon: CupertinoIcons.circle_grid_3x3,
+        label: 'nav.stats'.tr,
+        selected: _selected('Statistics') || _selected('Stats'),
+        onTap: UiNavigationService.openStatistics,
+      ),
+      _MobileMenuItem(
+        icon: CupertinoIcons.person_3,
+        label: 'nav.partnerBonus'.tr,
+        selected: _selected('Partner'),
+        onTap: () => Get.toNamed('/partner-bonus'),
+      ),
+      _MobileMenuItem(
+        icon: CupertinoIcons.bookmark,
+        label: 'nav.information'.tr,
+        selected: _selected('Information'),
+        onTap: UiNavigationService.openInformation,
+      ),
+    ];
+
+    return ListView(
+      shrinkWrap: true,
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 16),
+      children: [
+        for (final item in items)
+          ListTile(
+            selected: item.selected,
+            selectedTileColor: EasyGameTheme.surfaceHigh,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
+            leading: Icon(
+              item.icon,
+              color: item.selected ? EasyGameTheme.teal : Colors.white60,
+            ),
+            title: Text(
+              item.label,
+              style: TextStyle(
+                color: item.selected ? Colors.white : Colors.white70,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            onTap: () => _open(item.onTap),
+          ),
+        if (walletService.isConnected.value) ...[
+          const Divider(color: EasyGameTheme.border),
+          ListTile(
+            leading: const Icon(
+              CupertinoIcons.square_arrow_left,
+              color: EasyGameTheme.orange,
+            ),
+            title: Text(
+              'common.logout'.tr,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            onTap: () {
+              Get.back<void>();
+              walletService.disconnectWallet();
+              Get.offAllNamed('/home');
+            },
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _MobileMenuItem {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _MobileMenuItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
 }
 
 class _BalanceChip extends StatelessWidget {
@@ -481,16 +747,18 @@ class _RoundIconButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback? onTap;
   final int badgeCount;
+  final String? tooltip;
 
   const _RoundIconButton({
     required this.icon,
     this.onTap,
     this.badgeCount = 0,
+    this.tooltip,
   });
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final button = InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(22),
       child: SizedBox(
@@ -539,6 +807,8 @@ class _RoundIconButton extends StatelessWidget {
         ),
       ),
     );
+    if (tooltip == null || tooltip!.isEmpty) return button;
+    return Tooltip(message: tooltip!, child: button);
   }
 }
 

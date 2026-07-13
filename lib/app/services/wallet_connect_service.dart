@@ -2130,7 +2130,7 @@ enum PaymentFlowStatus {
   failed,
 }
 
-enum EasyGamePaymentAsset { native, usdc }
+enum EasyGamePaymentAsset { native, usdc, basePay }
 
 extension PaymentFlowStatusLabel on PaymentFlowStatus {
   String get label {

@@ -3,15 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
+import 'package:lottery_advance/app/models/game_transaction_model.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/widgets/game_round_presentation.dart';
 
 import '../models/levels_models.dart';
+import '../models/round_level_card_state.dart';
 import '../controllers/levels_provider.dart';
 import '../controllers/level_detail_controller.dart';
 part '../widgets/levels_grid_widgets.dart';
@@ -49,12 +52,16 @@ class LevelsScreen extends StatelessWidget {
         final currency = walletService.nativeSymbol;
         final totalEarnedWei = levelsProvider.totalEarnedWei;
         final connected = walletService.isConnected.value;
+        final identity = walletAddress?.isNotEmpty == true
+            ? _shortLevelIdentity(walletAddress!)
+            : connected
+                ? walletService.shortAddress
+                : 'common.notConnected'.tr;
         return ExpressAppShell(
           title: 'levels.title'.tr,
-          breadcrumb:
-              '${connected ? walletService.shortAddress : 'ID 325234'} / Easy Games',
+          breadcrumb: '$identity / Easy Games',
           balanceLabel: '${formatWeiToEth(totalEarnedWei)} $currency',
-          onRefresh: levelsProvider.fetchLevels,
+          onRefresh: levelsProvider.refreshAll,
           child: LayoutBuilder(
             builder: (context, constraints) {
               double width = constraints.maxWidth;
@@ -77,33 +84,40 @@ class LevelsScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
+                    Flex(
+                      direction: width < 700 ? Axis.vertical : Axis.horizontal,
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      crossAxisAlignment: width < 700
+                          ? CrossAxisAlignment.start
+                          : CrossAxisAlignment.center,
                       children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              walletAddress == null
-                                  ? 'ID 325234 / Easy Games'
-                                  : "Preview ${walletAddress!.substring(0, 6)}...${walletAddress!.substring(walletAddress!.length - 4)} / Easy Games",
-                              style: const TextStyle(
-                                color: Colors.white54,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w700,
+                        Flexible(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                walletAddress == null
+                                    ? '$identity / Easy Games'
+                                    : 'Preview $identity / Easy Games',
+                                style: const TextStyle(
+                                  color: Colors.white54,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                            ),
-                            const SizedBox(height: 10),
-                            Text(
-                              'levels.title'.tr,
-                              style: const TextStyle(
-                                color: Colors.white,
-                                fontSize: 34,
-                                fontWeight: FontWeight.w900,
+                              const SizedBox(height: 10),
+                              Text(
+                                'levels.title'.tr,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 34,
+                                  fontWeight: FontWeight.w900,
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
+                        if (width < 700) const SizedBox(height: 14),
                         Text(
                           "${formatWeiToEth(levelsProvider.totalEarnedWei)} $currency",
                           style: const TextStyle(
@@ -115,50 +129,45 @@ class LevelsScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 36),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(28),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF202223).withValues(alpha: 0.88),
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: Column(
-                        children: [
-                          if (errorMessage.isNotEmpty)
-                            _LevelStateBanner(
-                              message: errorMessage,
-                              onRefresh: levelsProvider.fetchLevels,
-                            ),
-                          if (loading)
-                            const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 12),
-                              child: LinearProgressIndicator(),
-                            ),
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            padding: EdgeInsets.zero,
-                            gridDelegate:
-                                SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: crossAxisCount,
-                              crossAxisSpacing: 24,
-                              mainAxisSpacing: 24,
-                              childAspectRatio: childAspectRatio,
-                            ),
-                            itemCount: levelCount,
-                            itemBuilder: (context, index) {
-                              final level = levelsProvider.levels[index];
-                              return _LevelCardPresenter(
-                                level: level,
-                                currencySymbol: currency,
-                              );
-                            },
+                    Column(
+                      children: [
+                        if (errorMessage.isNotEmpty)
+                          _LevelStateBanner(
+                            message: errorMessage,
+                            onRefresh: levelsProvider.fetchLevels,
                           ),
-                        ],
-                      ),
+                        if (loading)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 12),
+                            child: LinearProgressIndicator(),
+                          ),
+                        GridView.builder(
+                          shrinkWrap: true,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padding: EdgeInsets.zero,
+                          gridDelegate:
+                              SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: crossAxisCount,
+                            crossAxisSpacing: 24,
+                            mainAxisSpacing: 24,
+                            childAspectRatio: childAspectRatio,
+                          ),
+                          itemCount: levelCount,
+                          itemBuilder: (context, index) {
+                            final level = levelsProvider.levels[index];
+                            return _LevelCardPresenter(
+                              level: level,
+                              currencySymbol: currency,
+                            );
+                          },
+                        ),
+                      ],
                     ),
                     const SizedBox(height: 14),
-                    Row(
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 10,
+                      crossAxisAlignment: WrapCrossAlignment.center,
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
@@ -185,7 +194,6 @@ class LevelsScreen extends StatelessWidget {
                             ],
                           ),
                         ),
-                        const SizedBox(width: 16),
                         Text(
                           'levels.pricesCurrency'.tr,
                           style: const TextStyle(
@@ -194,7 +202,12 @@ class LevelsScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 28),
-                    const BottomTableSection(),
+                    BottomTableSection(
+                      transactions: levelsProvider.transactions.toList(),
+                      isLoading: levelsProvider.isTransactionsLoading.value,
+                      errorMessage: levelsProvider.transactionsError.value,
+                      onRefresh: levelsProvider.refreshAll,
+                    ),
                   ],
                 ),
               );
@@ -206,17 +219,26 @@ class LevelsScreen extends StatelessWidget {
   }
 }
 
+String _shortLevelIdentity(String value) {
+  if (value.length <= 13) return value;
+  return '${value.substring(0, 7)}...${value.substring(value.length - 4)}';
+}
+
 class EasyGameLevelDetailScreen extends StatelessWidget {
   final int level;
+  final BigInt roundId;
 
-  const EasyGameLevelDetailScreen({Key? key, required this.level})
-      : super(key: key);
+  const EasyGameLevelDetailScreen({
+    Key? key,
+    required this.level,
+    required this.roundId,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final tag = 'level-detail-$level';
+    final tag = 'level-detail-$roundId';
     return GetX<LevelDetailController>(
-      init: LevelDetailController(level: level),
+      init: LevelDetailController(level: level, roundId: roundId),
       tag: tag,
       dispose: (_) {
         if (Get.isRegistered<LevelDetailController>(tag: tag)) {
@@ -237,6 +259,12 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
             () {
               final data = detailController.snapshot.value;
               final width = MediaQuery.of(context).size.width;
+              final previousRoundId = level > 1
+                  ? detailController.roundIdForLevel(level - 1)
+                  : null;
+              final nextRoundId = level < easyGameLevelCount
+                  ? detailController.roundIdForLevel(level + 1)
+                  : null;
               return SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
                   horizontal: width < 700 ? 0 : 16,
@@ -266,9 +294,12 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                           label: 'levels.levelTitle'.trParams(
                               {'level': '${level <= 1 ? 1 : level - 1}'}),
                           icon: CupertinoIcons.chevron_back,
-                          enabled: level > 1,
+                          enabled: previousRoundId != null,
                           onTap: () => Get.off(
-                            () => EasyGameLevelDetailScreen(level: level - 1),
+                            () => EasyGameLevelDetailScreen(
+                              level: level - 1,
+                              roundId: previousRoundId!,
+                            ),
                           ),
                         ),
                         _LevelNavButton(
@@ -278,9 +309,12 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                           }),
                           icon: CupertinoIcons.chevron_forward,
                           trailing: true,
-                          enabled: level < easyGameLevelCount,
+                          enabled: nextRoundId != null,
                           onTap: () => Get.off(
-                            () => EasyGameLevelDetailScreen(level: level + 1),
+                            () => EasyGameLevelDetailScreen(
+                              level: level + 1,
+                              roundId: nextRoundId!,
+                            ),
                           ),
                         ),
                       ],
@@ -297,20 +331,23 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                     if (data != null) ...[
                       _LevelHeroPanel(
                         level: level,
-                        priceWei: data.priceWei,
+                        priceWei: data.card.ethPriceWei,
                         stateLabel: detailController.stateLabel(data),
                         progress: detailController.fillPercent(data),
                         walletLabel: walletService.isConnected.value
                             ? walletService.shortAddress
                             : 'common.notConnected'.tr,
-                        onActivate: data.state.active
+                        onActivate: data.card.isPlayerActive ||
+                                data.card.round?.canEnter != true
                             ? null
                             : () {
                                 Get.to(() => RegistrationScreen(
                                       LevelStatus.waiting,
                                       level: level,
-                                      amount: weiToEthDouble(data.priceWei),
+                                      amount:
+                                          weiToEthDouble(data.card.ethPriceWei),
                                       inviter: walletService.activeInviter,
+                                      round: data.card.round,
                                     ));
                               },
                       ),
@@ -319,32 +356,33 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                         stats: [
                           DetailRow(
                             'levelDetail.prizePool'.tr,
-                            '${formatWeiToEth(data.advanceStats.prizePoolWei)} ${walletService.nativeSymbol}',
+                            '${formatWeiToEth(data.card.prizePoolWei)} ${walletService.nativeSymbol}',
                           ),
                           DetailRow('levelDetail.playerWeight'.tr,
-                              data.playerWeight.toString()),
+                              data.card.playerWeight.toString()),
                           DetailRow('levelDetail.chance'.tr,
-                              formatBpsToPercent(data.playerChanceBps)),
+                              formatBpsToPercent(data.card.playerChanceBps)),
                           DetailRow('levelDetail.boxTokens'.tr,
                               data.player?.boxTokens.toString() ?? '0'),
                           DetailRow('levelDetail.cycles'.tr,
-                              data.state.cycles.toString()),
+                              data.card.cycles.toString()),
                           DetailRow('levelDetail.earned'.tr,
-                              '${formatWeiToEth(data.state.earnedWei)} ${walletService.nativeSymbol}'),
+                              '${formatWeiToEth(data.settlement.ethAmount)} ${walletService.nativeSymbol}'),
                           DetailRow('levelDetail.position'.tr,
-                              data.state.positionId.toString()),
+                              data.card.positionId.toString()),
                           DetailRow('levelDetail.matrixSize'.tr,
-                              data.stats.size.toString()),
+                              '${data.card.round?.schedule.maxPlayers ?? 0}'),
                         ],
                       ),
                       const SizedBox(height: 16),
                       _LevelMatrixPanel(
                         level: level,
-                        positionId: data.state.positionId,
-                        nextOpenParentId: data.advanceStats.nextOpenParentId,
-                        nextCellId: data.advanceStats.nextCellId,
-                        activeCells: data.advanceStats.activeCells,
-                        isFrozen: data.state.frozen,
+                        positionId: data.card.positionId,
+                        nextOpenParentId:
+                            data.card.matrix?.nextOpenParentId ?? BigInt.zero,
+                        nextCellId: data.card.matrix?.nextCellId ?? BigInt.zero,
+                        activeCells: data.card.activeCells,
+                        isFrozen: data.card.isFrozen,
                       ),
                       const SizedBox(height: 16),
                       _LevelDetailPanel(
@@ -355,9 +393,11 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                           DetailRow('levelDetail.rewardModel'.tr,
                               'levelDetail.rewardModelValue'.tr),
                           DetailRow('levelDetail.totalWeight'.tr,
-                              data.advanceStats.totalWeight.toString()),
+                              data.card.totalWeight.toString()),
                           DetailRow('levelDetail.activeCells'.tr,
-                              data.advanceStats.activeCells.toString()),
+                              data.card.activeCells.toString()),
+                          DetailRow(
+                              'levelDetail.roundId'.tr, roundId.toString()),
                         ],
                       ),
                       _LevelDetailPanel(
@@ -365,30 +405,30 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                         rows: [
                           DetailRow(
                               'common.active'.tr,
-                              data.state.active
+                              data.card.isPlayerActive
                                   ? 'common.yes'.tr
                                   : 'common.no'.tr),
                           DetailRow(
                               'common.frozen'.tr,
-                              data.state.frozen
+                              data.card.isFrozen
                                   ? 'common.yes'.tr
                                   : 'common.no'.tr),
                           DetailRow(
                             'levelDetail.nextOpenParent'.tr,
-                            data.stats.nextOpenParentId.toString(),
+                            (data.card.matrix?.nextOpenParentId ?? BigInt.zero)
+                                .toString(),
                           ),
                           DetailRow(
                             'levels.currentLineFill'.tr,
-                            data.stats.size == BigInt.zero
+                            data.card.matrix == null
                                 ? 'levelDetail.noMatrixData'.tr
                                 : '${detailController.fillPercent(data).toStringAsFixed(2)}%',
                           ),
                         ],
                       ),
                       _LevelClaimPanel(
-                        level: level,
-                        player: data.player,
-                        isFrozen: data.state.frozen,
+                        data: data,
+                        controller: detailController,
                       ),
                       const SizedBox(height: 12),
                       _LevelEventsTable(level: level),

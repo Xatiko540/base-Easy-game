@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/services/base_pay_service.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 
 class ActivateExpressGameScreen extends StatelessWidget {
@@ -23,16 +24,21 @@ class ActivateExpressGameScreen extends StatelessWidget {
   }) : super(key: key);
 
   final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final BasePayService basePayService = Get.find<BasePayService>();
 
   @override
   Widget build(BuildContext context) {
     double horizontalPadding = MediaQuery.of(context).size.width * 0.10;
 
     return Obx(() {
-      final currency = paymentAsset == EasyGamePaymentAsset.usdc
-          ? 'USDC'
-          : walletService.nativeSymbol;
+      final currency = paymentAsset == EasyGamePaymentAsset.native
+          ? walletService.nativeSymbol
+          : 'USDC';
       final networkOk = walletService.isOnSupportedNetwork;
+      final usesBasePay = paymentAsset == EasyGamePaymentAsset.basePay;
+      final isProcessing = usesBasePay
+          ? basePayService.isProcessing
+          : walletService.isPaying.value;
 
       return ExpressAppShell(
         title: 'payment.title'.tr,
@@ -101,7 +107,9 @@ class ActivateExpressGameScreen extends StatelessWidget {
                       Row(
                         children: [
                           Icon(
-                            networkOk ? CupertinoIcons.check_mark_circled : CupertinoIcons.exclamationmark_triangle,
+                            networkOk
+                                ? CupertinoIcons.check_mark_circled
+                                : CupertinoIcons.exclamationmark_triangle,
                             color: networkOk ? Colors.green : Colors.orange,
                             size: 20,
                           ),
@@ -141,12 +149,23 @@ class ActivateExpressGameScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       _PaymentStateLine(
-                        icon: _statusIcon(walletService.paymentStatus.value),
-                        color: _statusColor(walletService.paymentStatus.value),
-                        label: walletService.paymentStatusLabel,
-                        value: walletService.paymentStatusMessage.value,
+                        icon: usesBasePay
+                            ? CupertinoIcons.creditcard_fill
+                            : _statusIcon(walletService.paymentStatus.value),
+                        color: usesBasePay
+                            ? const Color(0xFF0052FF)
+                            : _statusColor(walletService.paymentStatus.value),
+                        label: usesBasePay
+                            ? 'Base Pay'
+                            : walletService.paymentStatusLabel,
+                        value: usesBasePay
+                            ? (basePayService.statusMessage.value.isEmpty
+                                ? 'payment.basePaySponsored'.tr
+                                : basePayService.statusMessage.value)
+                            : walletService.paymentStatusMessage.value,
                       ),
-                      if (walletService.lastGasEstimate.value != null) ...[
+                      if (!usesBasePay &&
+                          walletService.lastGasEstimate.value != null) ...[
                         const SizedBox(height: 8),
                         _PaymentStateLine(
                           icon: CupertinoIcons.bolt_fill,
@@ -168,22 +187,30 @@ class ActivateExpressGameScreen extends StatelessWidget {
                       ],
                       const SizedBox(height: 16),
                       ElevatedButton(
-                        onPressed: walletService.isPaying.value
+                        onPressed: isProcessing
                             ? null
                             : () async {
                                 try {
-                                  final txHash =
-                                      paymentAsset == EasyGamePaymentAsset.usdc
-                                          ? await walletService
-                                              .activateEasyGameRoundWithUSDC(
-                                              round: round,
-                                              inviter: inviter,
-                                            )
-                                          : await walletService
-                                              .activateEasyGameRound(
-                                              round: round,
-                                              inviter: inviter,
-                                            );
+                                  final String txHash;
+                                  if (usesBasePay) {
+                                    txHash = await basePayService.payRound(
+                                      round: round,
+                                      inviter: inviter,
+                                    );
+                                  } else if (paymentAsset ==
+                                      EasyGamePaymentAsset.usdc) {
+                                    txHash = await walletService
+                                        .activateEasyGameRoundWithUSDC(
+                                      round: round,
+                                      inviter: inviter,
+                                    );
+                                  } else {
+                                    txHash = await walletService
+                                        .activateEasyGameRound(
+                                      round: round,
+                                      inviter: inviter,
+                                    );
+                                  }
                                   Get.snackbar(
                                     'payment.confirmed'.tr,
                                     '${'payment.transaction'.tr}: $txHash',
@@ -207,12 +234,20 @@ class ActivateExpressGameScreen extends StatelessWidget {
                         ),
                         child: Center(
                           child: Text(
-                            walletService.isPaying.value
-                                ? walletService.paymentStatusLabel
-                                : 'payment.pay'.trParams({
-                                    'amount': totalAmount.toStringAsFixed(3),
-                                    'currency': currency,
-                                  }),
+                            isProcessing
+                                ? (usesBasePay
+                                    ? 'payment.basePayProcessing'.tr
+                                    : walletService.paymentStatusLabel)
+                                : usesBasePay
+                                    ? 'payment.payBasePay'.trParams({
+                                        'amount':
+                                            totalAmount.toStringAsFixed(3),
+                                      })
+                                    : 'payment.pay'.trParams({
+                                        'amount':
+                                            totalAmount.toStringAsFixed(3),
+                                        'currency': currency,
+                                      }),
                             style: TextStyle(
                               color: Colors.white,
                               fontSize: 16,

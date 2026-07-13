@@ -14,7 +14,34 @@ class BaseAccountSignInResult {
   });
 }
 
+class BasePayResult {
+  final String id;
+  final String amount;
+  final String recipient;
+
+  const BasePayResult({
+    required this.id,
+    required this.amount,
+    required this.recipient,
+  });
+}
+
+class BasePayStatusResult {
+  final String status;
+  final String sender;
+  final String amount;
+  final String recipient;
+
+  const BasePayStatusResult({
+    required this.status,
+    required this.sender,
+    required this.amount,
+    required this.recipient,
+  });
+}
+
 bool get isBaseAccountBridgeAvailable => false;
+bool get isBasePayBridgeAvailable => false;
 
 Future<BaseAccountSignInResult> signInWithBaseAccount({
   required int chainId,
@@ -27,4 +54,20 @@ Future<BaseAccountSignInResult> signInWithBaseAccount({
 Future<dynamic> baseAccountRequest(String method, List<dynamic> params) {
   throw UnsupportedError(
       'Base Account provider is only available on Flutter Web.');
+}
+
+Future<BasePayResult> sendBasePay({
+  required String amount,
+  required String recipient,
+  required bool testnet,
+  required String dataSuffix,
+}) {
+  throw UnsupportedError('Base Pay is only available on Flutter Web.');
+}
+
+Future<BasePayStatusResult> readBasePayStatus({
+  required String paymentId,
+  required bool testnet,
+}) {
+  throw UnsupportedError('Base Pay is only available on Flutter Web.');
 }

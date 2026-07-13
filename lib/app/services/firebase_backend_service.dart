@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/firebase_options.dart';
 
+import '../models/game_transaction_model.dart';
 import 'app_config_service.dart';
 import 'notifications_service.dart';
 import 'wallet_connect_service.dart';
@@ -159,6 +160,28 @@ class FirebaseBackendService extends GetxService {
     });
   }
 
+  Future<String> fulfillBasePayRound({
+    required String paymentId,
+    required int roundId,
+    required String inviter,
+  }) async {
+    _requireReady();
+    await ensureCurrentWalletLinked();
+    final result = await _functions!
+        .httpsCallable('fulfillBasePayRound')
+        .call(<String, dynamic>{
+      'paymentId': paymentId,
+      'roundId': roundId.toString(),
+      'inviter': inviter,
+    });
+    final data = Map<String, dynamic>.from(result.data as Map);
+    final transactionHash = data['transactionHash']?.toString() ?? '';
+    if (transactionHash.isEmpty) {
+      throw StateError('Base Pay fulfillment transaction is missing.');
+    }
+    return transactionHash;
+  }
+
   Stream<DocumentSnapshot<Map<String, dynamic>>> watchTransaction(
     String transactionHash,
   ) {
@@ -168,6 +191,64 @@ class FirebaseBackendService extends GetxService {
         .collection('transactions')
         .doc('${chainId}_${transactionHash.toLowerCase()}')
         .snapshots();
+  }
+
+  Stream<List<GameTransaction>> watchRecentTransactions({
+    int limit = 30,
+    int? chainId,
+    String? wallet,
+  }) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      return Stream<List<GameTransaction>>.value(const <GameTransaction>[]);
+    }
+
+    final activeChainId = chainId ??
+        walletService.chainId.value ??
+        WalletConnectService.baseMainnetChainId;
+    final normalizedWallet = wallet?.trim().toLowerCase() ?? '';
+
+    return FirebaseFirestore.instance
+        .collection('transactions')
+        .where('uid', isEqualTo: uid)
+        .where('chainId', isEqualTo: activeChainId)
+        .orderBy('createdAt', descending: true)
+        .limit(limit * 3)
+        .snapshots()
+        .map((snapshot) {
+      final transactions = snapshot.docs
+          .map((document) {
+            final data = document.data();
+            return GameTransaction(
+              id: document.id,
+              chainId: (data['chainId'] as num?)?.toInt() ?? 0,
+              transactionHash: data['transactionHash']?.toString() ?? '',
+              wallet: data['wallet']?.toString() ?? '',
+              status: data['status']?.toString().toLowerCase() ?? 'submitted',
+              operation: data['operation']?.toString() ?? 'onChainTransaction',
+              level: (data['level'] as num?)?.toInt(),
+              amount: data['amount']?.toString() ?? '',
+              currency: data['currency']?.toString().toUpperCase() ?? '',
+              createdAt: (data['createdAt'] as Timestamp?)?.toDate(),
+              updatedAt: (data['updatedAt'] as Timestamp?)?.toDate(),
+            );
+          })
+          .where((item) {
+            return normalizedWallet.isEmpty ||
+                item.wallet.toLowerCase() == normalizedWallet;
+          })
+          .take(limit)
+          .toList()
+        ..sort((a, b) {
+          final aDate = a.updatedAt ?? a.createdAt;
+          final bDate = b.updatedAt ?? b.createdAt;
+          if (aDate == null && bDate == null) return 0;
+          if (aDate == null) return 1;
+          if (bDate == null) return -1;
+          return bDate.compareTo(aDate);
+        });
+      return transactions;
+    });
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> watchPlayer() {

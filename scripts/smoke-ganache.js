@@ -1,4 +1,33 @@
 const hre = require("hardhat");
+const { buildWinningCellTree } = require("../functions/round_merkle");
+
+const roundTypes = {
+  RoundConfig: [
+    { name: "seasonId", type: "uint256" },
+    { name: "roundId", type: "uint256" },
+    { name: "level", type: "uint8" },
+    { name: "startsAt", type: "uint64" },
+    { name: "entriesCloseAt", type: "uint64" },
+    { name: "endsAt", type: "uint64" },
+    { name: "freezeClosesAt", type: "uint64" },
+    { name: "maxPlayers", type: "uint32" },
+    { name: "maxWinners", type: "uint16" },
+    { name: "winningCellsRoot", type: "bytes32" },
+    { name: "ethPrice", type: "uint256" },
+    { name: "usdcPrice", type: "uint256" },
+    { name: "freezeLimit", type: "uint16" },
+    { name: "paymentSplitVersion", type: "uint16" },
+  ],
+};
+
+function deployedAddress(name, chainId) {
+  const artifact = require(`../src/artifacts/${name}.json`);
+  const address = artifact.networks?.[String(chainId)]?.address;
+  if (!address) {
+    throw new Error(`${name} is not deployed for chain ${chainId}`);
+  }
+  return address;
+}
 
 async function expectRevert(action, label) {
   try {
@@ -12,106 +41,186 @@ async function expectRevert(action, label) {
 
 async function main() {
   const { ethers } = hre;
-  const signers = await ethers.getSigners();
+  const [owner, root, referral, basePayPlayer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
   const chainId = Number(network.chainId);
-  const artifact = require("../src/artifacts/EasyGameAdvance.json");
-  const deployment = artifact.networks?.[String(chainId)];
 
-  if (!deployment?.address) {
-    throw new Error(
-      `EasyGameAdvance is not deployed for chain ${chainId}. Run npm run deploy:ganache first.`
-    );
-  }
-
-  const [owner, root, referral, ...matrixPlayers] = signers;
   const easyGame = await ethers.getContractAt(
     "EasyGameAdvance",
-    deployment.address
+    deployedAddress("EasyGameAdvance", chainId),
   );
-  const code = await ethers.provider.getCode(deployment.address);
-  if (code === "0x") {
-    throw new Error("EasyGameAdvance address has no contract code");
+  const roundManager = await ethers.getContractAt(
+    "EasyGameRoundManager",
+    deployedAddress("EasyGameRoundManager", chainId),
+  );
+  const arenaSkills = await ethers.getContractAt(
+    "EasyGameArenaSkills",
+    deployedAddress("EasyGameArenaSkills", chainId),
+  );
+  const settlement = await ethers.getContractAt(
+    "EasyGameRoundSettlement",
+    deployedAddress("EasyGameRoundSettlement", chainId),
+  );
+  const basePayGateway = await ethers.getContractAt(
+    "EasyGameBasePayGateway",
+    deployedAddress("EasyGameBasePayGateway", chainId),
+  );
+  const usdc = await ethers.getContractAt("MockUSDC", await easyGame.usdcToken());
+
+  for (const contract of [easyGame, roundManager, arenaSkills, settlement, basePayGateway]) {
+    if (await ethers.provider.getCode(await contract.getAddress()) === "0x") {
+      throw new Error(`Missing bytecode at ${await contract.getAddress()}`);
+    }
   }
 
-  console.log(`Ganache chainId: ${chainId}`);
-  console.log(`EasyGameAdvance: ${deployment.address}`);
-  console.log(`Owner: ${await easyGame.owner()}`);
+  const latest = await ethers.provider.getBlock("latest");
+  const roundId = BigInt(latest.number) * 1_000n + 1n;
+  const winningCells = [1n, 2n, 3n];
+  const winnerTree = buildWinningCellTree(roundId, winningCells);
+  const config = {
+    seasonId: 1n,
+    roundId,
+    level: 5,
+    startsAt: BigInt(latest.timestamp - 5),
+    entriesCloseAt: BigInt(latest.timestamp + 600),
+    endsAt: BigInt(latest.timestamp + 1200),
+    freezeClosesAt: BigInt(latest.timestamp + 1200),
+    maxPlayers: 32,
+    maxWinners: winningCells.length,
+    winningCellsRoot: winnerTree.root,
+    ethPrice: ethers.parseEther("0.2"),
+    usdcPrice: 200_000n,
+    freezeLimit: 10,
+    paymentSplitVersion: 1,
+  };
+  const signature = await owner.signTypedData(
+    {
+      name: "EasyGameAdvance",
+      version: "2",
+      chainId: network.chainId,
+      verifyingContract: await roundManager.getAddress(),
+    },
+    roundTypes,
+    config,
+  );
 
-  if ((await easyGame.owner()).toLowerCase() !== owner.address.toLowerCase()) {
-    throw new Error("Unexpected contract owner");
-  }
+  console.log(`Chain ID: ${chainId}`);
+  console.log(`Round ID: ${roundId}`);
 
-  const ethPrice = await easyGame.levelPrices(3);
-  await (
-    await easyGame.connect(root).activateLevel(3, ethers.ZeroAddress, {
-      value: ethPrice,
-    })
+  const ethActivation = await (
+    await easyGame.connect(root).activateRound(
+      config,
+      signature,
+      ethers.ZeroAddress,
+      { value: config.ethPrice },
+    )
   ).wait();
-  const rootLevel = await easyGame.getPlayerLevel(root.address, 3);
-  if (!rootLevel.active || rootLevel.positionId !== 1n) {
-    throw new Error("ETH activation did not create matrix position 1");
-  }
-  console.log("PASS ETH activation and first matrix position");
+  console.log(`PASS ETH round activation (${ethActivation.gasUsed} gas)`);
 
-  const usdcAddress = await easyGame.usdcToken();
-  const usdc = await ethers.getContractAt("MockUSDC", usdcAddress);
-  const usdcPrice = await easyGame.levelPricesUsdc(3);
-  await (await usdc.mint(referral.address, usdcPrice)).wait();
-  await (
-    await usdc.connect(referral).approve(deployment.address, usdcPrice)
+  await (await usdc.connect(referral).approve(await easyGame.getAddress(), config.usdcPrice)).wait();
+  const usdcActivation = await (
+    await easyGame.connect(referral).activateRoundWithUSDC(
+      config,
+      signature,
+      root.address,
+    )
   ).wait();
-  await (
-    await easyGame.connect(referral).activateLevelWithUSDC(3, root.address)
-  ).wait();
-
-  const referralBonus = await easyGame.claimableReferralBonusUsdc(root.address);
-  if (referralBonus !== (usdcPrice * 950n) / 10000n) {
-    throw new Error("USDC direct referral bonus is incorrect");
+  const directBonus = await easyGame.claimableReferralBonusUsdc(root.address);
+  if (directBonus !== (config.usdcPrice * 950n) / 10_000n) {
+    throw new Error("Direct USDC referral accounting is incorrect");
   }
   await (await easyGame.connect(root).claimReferralBonusUSDC()).wait();
-  if ((await usdc.balanceOf(root.address)) !== referralBonus) {
-    throw new Error("USDC referral claim did not reach the player");
-  }
-  console.log("PASS USDC activation, referral accounting, and claim");
+  console.log(`PASS USDC activation and referral claim (${usdcActivation.gasUsed} gas)`);
 
-  const level5Price = await easyGame.levelPrices(5);
-  const level5Players = [root, referral, ...matrixPlayers].slice(0, 7);
-  for (let index = 0; index < level5Players.length; index += 1) {
-    const player = level5Players[index];
-    await (
-      await easyGame
-        .connect(player)
-        .activateLevel(5, index === 0 ? ethers.ZeroAddress : root.address, {
-          value: level5Price,
-          gasLimit: 5_000_000,
-        })
-    ).wait();
-  }
+  await (await usdc.connect(basePayPlayer).transfer(
+    await basePayGateway.getAddress(),
+    config.usdcPrice,
+  )).wait();
+  const paymentId = ethers.keccak256(
+    ethers.toUtf8Bytes(`local-base-pay-${roundId}`),
+  );
+  await (
+    await basePayGateway.connect(owner).fulfillRound(
+      paymentId,
+      config,
+      signature,
+      basePayPlayer.address,
+      root.address,
+    )
+  ).wait();
+  console.log("PASS Base Pay gateway fulfillment");
 
-  const prizeNode = await easyGame.getMatrixNode(5, 7);
-  if (!prizeNode.prizeCell) {
-    throw new Error("Matrix cell 7 was not marked as a prize cell");
+  const participants = [root, referral, basePayPlayer];
+  for (let index = 0; index < participants.length; index += 1) {
+    const state = await easyGame.getPlayerRound(participants[index].address, roundId);
+    if (!state.active || state.cellId < 1n) {
+      throw new Error(`Player ${index + 1} was not registered in the round matrix`);
+    }
   }
-  const prizeState = await easyGame.getPlayerLevelFull(prizeNode.player, 5);
-  if (prizeState.claimablePrize === 0n && prizeState.pendingPrize === 0n) {
-    throw new Error("Prize cell owner did not receive a prize");
+  const stats = await easyGame.getRoundGameStats(roundId);
+  if (stats.activeCells < 3n || stats.prizePoolEth === 0n || stats.prizePoolUsdc === 0n) {
+    throw new Error("Round pools or matrix cells were not recorded");
   }
-  console.log("PASS binary placement, recycle path, and prize cell 7");
+  console.log(`PASS round matrix state (${stats.activeCells} active cells)`);
+
+  const freezePrice = await arenaSkills.FREEZE_TOKEN_PRICE_USDC();
+  await (await usdc.connect(root).approve(await arenaSkills.getAddress(), freezePrice)).wait();
+  await (await arenaSkills.connect(root).buyFreezeToken(roundId)).wait();
+  await (await arenaSkills.connect(root).freezePlayer(roundId, referral.address)).wait();
+  if (!(await arenaSkills.isFrozen(roundId, referral.address))) {
+    throw new Error("Freeze skill did not update on-chain state");
+  }
+  const unfreezePrice = await arenaSkills.getUnfreezePriceUsdc(roundId, referral.address);
+  await (await usdc.connect(referral).approve(await arenaSkills.getAddress(), unfreezePrice)).wait();
+  await (await arenaSkills.connect(referral).buyUnfreeze(roundId)).wait();
+  if (await arenaSkills.isFrozen(roundId, referral.address)) {
+    throw new Error("Paid unfreeze did not clear on-chain state");
+  }
+  console.log("PASS freeze token, target freeze, and paid unfreeze");
 
   await expectRevert(
-    () => easyGame.connect(root).withdrawProjectFees(),
-    "only owner can withdraw project fees"
+    () => easyGame.connect(referral).withdrawProjectFees(),
+    "only owner can withdraw project fees",
   );
   await expectRevert(
-    () =>
-      easyGame
-        .connect(signers[signers.length - 1])
-        .activateLevel(4, ethers.ZeroAddress, { value: 1n }),
-    "incorrect ETH payment is rejected"
+    () => basePayGateway.connect(referral).fulfillRound(
+      ethers.keccak256(ethers.toUtf8Bytes("unauthorized-payment")),
+      config,
+      signature,
+      referral.address,
+      ethers.ZeroAddress,
+    ),
+    "only the configured fulfiller can complete Base Pay",
   );
 
-  console.log("Ganache smoke test completed successfully.");
+  await ethers.provider.send("evm_setNextBlockTimestamp", [Number(config.endsAt)]);
+  await ethers.provider.send("evm_mine", []);
+  await (
+    await settlement.settleRound(roundId, winningCells, winnerTree.proofs)
+  ).wait();
+  if (!(await settlement.roundSettled(roundId))) {
+    throw new Error("Round settlement flag was not recorded");
+  }
+  if ((await roundManager.getRoundPhase(roundId)) !== 5n) {
+    throw new Error("Round manager did not move to Settled phase");
+  }
+
+  for (const participant of participants) {
+    const ethClaim = await settlement.claimableEth(participant.address);
+    const usdcClaim = await settlement.claimableUsdc(participant.address);
+    if (ethClaim === 0n || usdcClaim === 0n) {
+      throw new Error("A verified winner did not receive both pool allocations");
+    }
+    await (await settlement.connect(participant).claimPrize()).wait();
+    if (
+      (await settlement.claimableEth(participant.address)) !== 0n ||
+      (await settlement.claimableUsdc(participant.address)) !== 0n
+    ) {
+      throw new Error("Settlement claim was not cleared");
+    }
+  }
+  console.log("PASS Merkle settlement and ETH/USDC winner claims");
+  console.log("Local round smoke test completed successfully.");
 }
 
 main().catch((error) => {

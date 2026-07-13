@@ -10,6 +10,7 @@ class GameRoundsController extends GetxController {
   final GameScheduleService _scheduleService = Get.find<GameScheduleService>();
 
   RxMap<int, GameRoundViewState> get roundsByLevel => _repository.roundsByLevel;
+  RxMap<int, int> get selectedRoundIds => _repository.selectedRoundIds;
   RxList<GameRoundViewState> get timeline => _repository.timeline;
   RxBool get isClockSynchronized => _clockService.isSynchronized;
   RxBool get isScheduleReady => _scheduleService.isReady;

@@ -53,6 +53,9 @@ async function main() {
   const operatorWallet = useLocalWallets
     ? deployer.address
     : process.env.OPERATOR_WALLET || deployer.address;
+  const basePayFulfiller = useLocalWallets
+    ? deployer.address
+    : process.env.BASE_PAY_FULFILLER_ADDRESS || operatorWallet;
   let usdcAddress = process.env.USDC_ADDRESS || "";
   let mockUsdc;
   const deployLegacyLottery = process.env.DEPLOY_LEGACY_LOTTERY === "true";
@@ -70,6 +73,7 @@ async function main() {
   console.log(`Project wallet: ${projectWallet}`);
   console.log(`Treasury: ${treasuryAddress}`);
   console.log(`Operator wallet: ${operatorWallet}`);
+  console.log(`Base Pay fulfiller: ${basePayFulfiller}`);
   console.log(`USDC token: ${usdcAddress}`);
 
   if (
@@ -121,6 +125,19 @@ async function main() {
   await setCoreTx.wait();
   console.log("Round manager linked to EasyGameAdvance");
 
+  const EasyGameBasePayGateway = await hre.ethers.getContractFactory(
+    "EasyGameBasePayGateway"
+  );
+  const basePayGateway = await EasyGameBasePayGateway.deploy(
+    easyGameAddress,
+    usdcAddress,
+    basePayFulfiller
+  );
+  await basePayGateway.waitForDeployment();
+  const basePayGatewayAddress = await basePayGateway.getAddress();
+  await (await easyGame.setBasePayGateway(basePayGatewayAddress)).wait();
+  console.log(`EasyGameBasePayGateway deployed to: ${basePayGatewayAddress}`);
+
   const EasyGameArenaSkills = await hre.ethers.getContractFactory(
     "EasyGameArenaSkills"
   );
@@ -162,6 +179,7 @@ async function main() {
   updateAppArtifact("EasyGameAdvance", network.chainId, easyGameAddress);
   updateAppArtifact("EasyGameArenaSkills", network.chainId, arenaSkillsAddress);
   updateAppArtifact("EasyGameRoundSettlement", network.chainId, settlementAddress);
+  updateAppArtifact("EasyGameBasePayGateway", network.chainId, basePayGatewayAddress);
 }
 
 main().catch((error) => {

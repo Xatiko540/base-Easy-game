@@ -1,192 +1,167 @@
 import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/models/game_round_chain_models.dart';
+import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
+import 'package:lottery_advance/app/models/game_transaction_model.dart';
+import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
+import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
+import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
+import 'package:lottery_advance/app/services/firebase_backend_service.dart';
+import 'package:lottery_advance/app/services/game_round_blockchain_service.dart';
+import 'package:lottery_advance/app/services/game_settlement_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
-import 'package:lottery_advance/app/services/firebase_data_service.dart';
-import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 
 class LevelsProvider extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
-  late final FirebaseDataService _firebaseData;
+  final RoundLevelsRepository _roundLevels = Get.find<RoundLevelsRepository>();
+  final GameSettlementService _settlement = Get.find<GameSettlementService>();
+  final GameRoundBlockchainService _roundChain =
+      Get.find<GameRoundBlockchainService>();
+  final GameRoundsRepository _rounds = Get.find<GameRoundsRepository>();
 
-  final RxList<Level> levels = <Level>[].obs;
+  final RxList<RoundLevelCardState> levels = <RoundLevelCardState>[].obs;
+  final Rx<SettlementClaimable> settlementClaimable =
+      SettlementClaimable.zero.obs;
   final RxBool isLoading = false.obs;
   final RxString errorMessage = ''.obs;
+  final RxList<GameTransaction> transactions = <GameTransaction>[].obs;
+  final RxBool isTransactionsLoading = false.obs;
+  final RxString transactionsError = ''.obs;
+
   String? playerAddress;
   int _refreshRun = 0;
-  StreamSubscription<List<FirebaseLevelData>>? _levelsSub;
+  StreamSubscription<List<GameTransaction>>? _transactionsSub;
+  final List<Worker> _workers = [];
 
-  BigInt get totalEarnedWei => levels.fold<BigInt>(
-        BigInt.zero,
-        (sum, level) => sum + level.earnedWei,
-      );
+  BigInt get totalEarnedWei => settlementClaimable.value.ethAmount;
 
-  int get activeLevels => levels
-      .where((level) =>
-          level.status == LevelStatus.active ||
-          level.status == LevelStatus.frozen)
-      .length;
+  int get activeLevels => levels.where((level) => level.isPlayerActive).length;
 
   @override
   void onInit() {
     super.onInit();
-    _firebaseData = Get.find<FirebaseDataService>();
-    _firebaseData.init();
-    _levelsSub = _firebaseData.watchAllLevels().listen((firebaseLevels) {
-      if (firebaseLevels.isNotEmpty && !isLoading.value) {
-        _mergeFirebaseData(firebaseLevels);
-      }
-    });
+    final backend = Get.find<FirebaseBackendService>();
+
+    _workers.addAll([
+      ever<bool>(backend.isReady, (ready) {
+        if (ready) _subscribeToTransactions(backend);
+      }),
+      ever<bool>(walletService.isConnected, (_) => _handleWalletChange()),
+      ever<String>(walletService.currentAddress, (_) => _handleWalletChange()),
+      ever<int?>(walletService.chainId, (_) => _handleWalletChange()),
+      ever<Map<int, int>>(_rounds.selectedRoundIds, (_) => fetchLevels()),
+      ever<Map<int, GameRoundChainState>>(
+        _roundChain.states,
+        (_) => fetchLevels(),
+      ),
+    ]);
+
+    if (backend.isReady.value) _subscribeToTransactions(backend);
   }
 
   void configure({String? playerAddress}) {
     this.playerAddress = playerAddress;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (isClosed) return;
-      if (levels.isEmpty) {
-        levels.assignAll(_initialLevels());
-      }
+      if (levels.isEmpty) levels.assignAll(_initialLevels());
       fetchLevels();
     });
+  }
+
+  void _handleWalletChange() {
+    if (isClosed || playerAddress != null) return;
+    _subscribeToTransactions(Get.find<FirebaseBackendService>());
+    fetchLevels();
+  }
+
+  void _subscribeToTransactions(FirebaseBackendService backend) {
+    _transactionsSub?.cancel();
+    if (playerAddress != null || !walletService.isConnected.value) {
+      transactions.clear();
+      transactionsError.value = '';
+      isTransactionsLoading.value = false;
+      return;
+    }
+    if (!backend.isReady.value) {
+      isTransactionsLoading.value = true;
+      return;
+    }
+
+    isTransactionsLoading.value = true;
+    transactionsError.value = '';
+    _transactionsSub = backend
+        .watchRecentTransactions(
+      chainId: walletService.chainId.value,
+      wallet: walletService.currentAddress.value,
+    )
+        .listen(
+      (items) {
+        if (isClosed) return;
+        transactions.assignAll(items);
+        isTransactionsLoading.value = false;
+      },
+      onError: (Object error) {
+        if (isClosed) return;
+        transactionsError.value = error.toString();
+        isTransactionsLoading.value = false;
+      },
+    );
   }
 
   Future<void> fetchLevels() async {
     final run = ++_refreshRun;
     if (isClosed) return;
 
-    if (!walletService.isConnected.value && playerAddress == null) {
-      errorMessage.value = 'levels.connectToRead'.tr;
-      levels.assignAll(_initialLevels());
-      isLoading.value = false;
-      return;
-    }
-
     isLoading.value = true;
     errorMessage.value = '';
-
     try {
-      final firebaseData = await _firebaseData.fetchLevelsFromContract();
-      if (firebaseData.isNotEmpty) {
-        _mergeFirebaseData(firebaseData);
-      }
+      final results = await Future.wait<dynamic>([
+        _roundLevels.loadCards(playerAddress: playerAddress),
+        if (walletService.isConnected.value && playerAddress == null)
+          _settlement.getClaimable(),
+      ]);
+      if (isClosed || run != _refreshRun) return;
 
-      final nextLevels = <Level>[];
-      for (var levelNumber = easyGameLevelCount;
-          levelNumber >= 1;
-          levelNumber--) {
-        if (isClosed || run != _refreshRun) return;
-        nextLevels.add(await _loadLevel(levelNumber));
+      levels.assignAll(results.first as List<RoundLevelCardState>);
+      settlementClaimable.value = results.length > 1
+          ? results[1] as SettlementClaimable
+          : SettlementClaimable.zero;
+
+      final failures = levels.where((item) => item.hasError).toList();
+      if (failures.isNotEmpty) {
+        errorMessage.value = 'levels.partialRoundLoad'.trParams({
+          'count': '${failures.length}',
+        });
       }
+    } catch (error) {
       if (isClosed || run != _refreshRun) return;
-      levels.assignAll(nextLevels);
-    } catch (e) {
-      if (isClosed || run != _refreshRun) return;
-      errorMessage.value = '${'levels.unableRefresh'.tr}: $e';
-      if (kDebugMode) print(errorMessage.value);
+      errorMessage.value = '${'levels.unableRefresh'.tr}: $error';
+      if (kDebugMode) debugPrint(errorMessage.value);
     } finally {
       if (!isClosed && run == _refreshRun) isLoading.value = false;
     }
   }
 
-  void _mergeFirebaseData(List<FirebaseLevelData> firebaseData) {
-    for (final fb in firebaseData) {
-      final idx = levels.indexWhere((l) => l.levelNumber == fb.level);
-      if (idx >= 0) {
-        levels[idx].coin = weiToEthDouble(fb.ethPriceWei);
-        levels[idx].prizePoolWei = fb.prizePoolWei;
-        levels[idx].totalWeight = fb.totalWeight;
-        levels[idx].activeCells = fb.activeCells;
-        levels[idx].matrixSize = fb.activeCells;
-        levels[idx].isVisible = fb.available;
-        levels[idx].partnerBonus = weiToEthDouble(fb.ethPriceWei) * 0.095;
-      }
-    }
-    levels.refresh();
+  Future<void> refreshAll() async {
+    _subscribeToTransactions(Get.find<FirebaseBackendService>());
+    await fetchLevels();
   }
 
-  Future<Level> _loadLevel(int levelNumber) async {
-    final priceWei = await walletService.getEasyGameLevelPriceWei(levelNumber);
-    final state = await walletService.getEasyGameLevel(
-      playerAddress: playerAddress,
-      level: levelNumber,
-    );
-    final matrixStats = await walletService.getEasyGameMatrixStats(levelNumber);
-    final advancedStats =
-        await walletService.getEasyGameAdvanceLevelStats(levelNumber);
-    final available = await walletService.isEasyGameLevelAvailable(levelNumber);
-    var playerWeight = BigInt.zero;
-    var playerChanceBps = BigInt.zero;
-    if (state.active) {
-      playerWeight = await walletService.getEasyGamePlayerWeight(
-        playerAddress: playerAddress,
-        level: levelNumber,
-      );
-      playerChanceBps = await walletService.getEasyGamePlayerChanceBps(
-        playerAddress: playerAddress,
-        level: levelNumber,
-      );
-    }
-
-    final status = state.active
-        ? state.frozen
-            ? LevelStatus.frozen
-            : LevelStatus.active
-        : available
-            ? LevelStatus.waiting
-            : LevelStatus.locked;
-
-    return Level(
-      levelNumber: levelNumber,
-      status: status,
-      coin: weiToEthDouble(priceWei),
-      partnerBonus: weiToEthDouble(priceWei) * 0.095,
-      levelProfit: weiToEthDouble(state.earnedWei),
-      fillPercent: _fillPercent(state, matrixStats),
-      isVisible: available || state.active,
-      cycles: state.cycles,
-      positionId: state.positionId,
-      earnedWei: state.earnedWei,
-      matrixSize: matrixStats.size,
-      prizePoolWei: advancedStats.prizePoolWei,
-      totalWeight: advancedStats.totalWeight,
-      activeCells: advancedStats.activeCells,
-      playerWeight: playerWeight,
-      playerChanceBps: playerChanceBps,
-    );
-  }
-
-  List<Level> _initialLevels() {
-    return [
-      for (var i = easyGameLevelCount; i >= 1; i--)
-        Level(
-          levelNumber: i,
-          status: i >= 3 ? LevelStatus.waiting : LevelStatus.locked,
-          coin: levelPrice(i),
-          partnerBonus: levelPrice(i) * 0.095,
-          levelProfit: 0,
-          fillPercent: 0,
-          isVisible: i >= 3,
-        ),
-    ];
-  }
-
-  double _fillPercent(
-    EasyGameLevelState state,
-    EasyGameMatrixStats matrixStats,
-  ) {
-    if (!state.active || matrixStats.size == BigInt.zero) return 0;
-    if (state.positionId == BigInt.zero) return 0;
-
-    final filled = state.positionId.toDouble();
-    final total = matrixStats.size.toDouble();
-    if (total <= 0) return 0;
-    return ((filled / total) * 100).clamp(0, 100).toDouble();
-  }
+  List<RoundLevelCardState> _initialLevels() => [
+        for (var level = 17; level >= 1; level--)
+          RoundLevelCardState(level: level),
+      ];
 
   @override
   void onClose() {
-    _levelsSub?.cancel();
+    _refreshRun++;
+    _transactionsSub?.cancel();
+    for (final worker in _workers) {
+      worker.dispose();
+    }
     super.onClose();
   }
 }

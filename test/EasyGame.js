@@ -39,6 +39,16 @@ describe("EasyGameAdvance", function () {
     await easyGame.waitForDeployment();
     await roundManager.setGameCore(await easyGame.getAddress());
     await easyGame.setLegacyActivationEnabled(true);
+    const BasePayGateway = await ethers.getContractFactory(
+      "EasyGameBasePayGateway"
+    );
+    const basePayGateway = await BasePayGateway.deploy(
+      await easyGame.getAddress(),
+      await usdc.getAddress(),
+      operatorWallet.address
+    );
+    await basePayGateway.waitForDeployment();
+    await easyGame.setBasePayGateway(await basePayGateway.getAddress());
     const ArenaSkills = await ethers.getContractFactory("EasyGameArenaSkills");
     const arenaSkills = await ArenaSkills.deploy(
       await easyGame.getAddress(),
@@ -63,6 +73,7 @@ describe("EasyGameAdvance", function () {
       roundManager,
       arenaSkills,
       settlement,
+      basePayGateway,
       usdc,
       owner,
       projectWallet,
@@ -830,6 +841,87 @@ describe("EasyGameAdvance", function () {
       expect(stats.prizePoolUsdc).to.equal(
         (config.usdcPrice * 9500n) / 10000n
       );
+    });
+
+    it("fulfills a verified Base Pay transfer without charging the player twice", async function () {
+      const fixture = await deployFixture();
+      const { easyGame, basePayGateway, usdc, operatorWallet, root } = fixture;
+      const { config, signature } = await signedOpenRound(fixture, {
+        roundId: 3002n,
+      });
+      const paymentId = ethers.keccak256(ethers.toUtf8Bytes("base-pay-3002"));
+      await usdc.mint(await basePayGateway.getAddress(), config.usdcPrice);
+
+      await expect(
+        basePayGateway.connect(operatorWallet).fulfillRound(
+          paymentId,
+          config,
+          signature,
+          root.address,
+          ethers.ZeroAddress
+        )
+      )
+        .to.emit(basePayGateway, "BasePayRoundFulfilled")
+        .withArgs(paymentId, root.address, config.roundId, config.usdcPrice);
+
+      const playerRound = await easyGame.getPlayerRound(
+        root.address,
+        config.roundId
+      );
+      const stats = await easyGame.getRoundGameStats(config.roundId);
+      expect(playerRound.active).to.equal(true);
+      expect(playerRound.cellId).to.equal(1);
+      expect(stats.prizePoolUsdc).to.equal(
+        (config.usdcPrice * 9500n) / 10000n
+      );
+      expect(await usdc.balanceOf(root.address)).to.equal(0);
+      expect(await usdc.balanceOf(await basePayGateway.getAddress())).to.equal(0);
+    });
+
+    it("rejects unauthorized or replayed Base Pay fulfillment", async function () {
+      const fixture = await deployFixture();
+      const {
+        basePayGateway,
+        usdc,
+        operatorWallet,
+        root,
+        outsider,
+      } = fixture;
+      const { config, signature } = await signedOpenRound(fixture, {
+        roundId: 3003n,
+      });
+      const paymentId = ethers.keccak256(ethers.toUtf8Bytes("base-pay-3003"));
+      await usdc.mint(
+        await basePayGateway.getAddress(),
+        config.usdcPrice * 2n
+      );
+
+      await expect(
+        basePayGateway.connect(outsider).fulfillRound(
+          paymentId,
+          config,
+          signature,
+          root.address,
+          ethers.ZeroAddress
+        )
+      ).to.be.revertedWith("Only fulfiller");
+
+      await basePayGateway.connect(operatorWallet).fulfillRound(
+        paymentId,
+        config,
+        signature,
+        root.address,
+        ethers.ZeroAddress
+      );
+      await expect(
+        basePayGateway.connect(operatorWallet).fulfillRound(
+          paymentId,
+          config,
+          signature,
+          outsider.address,
+          ethers.ZeroAddress
+        )
+      ).to.be.revertedWith("Payment already processed");
     });
 
     it("prevents cancellation after a player has entered", async function () {

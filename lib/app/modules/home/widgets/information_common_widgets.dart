@@ -24,18 +24,19 @@ class _InfoHeroCardState extends State<_InfoHeroCard> {
 
         return Container(
           width: double.infinity,
-          margin: const EdgeInsets.only(bottom: 14),
+          margin: const EdgeInsets.only(bottom: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1F2E),
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: EasyGameTheme.borderSoft.withValues(alpha: 0.35)),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: EasyGameTheme.teal.withValues(alpha: 0.22),
+            ),
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Colors.white.withValues(alpha: 0.04),
-                const Color(0xFF1A1F2E).withValues(alpha: 0.72),
-                Colors.white.withValues(alpha: 0.02),
+                EasyGameTheme.surface.withValues(alpha: 0.94),
+                EasyGameTheme.cardDark.withValues(alpha: 0.96),
+                EasyGameTheme.teal.withValues(alpha: 0.05),
               ],
             ),
           ),
@@ -49,22 +50,27 @@ class _InfoHeroCardState extends State<_InfoHeroCard> {
                   onTap: () => setState(() => _isExpanded = !_isExpanded),
                   child: Padding(
                     padding: EdgeInsets.symmetric(
-                      horizontal: compact ? 18 : 28,
-                      vertical: compact ? 18 : 24,
+                      horizontal: compact ? 16 : 22,
+                      vertical: compact ? 16 : 20,
                     ),
                     child: Row(
                       children: [
+                        const _InfoHexIcon(
+                          icon: CupertinoIcons.game_controller,
+                          color: EasyGameTheme.teal,
+                        ),
+                        const SizedBox(width: 12),
                         Expanded(
                           child: Text(
                             widget.title,
                             style: TextStyle(
                               color: EasyGameTheme.text,
-                              fontSize: compact ? 21 : 24,
-                              fontWeight: FontWeight.w800,
+                              fontSize: compact ? 19 : 22,
+                              fontWeight: FontWeight.w900,
                             ),
                           ),
                         ),
-                        const SizedBox(width: 16),
+                        const SizedBox(width: 12),
                         AnimatedRotation(
                           turns: _isExpanded ? 0 : -0.25,
                           duration: const Duration(milliseconds: 220),
@@ -86,10 +92,10 @@ class _InfoHeroCardState extends State<_InfoHeroCard> {
                   child: _isExpanded
                       ? Padding(
                           padding: EdgeInsets.fromLTRB(
-                            compact ? 18 : 28,
+                            compact ? 16 : 22,
                             0,
-                            compact ? 18 : 28,
-                            compact ? 20 : 28,
+                            compact ? 16 : 22,
+                            compact ? 18 : 22,
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,14 +104,14 @@ class _InfoHeroCardState extends State<_InfoHeroCard> {
                                 height: 1,
                                 color: EasyGameTheme.borderSoft,
                               ),
-                              SizedBox(height: compact ? 18 : 24),
+                              SizedBox(height: compact ? 16 : 20),
                               Text(
                                 widget.text,
                                 style: TextStyle(
                                   color: EasyGameTheme.textMuted,
-                                  fontSize: compact ? 15 : 17,
-                                  height: 1.75,
-                                  fontWeight: FontWeight.w500,
+                                  fontSize: compact ? 14 : 16,
+                                  height: 1.65,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
@@ -118,6 +124,80 @@ class _InfoHeroCardState extends State<_InfoHeroCard> {
           ),
         );
       },
+    );
+  }
+}
+
+class _InfoTextCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String text;
+
+  const _InfoTextCard({
+    required this.icon,
+    required this.title,
+    required this.text,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return _Panel(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < 520;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _InfoSectionTitle(icon: icon, title: title),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.all(compact ? 14 : 18),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF192334).withValues(alpha: 0.72),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: EasyGameTheme.teal.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: SelectionArea(
+                  child: Text(
+                    text,
+                    style: TextStyle(
+                      color: EasyGameTheme.textMuted,
+                      fontSize: compact ? 14 : 15,
+                      height: 1.6,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _InfoHexIcon extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+
+  const _InfoHexIcon({
+    required this.icon,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 40,
+      height: 36,
+      child: CustomPaint(
+        painter: _InfoHexCellPainter(color: color, glowIntensity: 0.08),
+        child: Center(child: Icon(icon, color: color, size: 18)),
+      ),
     );
   }
 }
@@ -137,14 +217,14 @@ class _InfoSectionTitle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, color: EasyGameTheme.teal, size: 22),
-        const SizedBox(width: 10),
+        _InfoHexIcon(icon: icon, color: EasyGameTheme.teal),
+        const SizedBox(width: 12),
         Expanded(
           child: Text(
             title,
             style: const TextStyle(
               color: Colors.white,
-              fontSize: 18,
+              fontSize: 17,
               fontWeight: FontWeight.w900,
             ),
           ),
@@ -173,17 +253,10 @@ class _InfoRuleList extends StatelessWidget {
             margin: EdgeInsets.only(bottom: i == rules.length - 1 ? 0 : 10),
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: EasyGameTheme.cardDark,
+              color: const Color(0xFF192334).withValues(alpha: 0.76),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: EasyGameTheme.borderSoft.withValues(alpha: 0.35)),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Colors.white.withValues(alpha: 0.04),
-                  EasyGameTheme.cardDark.withValues(alpha: 0.72),
-                  Colors.white.withValues(alpha: 0.02),
-                ],
+              border: Border.all(
+                color: EasyGameTheme.teal.withValues(alpha: 0.20),
               ),
             ),
             child: Row(
@@ -249,16 +322,16 @@ class _InfoSplitBarState extends State<_InfoSplitBar> {
           duration: const Duration(milliseconds: 220),
           curve: Curves.easeOutCubic,
           margin: const EdgeInsets.only(bottom: 8),
-          padding: const EdgeInsets.all(10),
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: isActive
                 ? activeColor.withValues(alpha: 0.07)
-                : Colors.transparent,
+                : const Color(0xFF192334).withValues(alpha: 0.62),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isActive
                   ? activeColor.withValues(alpha: 0.42)
-                  : Colors.transparent,
+                  : EasyGameTheme.borderSoft.withValues(alpha: 0.45),
             ),
             boxShadow: isActive
                 ? [
@@ -393,27 +466,16 @@ class _InfoFlowCardState extends State<_InfoFlowCard> {
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
             padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
+            decoration: BoxDecoration(
+              color: isActive
+                  ? activeColor.withValues(alpha: 0.08)
+                  : const Color(0xFF192334).withValues(alpha: 0.76),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
                 color: isActive
-                    ? activeColor.withValues(alpha: 0.08)
-                    : EasyGameTheme.cardDark,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(
-                  color: isActive
-                      ? activeColor.withValues(alpha: 0.72)
-                      : EasyGameTheme.borderSoft.withValues(alpha: 0.35),
-                ),
-                gradient: isActive
-                    ? null
-                    : LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          Colors.white.withValues(alpha: 0.04),
-                          EasyGameTheme.cardDark.withValues(alpha: 0.72),
-                          Colors.white.withValues(alpha: 0.02),
-                        ],
-                      ),
+                    ? activeColor.withValues(alpha: 0.72)
+                    : EasyGameTheme.teal.withValues(alpha: 0.18),
+              ),
               boxShadow: isActive
                   ? [
                       BoxShadow(
@@ -442,7 +504,7 @@ class _InfoFlowCardState extends State<_InfoFlowCard> {
                         color: isActive
                             ? activeColor.withValues(alpha: 0.18)
                             : EasyGameTheme.teal.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
                       child: Icon(
                         widget.icon,
@@ -521,22 +583,11 @@ class _InfoCellChipState extends State<_InfoCellChip> {
             decoration: BoxDecoration(
               color: isActive
                   ? activeColor.withValues(alpha: 0.09)
-                  : EasyGameTheme.cardDark.withValues(alpha: 0.74),
-              borderRadius: BorderRadius.circular(16),
+                  : const Color(0xFF192334).withValues(alpha: 0.76),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: activeColor.withValues(alpha: isActive ? 0.78 : 0.30),
               ),
-              gradient: isActive
-                  ? null
-                  : LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.04),
-                        EasyGameTheme.cardDark.withValues(alpha: 0.72),
-                        Colors.white.withValues(alpha: 0.02),
-                      ],
-                    ),
               boxShadow: isActive
                   ? [
                       BoxShadow(
@@ -629,26 +680,15 @@ class _InfoResourceCardState extends State<_InfoResourceCard> {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 220),
             curve: Curves.easeOutCubic,
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: isActive
                   ? activeColor.withValues(alpha: 0.08)
-                  : EasyGameTheme.cardDark,
-              borderRadius: BorderRadius.circular(14),
+                  : const Color(0xFF192334).withValues(alpha: 0.76),
+              borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: activeColor.withValues(alpha: isActive ? 0.72 : 0.28),
               ),
-              gradient: isActive
-                  ? null
-                  : LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        Colors.white.withValues(alpha: 0.04),
-                        EasyGameTheme.cardDark.withValues(alpha: 0.72),
-                        Colors.white.withValues(alpha: 0.02),
-                      ],
-                    ),
               boxShadow: isActive
                   ? [
                       BoxShadow(
@@ -704,7 +744,7 @@ class _InfoResourceCardState extends State<_InfoResourceCard> {
                       const SizedBox(height: 6),
                       Text(
                         resource.text,
-                        maxLines: 4,
+                        maxLines: 5,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: isActive ? Colors.white70 : Colors.white54,

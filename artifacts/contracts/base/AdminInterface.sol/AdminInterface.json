@@ -25,6 +25,25 @@
         {
           "indexed": true,
           "internalType": "address",
+          "name": "oldGateway",
+          "type": "address"
+        },
+        {
+          "indexed": true,
+          "internalType": "address",
+          "name": "newGateway",
+          "type": "address"
+        }
+      ],
+      "name": "BasePayGatewayChanged",
+      "type": "event"
+    },
+    {
+      "anonymous": false,
+      "inputs": [
+        {
+          "indexed": true,
+          "internalType": "address",
           "name": "player",
           "type": "address"
         },
@@ -1054,6 +1073,19 @@
           "internalType": "uint256",
           "name": "",
           "type": "uint256"
+        }
+      ],
+      "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [],
+      "name": "basePayGateway",
+      "outputs": [
+        {
+          "internalType": "address",
+          "name": "",
+          "type": "address"
         }
       ],
       "stateMutability": "view",
@@ -2540,6 +2572,19 @@
         }
       ],
       "stateMutability": "view",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
+          "internalType": "address",
+          "name": "newGateway",
+          "type": "address"
+        }
+      ],
+      "name": "setBasePayGateway",
+      "outputs": [],
+      "stateMutability": "nonpayable",
       "type": "function"
     },
     {

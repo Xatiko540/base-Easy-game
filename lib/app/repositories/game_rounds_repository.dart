@@ -12,6 +12,7 @@ class GameRoundsRepository extends GetxService {
 
   final RxMap<int, GameRoundViewState> roundsByLevel =
       <int, GameRoundViewState>{}.obs;
+  final RxMap<int, int> selectedRoundIds = <int, int>{}.obs;
   final RxList<GameRoundViewState> timeline = <GameRoundViewState>[].obs;
 
   Worker? _scheduleWorker;
@@ -54,6 +55,20 @@ class GameRoundsRepository extends GetxService {
       selected[level] = candidates.reduce(_preferCurrentRound);
     }
     roundsByLevel.assignAll(selected);
+    final nextIds = selected.map(
+      (level, round) => MapEntry(level, round.schedule.roundId),
+    );
+    if (!_sameRoundIds(selectedRoundIds, nextIds)) {
+      selectedRoundIds.assignAll(nextIds);
+    }
+  }
+
+  bool _sameRoundIds(Map<int, int> current, Map<int, int> next) {
+    if (current.length != next.length) return false;
+    for (final entry in next.entries) {
+      if (current[entry.key] != entry.value) return false;
+    }
+    return true;
   }
 
   GameRoundViewState _preferCurrentRound(

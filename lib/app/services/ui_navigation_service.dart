@@ -1,9 +1,50 @@
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/modules/home/views/utility_screens.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class UiNavigationService {
+  static Future<void> openMemberSearchDialog() async {
+    final controller = TextEditingController();
+    final query = await Get.dialog<String>(
+      AlertDialog(
+        backgroundColor: const Color(0xFF1F2223),
+        title: Text(
+          'common.search'.tr,
+          style: const TextStyle(color: Colors.white),
+        ),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          keyboardType: TextInputType.text,
+          textInputAction: TextInputAction.search,
+          style: const TextStyle(color: Colors.white),
+          decoration: InputDecoration(
+            hintText: 'start.previewInput'.tr,
+            hintStyle: const TextStyle(color: Colors.white38),
+            prefixIcon: const Icon(CupertinoIcons.search),
+          ),
+          onSubmitted: (value) => Get.back(result: value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: Get.back,
+            child: Text('common.close'.tr),
+          ),
+          FilledButton.icon(
+            onPressed: () => Get.back(result: controller.text),
+            icon: const Icon(CupertinoIcons.search, size: 18),
+            label: Text('common.search'.tr),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (query != null) openMemberPreview(query);
+  }
+
   static void openLevels() {
     Get.to(() => const LevelsScreen());
   }

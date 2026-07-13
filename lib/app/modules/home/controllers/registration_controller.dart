@@ -6,6 +6,7 @@ import 'package:lottery_advance/app/modules/home/controllers/game_rounds_control
 import 'package:lottery_advance/app/modules/home/views/activate_express_game_screen.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/services/base_pay_service.dart';
 
 class RegistrationController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
@@ -49,9 +50,10 @@ class RegistrationController extends GetxController {
     return value.isEmpty ? 'registration.noUpline'.tr : value;
   }
 
-  String get currencySymbol => paymentAsset.value == EasyGamePaymentAsset.usdc
-      ? 'USDC'
-      : walletService.nativeSymbol;
+  bool get paysWithUsdc => paymentAsset.value != EasyGamePaymentAsset.native;
+
+  String get currencySymbol =>
+      paysWithUsdc ? 'USDC' : walletService.nativeSymbol;
 
   void selectPaymentAsset(EasyGamePaymentAsset asset) {
     paymentAsset.value = asset;
@@ -101,9 +103,23 @@ class RegistrationController extends GetxController {
     try {
       await walletService.ensureBaseNetwork();
       final round = _requireOpenRound();
-      final price = paymentAsset.value == EasyGamePaymentAsset.usdc
-          ? round.schedule.usdcPrice
-          : round.schedule.ethPriceWei;
+      final price =
+          paysWithUsdc ? round.schedule.usdcPrice : round.schedule.ethPriceWei;
+      if (paymentAsset.value == EasyGamePaymentAsset.basePay) {
+        final basePay = Get.find<BasePayService>();
+        if (!basePay.isAvailable) {
+          throw StateError('payment.basePayUnavailable'.tr);
+        }
+        balanceChecked.value = true;
+        balanceMessage.value = '';
+        selectedAmount.value = assetToDouble(price);
+        Get.snackbar(
+          'registration.balanceOk'.tr,
+          'payment.basePayBalanceHint'.tr,
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
       final balance = paymentAsset.value == EasyGamePaymentAsset.usdc
           ? await walletService.getUsdcBalance()
           : await walletService.refreshNativeBalance();
@@ -187,9 +203,8 @@ class RegistrationController extends GetxController {
       }
 
       final round = _requireOpenRound();
-      final price = paymentAsset.value == EasyGamePaymentAsset.usdc
-          ? round.schedule.usdcPrice
-          : round.schedule.ethPriceWei;
+      final price =
+          paysWithUsdc ? round.schedule.usdcPrice : round.schedule.ethPriceWei;
       selectedAmount.value = assetToDouble(price);
       networkChecked.value = true;
 
@@ -230,21 +245,19 @@ class RegistrationController extends GetxController {
       selectedAmount.value = 0;
       return;
     }
-    final amount = paymentAsset.value == EasyGamePaymentAsset.usdc
-        ? schedule.usdcPrice
-        : schedule.ethPriceWei;
+    final amount = paysWithUsdc ? schedule.usdcPrice : schedule.ethPriceWei;
     selectedAmount.value = assetToDouble(amount);
   }
 
   double assetToDouble(BigInt amount) {
-    if (paymentAsset.value == EasyGamePaymentAsset.usdc) {
+    if (paysWithUsdc) {
       return amount.toDouble() / 1000000;
     }
     return weiToEthDouble(amount);
   }
 
   String formatAssetAmount(BigInt amount) {
-    if (paymentAsset.value == EasyGamePaymentAsset.usdc) {
+    if (paysWithUsdc) {
       final whole = amount ~/ BigInt.from(1000000);
       final fraction =
           (amount % BigInt.from(1000000)).toString().padLeft(6, '0');

@@ -157,7 +157,8 @@ class _ProgramCta extends StatelessWidget {
       ),
       child: TextButton.icon(
         onPressed: onTap,
-        icon: const Icon(CupertinoIcons.arrow_up_right, color: Colors.white, size: 16),
+        icon: const Icon(CupertinoIcons.arrow_up_right,
+            color: Colors.white, size: 16),
         label: Text(
           compact ? 'profile.programViewShort'.tr : 'profile.programView'.tr,
           style: const TextStyle(
@@ -187,6 +188,7 @@ class _MatrixCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final round = Get.find<GameRoundsController>().roundForLevel(level);
     final state = levelState?.state;
     final available = levelState?.available ?? level >= 3;
     final active = state?.active ?? false;
@@ -201,7 +203,12 @@ class _MatrixCell extends StatelessWidget {
 
     return InkWell(
       borderRadius: BorderRadius.circular(10),
-      onTap: () => Get.to(() => EasyGameLevelDetailScreen(level: level)),
+      onTap: round == null
+          ? null
+          : () => Get.to(() => EasyGameLevelDetailScreen(
+                level: level,
+                roundId: BigInt.from(round.schedule.roundId),
+              )),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
@@ -237,10 +244,12 @@ class _MatrixCell extends StatelessWidget {
               ),
               if (frozen) ...[
                 const SizedBox(height: 3),
-                const Icon(CupertinoIcons.snow, color: Color(0xFFFFA62B), size: 12),
+                const Icon(CupertinoIcons.snow,
+                    color: Color(0xFFFFA62B), size: 12),
               ] else if (active) ...[
                 const SizedBox(height: 3),
-                const Icon(CupertinoIcons.checkmark, color: Colors.white, size: 12),
+                const Icon(CupertinoIcons.checkmark,
+                    color: Colors.white, size: 12),
               ],
             ],
           ),

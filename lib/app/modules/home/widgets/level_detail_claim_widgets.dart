@@ -1,21 +1,19 @@
 part of '../views/levels.dart';
 
 class _LevelClaimPanel extends StatelessWidget {
-  final int level;
-  final EasyGamePlayerSummary? player;
-  final bool isFrozen;
+  final LevelDetailSnapshot data;
+  final LevelDetailController controller;
 
   const _LevelClaimPanel({
-    required this.level,
-    required this.player,
-    required this.isFrozen,
+    required this.data,
+    required this.controller,
   });
 
   @override
   Widget build(BuildContext context) {
     final walletService = Get.find<WalletConnectService>();
-    final data = player;
-    if (data == null) {
+    final player = data.player;
+    if (player == null) {
       return _LevelDetailPanel(
         title: 'levelDetail.rewardsWallet'.tr,
         rows: [
@@ -27,8 +25,8 @@ class _LevelClaimPanel extends StatelessWidget {
     }
 
     final currency = walletService.nativeSymbol;
-    final canClaimPrize = data.claimablePrizeWei > BigInt.zero && !isFrozen;
-    final canClaimReferral = data.claimableReferralBonusWei > BigInt.zero;
+    final canClaimPrize = data.settlement.hasReward;
+    final canClaimReferral = player.claimableReferralBonusWei > BigInt.zero;
 
     return Container(
       width: double.infinity,
@@ -55,19 +53,19 @@ class _LevelClaimPanel extends StatelessWidget {
             stats: [
               DetailRow(
                 'levelDetail.claimablePrize'.tr,
-                '${formatWeiToEth(data.claimablePrizeWei)} $currency',
+                '${formatWeiToEth(data.settlement.ethAmount)} $currency / ${formatUsdc(data.settlement.usdcAmount)} USDC',
               ),
               DetailRow(
                 'levelDetail.pendingPrize'.tr,
-                '${formatWeiToEth(data.pendingPrizeWei)} $currency',
+                '0 $currency',
               ),
               DetailRow(
                 'levelDetail.referralBonus'.tr,
-                '${formatWeiToEth(data.claimableReferralBonusWei)} $currency',
+                '${formatWeiToEth(player.claimableReferralBonusWei)} $currency',
               ),
               DetailRow(
                 'levelDetail.recycleCount'.tr,
-                data.recycleCount.toString(),
+                data.card.cycles.toString(),
               ),
             ],
           ),
@@ -78,10 +76,9 @@ class _LevelClaimPanel extends StatelessWidget {
             children: [
               _ClaimActionButton(
                 label: 'levelDetail.claimPrize'.tr,
-                enabled: canClaimPrize,
+                enabled: canClaimPrize && !controller.isActionBusy.value,
                 onTap: () async {
-                  final tx =
-                      await walletService.claimEasyGamePrize(level: level);
+                  final tx = await controller.claimPrize();
                   Get.snackbar(
                     'common.submitted'.tr,
                     tx,
@@ -91,9 +88,9 @@ class _LevelClaimPanel extends StatelessWidget {
               ),
               _ClaimActionButton(
                 label: 'levelDetail.claimReferral'.tr,
-                enabled: canClaimReferral,
+                enabled: canClaimReferral && !controller.isActionBusy.value,
                 onTap: () async {
-                  final tx = await walletService.claimEasyGameReferralBonus();
+                  final tx = await controller.claimReferralBonus();
                   Get.snackbar(
                     'common.submitted'.tr,
                     tx,
@@ -103,7 +100,7 @@ class _LevelClaimPanel extends StatelessWidget {
               ),
             ],
           ),
-          if (isFrozen && data.pendingPrizeWei > BigInt.zero) ...[
+          if (data.card.isFrozen) ...[
             const SizedBox(height: 10),
             Text(
               'levelDetail.pendingFrozenHint'.tr,

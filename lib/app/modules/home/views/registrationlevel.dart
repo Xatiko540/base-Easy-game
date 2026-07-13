@@ -5,6 +5,7 @@ import 'package:lottery_advance/app/modules/home/controllers/registration_contro
 import 'package:lottery_advance/app/modules/home/models/registration_models.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/services/base_pay_service.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
@@ -111,6 +112,8 @@ class RegistrationScreen extends StatelessWidget {
                           _PaymentAssetSelector(
                             selected: paymentAsset,
                             nativeSymbol: walletService.nativeSymbol,
+                            basePayAvailable:
+                                Get.find<BasePayService>().isAvailable,
                             onChanged:
                                 registrationController.selectPaymentAsset,
                           ),

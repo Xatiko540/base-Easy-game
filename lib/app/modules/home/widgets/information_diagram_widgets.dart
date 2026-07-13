@@ -113,9 +113,11 @@ class _AnimatedMatrixDemoState extends State<_AnimatedMatrixDemo> {
       return Container(
         height: widget.compact ? 240 : 300,
         decoration: BoxDecoration(
-          color: EasyGameTheme.cardDark.withValues(alpha: 0.76),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: EasyGameTheme.borderSoft),
+          color: const Color(0xFF192334).withValues(alpha: 0.76),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: EasyGameTheme.teal.withValues(alpha: 0.20),
+          ),
         ),
         clipBehavior: Clip.antiAlias,
         child: NeonHoneycomb(

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/controllers/profile_controller.dart';
+import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/profile_models.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/modules/home/views/levels.dart';

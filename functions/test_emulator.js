@@ -196,8 +196,11 @@ async function main() {
     assert(src.includes('exports.linkWallet'), 'linkWallet function');
     assert(src.includes('exports.registerDevice'), 'registerDevice function');
     assert(src.includes('exports.trackTransaction'), 'trackTransaction function');
-    assert(src.includes('exports.syncGameEvents'), 'syncGameEvents function');
-    assert(src.includes('exports.confirmTransactions'), 'confirmTransactions function');
+    assert(src.includes('exports.publishRoundManifest'), 'publishRoundManifest function');
+    assert(src.includes('exports.getRoundSettlementProofs'), 'getRoundSettlementProofs function');
+    assert(src.includes('exports.fulfillBasePayRound'), 'fulfillBasePayRound function');
+    assert(!/^exports\.syncGameEvents\s*=/m.test(src), 'syncGameEvents worker disabled');
+    assert(!/^exports\.confirmTransactions\s*=/m.test(src), 'confirmTransactions worker disabled');
 
     // Security
     assert(src.includes('enforceAppCheck: true'), 'enforceAppCheck: true');
@@ -206,7 +209,8 @@ async function main() {
     assert(src.includes('enforceRateLimit'), 'enforceRateLimit() defined');
 
     // Auth flow
-    assert(src.includes('verifyMessage'), 'verifyMessage (EIP-191) for signature');
+    assert(src.includes('walletVerificationClient().verifyMessage'),
+      'viem verifyMessage supports EOA and Base Account signatures');
     assert(src.includes('randomBytes(24)'), '24-byte random nonce');
     assert(src.includes('expiresAt'), 'nonce expiry');
     assert(src.includes('walletNonces'), 'walletNonces collection');
@@ -219,9 +223,7 @@ async function main() {
     assert(src.includes('transactions'), 'transactions collection');
     assert(src.includes('receipt.from'), 'verify receipt.from matches wallet');
 
-    // Indexer
-    assert(src.includes('syncGameEvents'), 'syncGameEvents scheduled function');
-    assert(src.includes('confirmTransactions'), 'confirmTransactions scheduled function');
+    // Manual reconciliation remains available without scheduled workers.
     assert(src.includes('getLogs'), 'indexer: getLogs from RPC');
     assert(src.includes('iface.parseLog'), 'indexer: parseLog');
     assert(src.includes('reconcilePlayer'), 'indexer: reconcilePlayer');

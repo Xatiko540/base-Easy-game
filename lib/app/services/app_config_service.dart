@@ -21,6 +21,8 @@ class AppConfigService extends GetxService {
       String.fromEnvironment('EASY_GAME_ARENA_SKILLS_ADDRESS');
   static const _envRoundSettlementAddress =
       String.fromEnvironment('EASY_GAME_ROUND_SETTLEMENT_ADDRESS');
+  static const _envBasePayGatewayAddress =
+      String.fromEnvironment('EASY_GAME_BASE_PAY_GATEWAY_ADDRESS');
   static const _envEasyGameInviter =
       String.fromEnvironment('EASY_GAME_INVITER');
   static const _envPaymentReceiver = String.fromEnvironment('PAYMENT_RECEIVER');
@@ -41,8 +43,15 @@ class AppConfigService extends GetxService {
 
   final RxBool isLoaded = false.obs;
   final Map<String, String> _data = {};
+  Future<void>? _fetchInProgress;
 
-  Future<void> fetch() async {
+  Future<void> fetch() {
+    if (isLoaded.value) return Future<void>.value();
+    return _fetchInProgress ??=
+        _fetchConfig().whenComplete(() => _fetchInProgress = null);
+  }
+
+  Future<void> _fetchConfig() async {
     try {
       if (Firebase.apps.isEmpty) {
         await Firebase.initializeApp(
@@ -115,6 +124,8 @@ class AppConfigService extends GetxService {
         return _envArenaSkillsAddress;
       case 'roundSettlementAddress':
         return _envRoundSettlementAddress;
+      case 'basePayGatewayAddress':
+        return _envBasePayGatewayAddress;
       case 'easyGameInviter':
         return _envEasyGameInviter;
       case 'paymentReceiver':

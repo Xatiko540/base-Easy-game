@@ -17,9 +17,40 @@ class BaseAccountSignInResult {
   });
 }
 
+class BasePayResult {
+  final String id;
+  final String amount;
+  final String recipient;
+
+  const BasePayResult({
+    required this.id,
+    required this.amount,
+    required this.recipient,
+  });
+}
+
+class BasePayStatusResult {
+  final String status;
+  final String sender;
+  final String amount;
+  final String recipient;
+
+  const BasePayStatusResult({
+    required this.status,
+    required this.sender,
+    required this.amount,
+    required this.recipient,
+  });
+}
+
 bool get isBaseAccountBridgeAvailable {
   final bridge = globalContext['easyGameBaseAccount'] as JSObject?;
   return bridge != null && bridge.has('signIn') && bridge.has('request');
+}
+
+bool get isBasePayBridgeAvailable {
+  final bridge = globalContext['easyGameBaseAccount'] as JSObject?;
+  return bridge != null && bridge.has('pay') && bridge.has('getPaymentStatus');
 }
 
 Future<BaseAccountSignInResult> signInWithBaseAccount({
@@ -58,6 +89,53 @@ Future<dynamic> baseAccountRequest(String method, List<dynamic> params) async {
   );
   final raw = await promise.toDart;
   return raw?.dartify();
+}
+
+Future<BasePayResult> sendBasePay({
+  required String amount,
+  required String recipient,
+  required bool testnet,
+  required String dataSuffix,
+}) async {
+  final bridge = _bridge();
+  final raw = await bridge
+      .callMethod<JSPromise<JSAny?>>(
+        'pay'.toJS,
+        amount.toJS,
+        recipient.toJS,
+        testnet.toJS,
+        dataSuffix.toJS,
+      )
+      .toDart;
+  final data = raw?.dartify();
+  if (data is! Map) throw Exception('Invalid Base Pay response');
+  return BasePayResult(
+    id: data['id']?.toString() ?? '',
+    amount: data['amount']?.toString() ?? '',
+    recipient: data['to']?.toString() ?? '',
+  );
+}
+
+Future<BasePayStatusResult> readBasePayStatus({
+  required String paymentId,
+  required bool testnet,
+}) async {
+  final bridge = _bridge();
+  final raw = await bridge
+      .callMethod<JSPromise<JSAny?>>(
+        'getPaymentStatus'.toJS,
+        paymentId.toJS,
+        testnet.toJS,
+      )
+      .toDart;
+  final data = raw?.dartify();
+  if (data is! Map) throw Exception('Invalid Base Pay status response');
+  return BasePayStatusResult(
+    status: data['status']?.toString() ?? '',
+    sender: data['sender']?.toString() ?? '',
+    amount: data['amount']?.toString() ?? '',
+    recipient: data['recipient']?.toString() ?? '',
+  );
 }
 
 JSObject _bridge() {

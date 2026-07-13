@@ -118,6 +118,22 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface, R
         _splitRoundPayment(config, msg.sender, config.usdcPrice, true);
     }
 
+    function activateRoundFromBasePay(
+        RoundConfig calldata config,
+        bytes calldata signature,
+        address player,
+        address inviter
+    ) external nonReentrant {
+        require(msg.sender == basePayGateway, "Only Base Pay gateway");
+        if (player == address(0)) revert ZeroAddress();
+        if (config.usdcPrice == 0) revert RoundUsdcDisabled();
+        if (!usdcToken.transferFrom(msg.sender, address(this), config.usdcPrice)) {
+            revert TokenTransferFailed();
+        }
+        _activateRoundState(config, signature, player, inviter, true);
+        _splitRoundPayment(config, player, config.usdcPrice, true);
+    }
+
     function getPlayerRound(address playerAddress, uint256 roundId)
         external
         view
