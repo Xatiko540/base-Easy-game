@@ -16,7 +16,7 @@ class _PartnerMetricGrid extends StatelessWidget {
         icon: CupertinoIcons.person_3,
         title: 'partner.tickets'.tr,
         value: data.totalTickets.toString(),
-        delta: '+${data.baseWeight} wt',
+        delta: '+${data.baseWeight} rating',
         color: EasyGameTheme.teal,
       ),
       _PartnerMetricCard(

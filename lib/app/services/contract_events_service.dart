@@ -163,7 +163,7 @@ class ContractEventsService extends GetxService {
     final level = _asInt(decoded[2]);
     final amount = _weiToEth(_asBigInt(decoded[3]));
     final weight = _asBigInt(decoded[4]);
-    return 'Referral bonus to $inviter from $invitee on level $level: $amount ETH, +$weight weight';
+    return 'Referral bonus to $inviter from $invitee on level $level: $amount ETH, +$weight rating';
   }
 
   String _formatRecycled(List<dynamic> decoded) {

@@ -105,7 +105,7 @@ class StatisticsScreen extends StatelessWidget {
                     icon: CupertinoIcons.arrow_up_right,
                     title: 'stats.weight'.tr,
                     value: data?.totalWeight.toString() ?? '-',
-                    delta: 'weighted draw',
+                    delta: 'rating draw',
                     color: EasyGameTheme.purple,
                   ),
                 ];
@@ -412,20 +412,10 @@ class InformationScreen extends StatelessWidget {
           title: 'info.advanceTitle'.tr,
           text: 'info.advanceText'.tr,
         ),
-        _InfoTextCard(
-          icon: CupertinoIcons.checkmark_shield,
-          title: 'info.deploymentStatusTitle'.tr,
-          text: 'info.deploymentStatusText'.tr,
-        ),
         const _InfoMatrixStructurePanel(),
         const _InfoPaymentSplitPanel(),
         const _InfoRoundLifecyclePanel(),
         const _InfoWinningCellsPanel(),
-        _InfoTextCard(
-          icon: CupertinoIcons.snow,
-          title: 'info.freezeTitle'.tr,
-          text: 'info.freezeText'.tr,
-        ),
         const _InfoGameResourcesPanel(),
       ],
     );

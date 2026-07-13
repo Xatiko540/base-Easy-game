@@ -2,6 +2,50 @@ const fs = require("fs");
 const path = require("path");
 const hre = require("hardhat");
 
+const deploymentSummary = {
+  chainId: null,
+  deployer: null,
+  startBlock: null,
+  contracts: {},
+  transactions: {},
+};
+
+async function recordDeployment(name, contract) {
+  const address = await contract.getAddress();
+  const transaction = contract.deploymentTransaction();
+  if (!transaction) {
+    throw new Error(`Deployment transaction is unavailable for ${name}.`);
+  }
+  const receipt = await transaction.wait();
+  deploymentSummary.startBlock =
+    deploymentSummary.startBlock === null
+      ? receipt.blockNumber
+      : Math.min(deploymentSummary.startBlock, receipt.blockNumber);
+  deploymentSummary.contracts[name] = address;
+  deploymentSummary.transactions[`${name}.deploy`] = {
+    hash: transaction.hash,
+    blockNumber: receipt.blockNumber,
+    gasUsed: receipt.gasUsed.toString(),
+  };
+  console.log(
+    `${name} deployed to: ${address} (tx: ${transaction.hash}, block: ${receipt.blockNumber})`
+  );
+  return address;
+}
+
+async function recordTransaction(name, transaction) {
+  const receipt = await transaction.wait();
+  deploymentSummary.transactions[name] = {
+    hash: transaction.hash,
+    blockNumber: receipt.blockNumber,
+    gasUsed: receipt.gasUsed.toString(),
+  };
+  console.log(
+    `${name} confirmed (tx: ${transaction.hash}, block: ${receipt.blockNumber})`
+  );
+  return receipt;
+}
+
 function updateAppArtifact(contractName, chainId, address) {
   const artifactPath = path.join(
     __dirname,
@@ -39,8 +83,26 @@ function updateAppArtifact(contractName, chainId, address) {
 async function main() {
   const signers = await hre.ethers.getSigners();
   const [deployer] = signers;
+  if (!deployer) {
+    throw new Error(
+      "No deployment signer configured. Set DEPLOYER_PRIVATE_KEY or MNEMONIC in the ignored .env file."
+    );
+  }
   const network = await hre.ethers.provider.getNetwork();
   const chainId = Number(network.chainId);
+  deploymentSummary.chainId = chainId;
+  deploymentSummary.deployer = deployer.address;
+  const expectedDeployer = process.env.EXPECTED_DEPLOYER_ADDRESS || "";
+  if (
+    expectedDeployer &&
+    (!hre.ethers.isAddress(expectedDeployer) ||
+      hre.ethers.getAddress(expectedDeployer) !==
+        hre.ethers.getAddress(deployer.address))
+  ) {
+    throw new Error(
+      `Deployment signer ${deployer.address} does not match EXPECTED_DEPLOYER_ADDRESS ${expectedDeployer}.`
+    );
+  }
   const isLocalNetwork = [1337, 31337, 5777].includes(chainId);
   const useLocalWallets =
     isLocalNetwork && process.env.LOCAL_USE_ENV_WALLETS !== "true";
@@ -64,11 +126,15 @@ async function main() {
     const MockUSDC = await hre.ethers.getContractFactory("MockUSDC");
     mockUsdc = await MockUSDC.deploy();
     await mockUsdc.waitForDeployment();
-    usdcAddress = await mockUsdc.getAddress();
-    console.log(`MockUSDC deployed to: ${usdcAddress}`);
+    usdcAddress = await recordDeployment("MockUSDC", mockUsdc);
   }
 
   console.log(`Deploying with account: ${deployer.address}`);
+  console.log(
+    `Deployer balance: ${hre.ethers.formatEther(
+      await hre.ethers.provider.getBalance(deployer.address)
+    )} ETH`
+  );
   console.log(`Network: ${network.name} (${network.chainId})`);
   console.log(`Project wallet: ${projectWallet}`);
   console.log(`Treasury: ${treasuryAddress}`);
@@ -92,8 +158,10 @@ async function main() {
     const lotteryGenerator = await LotteryGenerator.deploy();
     await lotteryGenerator.waitForDeployment();
 
-    const address = await lotteryGenerator.getAddress();
-    console.log(`LotteryGenerator deployed to: ${address}`);
+    const address = await recordDeployment(
+      "LotteryGenerator",
+      lotteryGenerator
+    );
 
     updateAppArtifact("LotteryGenerator", network.chainId, address);
   }
@@ -103,8 +171,10 @@ async function main() {
   );
   const roundManager = await EasyGameRoundManager.deploy(operatorWallet);
   await roundManager.waitForDeployment();
-  const roundManagerAddress = await roundManager.getAddress();
-  console.log(`EasyGameRoundManager deployed to: ${roundManagerAddress}`);
+  const roundManagerAddress = await recordDeployment(
+    "EasyGameRoundManager",
+    roundManager
+  );
 
   const EasyGameAdvance = await hre.ethers.getContractFactory(
     "EasyGameAdvance"
@@ -118,12 +188,10 @@ async function main() {
   );
   await easyGame.waitForDeployment();
 
-  const easyGameAddress = await easyGame.getAddress();
-  console.log(`EasyGameAdvance deployed to: ${easyGameAddress}`);
+  const easyGameAddress = await recordDeployment("EasyGameAdvance", easyGame);
 
   const setCoreTx = await roundManager.setGameCore(easyGameAddress);
-  await setCoreTx.wait();
-  console.log("Round manager linked to EasyGameAdvance");
+  await recordTransaction("RoundManager.setGameCore", setCoreTx);
 
   const EasyGameBasePayGateway = await hre.ethers.getContractFactory(
     "EasyGameBasePayGateway"
@@ -134,9 +202,14 @@ async function main() {
     basePayFulfiller
   );
   await basePayGateway.waitForDeployment();
-  const basePayGatewayAddress = await basePayGateway.getAddress();
-  await (await easyGame.setBasePayGateway(basePayGatewayAddress)).wait();
-  console.log(`EasyGameBasePayGateway deployed to: ${basePayGatewayAddress}`);
+  const basePayGatewayAddress = await recordDeployment(
+    "EasyGameBasePayGateway",
+    basePayGateway
+  );
+  await recordTransaction(
+    "EasyGameAdvance.setBasePayGateway",
+    await easyGame.setBasePayGateway(basePayGatewayAddress)
+  );
 
   const EasyGameArenaSkills = await hre.ethers.getContractFactory(
     "EasyGameArenaSkills"
@@ -148,8 +221,10 @@ async function main() {
     projectWallet
   );
   await arenaSkills.waitForDeployment();
-  const arenaSkillsAddress = await arenaSkills.getAddress();
-  console.log(`EasyGameArenaSkills deployed to: ${arenaSkillsAddress}`);
+  const arenaSkillsAddress = await recordDeployment(
+    "EasyGameArenaSkills",
+    arenaSkills
+  );
 
   const EasyGameRoundSettlement = await hre.ethers.getContractFactory(
     "EasyGameRoundSettlement"
@@ -161,12 +236,19 @@ async function main() {
     usdcAddress
   );
   await settlement.waitForDeployment();
-  const settlementAddress = await settlement.getAddress();
-  console.log(`EasyGameRoundSettlement deployed to: ${settlementAddress}`);
+  const settlementAddress = await recordDeployment(
+    "EasyGameRoundSettlement",
+    settlement
+  );
 
-  await (await easyGame.setSettlementContract(settlementAddress)).wait();
-  await (await roundManager.setSettlementContract(settlementAddress)).wait();
-  console.log("Settlement linked to core and round manager");
+  await recordTransaction(
+    "EasyGameAdvance.setSettlementContract",
+    await easyGame.setSettlementContract(settlementAddress)
+  );
+  await recordTransaction(
+    "RoundManager.setSettlementContract",
+    await roundManager.setSettlementContract(settlementAddress)
+  );
 
   if (mockUsdc) {
     for (const signer of signers.slice(0, 10)) {
@@ -180,6 +262,17 @@ async function main() {
   updateAppArtifact("EasyGameArenaSkills", network.chainId, arenaSkillsAddress);
   updateAppArtifact("EasyGameRoundSettlement", network.chainId, settlementAddress);
   updateAppArtifact("EasyGameBasePayGateway", network.chainId, basePayGatewayAddress);
+
+  console.log("DEPLOYMENT_SUMMARY_START");
+  console.log(JSON.stringify(deploymentSummary, null, 2));
+  console.log("DEPLOYMENT_SUMMARY_END");
+
+  const deploymentsDirectory = path.join(__dirname, "..", "deployments");
+  fs.mkdirSync(deploymentsDirectory, { recursive: true });
+  fs.writeFileSync(
+    path.join(deploymentsDirectory, `${network.name}-${chainId}.json`),
+    `${JSON.stringify(deploymentSummary, null, 2)}\n`
+  );
 }
 
 main().catch((error) => {

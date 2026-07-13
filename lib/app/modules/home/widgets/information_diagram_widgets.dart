@@ -111,7 +111,9 @@ class _AnimatedMatrixDemoState extends State<_AnimatedMatrixDemo> {
     return Obx(() {
       final frameIndex = controller.currentFrame.value;
       return Container(
-        height: widget.compact ? 240 : 300,
+        height: widget.compact ? 240 : null,
+        constraints:
+            widget.compact ? null : const BoxConstraints(minHeight: 300),
         decoration: BoxDecoration(
           color: const Color(0xFF192334).withValues(alpha: 0.76),
           borderRadius: BorderRadius.circular(12),
@@ -137,43 +139,27 @@ class _WinningCellsHoneycomb extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final availableWidth =
-            constraints.maxWidth.isFinite ? constraints.maxWidth : 520.0;
-        final cellWidth = ((availableWidth - 56) / 3.45).clamp(68.0, 122.0);
+            constraints.maxWidth.isFinite ? constraints.maxWidth : 820.0;
+        final cellWidth = ((availableWidth - 70) / 6).clamp(68.0, 122.0);
         final cellHeight = cellWidth * 1.08;
         final gap = (cellWidth * 0.10).clamp(8.0, 14.0);
-        final rowWidth = (cellWidth * 3) + (gap * 2);
-        final shift = cellWidth * 0.48;
-        final clusterWidth = rowWidth + shift;
 
-        Widget row(List<String> labels) {
-          return Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              for (var index = 0; index < labels.length; index++) ...[
-                if (index > 0) SizedBox(width: gap),
-                _WinningCellHex(
-                  label: labels[index],
-                  width: cellWidth,
-                  height: cellHeight,
-                ),
-              ],
-            ],
-          );
-        }
-
-        return Center(
-          child: SizedBox(
-            width: clusterWidth,
-            child: Column(
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(minWidth: availableWidth),
+            child: Row(
               mainAxisSize: MainAxisSize.min,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Align(
-                    alignment: Alignment.centerLeft,
-                    child: row(const ['7', '15', '31'])),
-                SizedBox(height: gap),
-                Align(
-                    alignment: Alignment.centerRight,
-                    child: row(const ['63', '127', '255'])),
+                for (var index = 0; index < 6; index++) ...[
+                  if (index > 0) SizedBox(width: gap),
+                  _WinningCellHex(
+                    label: const ['7', '15', '31', '63', '127', '255'][index],
+                    width: cellWidth,
+                    height: cellHeight,
+                  ),
+                ],
               ],
             ),
           ),

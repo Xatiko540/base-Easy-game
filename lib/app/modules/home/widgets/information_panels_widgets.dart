@@ -9,7 +9,7 @@ class _InfoMatrixStructurePanel extends StatefulWidget {
 }
 
 class _InfoMatrixStructurePanelState extends State<_InfoMatrixStructurePanel> {
-  bool _isExpanded = true;
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -66,13 +66,15 @@ class _InfoMatrixStructurePanelState extends State<_InfoMatrixStructurePanel> {
                             ],
                           );
                         }
-                        return Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Expanded(flex: 6, child: diagram),
-                            const SizedBox(width: 18),
-                            Expanded(flex: 5, child: rules),
-                          ],
+                        return IntrinsicHeight(
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              Expanded(flex: 6, child: diagram),
+                              const SizedBox(width: 18),
+                              Expanded(flex: 5, child: rules),
+                            ],
+                          ),
                         );
                       },
                     ),
@@ -93,7 +95,7 @@ class _InfoPaymentSplitPanel extends StatefulWidget {
 }
 
 class _InfoPaymentSplitPanelState extends State<_InfoPaymentSplitPanel> {
-  bool _isExpanded = true;
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +222,7 @@ class _InfoRoundLifecyclePanel extends StatefulWidget {
 }
 
 class _InfoRoundLifecyclePanelState extends State<_InfoRoundLifecyclePanel> {
-  bool _isExpanded = true;
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -311,7 +313,7 @@ class _InfoWinningCellsPanel extends StatefulWidget {
 }
 
 class _InfoWinningCellsPanelState extends State<_InfoWinningCellsPanel> {
-  bool _isExpanded = true;
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
@@ -384,7 +386,7 @@ class _InfoGameResourcesPanel extends StatefulWidget {
 }
 
 class _InfoGameResourcesPanelState extends State<_InfoGameResourcesPanel> {
-  bool _isExpanded = true;
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
