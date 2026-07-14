@@ -6,25 +6,12 @@ class _BonusTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final walletService = Get.find<WalletConnectService>();
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF222425),
-        borderRadius: BorderRadius.circular(10),
-      ),
+    return _PartnerAccordionPanel(
+      icon: CupertinoIcons.list_bullet,
+      title: 'partner.rewards'.tr,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'partner.rewards'.tr,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 14),
           const _BonusHeader(),
           const Divider(color: Color(0xFF343738)),
           Obx(

@@ -11,14 +11,9 @@ class _ClaimableReferralPanel extends StatelessWidget {
       final data = controller.snapshot.value;
       final claimable = data.claimableReferralBonusWei;
       final totalWeight = data.totalWeight;
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1F2E),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: const Color(0xFF2A3145)),
-        ),
+      return _PartnerAccordionPanel(
+        icon: CupertinoIcons.money_dollar_circle,
+        title: 'partner.claimableReferral'.tr,
         child: Wrap(
           spacing: 14,
           runSpacing: 14,
@@ -78,14 +73,9 @@ class _ReferralFlowPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: EasyGameTheme.surface.withValues(alpha: 0.88),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: EasyGameTheme.borderSoft),
-      ),
+    return _PartnerAccordionPanel(
+      icon: CupertinoIcons.arrow_2_circlepath,
+      title: 'partner.referralRouting'.tr,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 740;
@@ -114,8 +104,6 @@ class _ReferralFlowPanel extends StatelessWidget {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _FlowTitle(),
-                const SizedBox(height: 14),
                 ...cards.expand((card) => [card, const SizedBox(height: 10)]),
               ],
             );
@@ -124,8 +112,6 @@ class _ReferralFlowPanel extends StatelessWidget {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _FlowTitle(),
-              const SizedBox(height: 16),
               Row(
                 children: [
                   for (var i = 0; i < cards.length; i++) ...[
@@ -144,20 +130,6 @@ class _ReferralFlowPanel extends StatelessWidget {
             ],
           );
         },
-      ),
-    );
-  }
-}
-
-class _FlowTitle extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      'partner.referralRouting'.tr,
-      style: const TextStyle(
-        color: Colors.white,
-        fontSize: 18,
-        fontWeight: FontWeight.w900,
       ),
     );
   }
