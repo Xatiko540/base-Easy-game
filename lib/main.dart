@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/app_config_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/services/wallet_session_store.dart';
 import 'package:lottery_advance/app/services/notifications_service.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/base_pay_service.dart';
@@ -53,6 +54,8 @@ void main() async {
     if (kDebugMode) {
       print("[DEBUG] main: BinaryMatrix printed.");
     }
+
+    Get.put(WalletSessionStore(), permanent: true);
 
     if (kDebugMode) {
       print("[DEBUG] main: Registering WalletConnectService...");

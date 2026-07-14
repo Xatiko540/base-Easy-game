@@ -14,6 +14,16 @@ class BaseAccountSignInResult {
   });
 }
 
+class BaseAccountSessionResult {
+  final String address;
+  final int chainId;
+
+  const BaseAccountSessionResult({
+    required this.address,
+    required this.chainId,
+  });
+}
+
 class BasePayResult {
   final String id;
   final String amount;
@@ -44,6 +54,22 @@ bool get isBaseAccountBridgeAvailable => false;
 bool get isBasePayBridgeAvailable => false;
 
 Future<BaseAccountSignInResult> signInWithBaseAccount({
+  required int chainId,
+  required String appName,
+  required String appLogoUrl,
+}) {
+  throw UnsupportedError('Base Account SDK is only available on Flutter Web.');
+}
+
+Future<BaseAccountSessionResult> restoreBaseAccountSession({
+  required int chainId,
+  required String appName,
+  required String appLogoUrl,
+}) {
+  throw UnsupportedError('Base Account SDK is only available on Flutter Web.');
+}
+
+Future<void> disconnectBaseAccount({
   required int chainId,
   required String appName,
   required String appLogoUrl,

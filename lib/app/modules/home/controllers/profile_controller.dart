@@ -39,7 +39,7 @@ class ProfileController extends GetxController {
   bool get isGameRegistered => dashboard.value.player?.exists == true;
 
   String get referralLink => ReferralLinkService.buildReferralLink(
-        isWalletConnected ? walletService.currentAddress.value : '',
+        walletService.currentAddress.value,
       );
 
   String get profileId {
@@ -224,13 +224,15 @@ class ProfileController extends GetxController {
   }
 
   Future<ProfileDashboardSnapshot> _loadDashboard() async {
-    if (!isWalletConnected) return ProfileDashboardSnapshot.empty();
-
     final values = await Future.wait<Object?>([
       _safeLoad(walletService.resolveEasyGameAddress),
-      _safeLoad(walletService.getEasyGamePlayerSummary),
+      isWalletConnected
+          ? _safeLoad(walletService.getEasyGamePlayerSummary)
+          : Future<Object?>.value(null),
       _safeLoad(() => _roundLevels.loadCards()),
-      _safeLoad(_settlement.getClaimable),
+      isWalletConnected
+          ? _safeLoad(_settlement.getClaimable)
+          : Future<Object?>.value(SettlementClaimable.zero),
     ]);
 
     final contractAddress =

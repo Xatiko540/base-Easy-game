@@ -158,7 +158,7 @@ class InviteScreen extends StatelessWidget {
       if (Get.isRegistered<FirebaseBackendService>()) {
         final backend = Get.find<FirebaseBackendService>();
         if (backend.isReady.value) {
-          await backend.ensureCurrentWalletLinked();
+          backend.ensureCurrentWalletLinkedInBackground();
         }
       }
     } catch (e) {

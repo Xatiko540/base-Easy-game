@@ -14,7 +14,9 @@ import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/game_round_chain_models.dart';
 import 'package:lottery_advance/app/models/matrix_round_models.dart';
 import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
+import 'package:lottery_advance/app/models/wallet_session_model.dart';
 import 'app_config_service.dart';
+import 'wallet_session_store.dart';
 
 class AppNetworkConfig {
   final int chainId;
@@ -131,6 +133,7 @@ class WalletConnectService extends GetxService {
   final RxString currentAddress = ''.obs;
   final RxBool isConnected = false.obs;
   final RxBool isBaseAccountSession = false.obs;
+  final RxBool isRestoringSession = true.obs;
   final RxnInt chainId = RxnInt();
   final RxBool isConnecting = false.obs;
   final RxBool isPaying = false.obs;
@@ -153,6 +156,7 @@ class WalletConnectService extends GetxService {
   final RxString roundSettlementAddress = ''.obs;
   final RxString referralInviter = ''.obs;
   final Rxn<AppNetworkConfig> activeNetwork = Rxn<AppNetworkConfig>();
+  final WalletSessionStore _sessionStore = Get.find<WalletSessionStore>();
 
   static const AppNetworkConfig baseMainnet = AppNetworkConfig(
     chainId: baseMainnetChainId,
@@ -274,7 +278,7 @@ class WalletConnectService extends GetxService {
       print("[DEBUG] WalletConnectService: onInit started.");
     }
     super.onInit();
-    _restoreConnection();
+    unawaited(_restoreConnection());
     _listenWalletChanges();
     if (kDebugMode) {
       print("[DEBUG] WalletConnectService: onInit completed.");
@@ -291,6 +295,11 @@ class WalletConnectService extends GetxService {
     isConnecting.value = true;
     try {
       final accounts = await _requestAccounts();
+      final previousSession = _sessionStore.read();
+      if (previousSession?.provider == WalletSessionProvider.baseAccount ||
+          isBaseAccountSession.value) {
+        await _disconnectBaseProvider();
+      }
       isBaseAccountSession.value = false;
       authProvider.value = 'injected_wallet';
       baseAccountMessage.value = '';
@@ -298,8 +307,9 @@ class WalletConnectService extends GetxService {
       baseAccountNonce.value = '';
       _setAccounts(accounts);
       await refreshChainId();
+      await _persistSession(WalletSessionProvider.injectedWallet);
     } catch (e) {
-      disconnectWallet();
+      _clearRuntimeWalletState();
       rethrow;
     } finally {
       isConnecting.value = false;
@@ -331,6 +341,7 @@ class WalletConnectService extends GetxService {
       chainId.value = result.chainId;
       activeNetwork.value = _networkForChainId(result.chainId);
       await refreshNativeBalance();
+      await _persistSession(WalletSessionProvider.baseAccount);
     } catch (e) {
       final message = e.toString();
       if (_isBaseAccountCoopError(message)) {
@@ -338,14 +349,14 @@ class WalletConnectService extends GetxService {
           await connectWallet();
           return;
         }
-        disconnectWallet();
+        _clearRuntimeWalletState();
         throw Exception('wallet.baseCoopError'.tr);
       }
       if (fallbackToInjectedWallet && hasInjectedWallet) {
         await connectWallet();
         return;
       }
-      disconnectWallet();
+      _clearRuntimeWalletState();
       rethrow;
     } finally {
       isConnecting.value = false;
@@ -1533,6 +1544,16 @@ class WalletConnectService extends GetxService {
   }
 
   void disconnectWallet() {
+    final shouldDisconnectBase = isBaseAccountSession.value ||
+        _sessionStore.read()?.provider == WalletSessionProvider.baseAccount;
+    _clearRuntimeWalletState();
+    unawaited(_sessionStore.clear());
+    if (shouldDisconnectBase) {
+      unawaited(_disconnectBaseProvider());
+    }
+  }
+
+  void _clearRuntimeWalletState() {
     currentAddress.value = '';
     isConnected.value = false;
     isBaseAccountSession.value = false;
@@ -1652,29 +1673,24 @@ class WalletConnectService extends GetxService {
     if (kDebugMode) {
       print("[DEBUG] WalletConnectService: _restoreConnection started.");
     }
-    if (!hasInjectedWallet) {
-      if (kDebugMode) {
-        print(
-          "[DEBUG] WalletConnectService: _restoreConnection - wallet not available.");
-      }
-      return;
-    }
-
+    isRestoringSession.value = true;
     try {
-      if (kDebugMode) {
-        print(
-          "[DEBUG] WalletConnectService: _restoreConnection - fetching accounts...");
+      final saved = _sessionStore.read();
+      var restored = false;
+
+      if (saved?.provider == WalletSessionProvider.baseAccount) {
+        restored = await _restoreBaseAccountConnection();
+      } else if (saved?.provider == WalletSessionProvider.injectedWallet) {
+        restored = await _restoreInjectedConnection();
+      } else {
+        // Backward compatibility for users who signed in before the app began
+        // storing the preferred provider. Base Account keeps authorization in
+        // its own SDK store, so this call does not open a popup.
+        restored = await _restoreBaseAccountConnection();
+        if (!restored) restored = await _restoreInjectedConnection();
       }
-      _setAccounts(await ethereum!.getAccounts());
-      if (kDebugMode) {
-        print(
-          "[DEBUG] WalletConnectService: _restoreConnection - accounts fetched.");
-      }
-      await refreshChainId();
-      if (kDebugMode) {
-        print(
-          "[DEBUG] WalletConnectService: _restoreConnection - chainId refreshed.");
-      }
+
+      if (!restored) _clearRuntimeWalletState();
     } catch (e) {
       if (kDebugMode) {
         print("[DEBUG] WalletConnectService: _restoreConnection - error: $e");
@@ -1682,9 +1698,89 @@ class WalletConnectService extends GetxService {
       if (kDebugMode) {
         print('Unable to restore wallet connection: $e');
       }
+    } finally {
+      isRestoringSession.value = false;
+      if (kDebugMode) {
+        print("[DEBUG] WalletConnectService: _restoreConnection completed.");
+      }
     }
-    if (kDebugMode) {
-      print("[DEBUG] WalletConnectService: _restoreConnection completed.");
+  }
+
+  Future<bool> _restoreBaseAccountConnection() async {
+    if (!isBaseAccountBridgeAvailable) return false;
+    try {
+      final result = await restoreBaseAccountSession(
+        chainId: targetNetwork.chainId,
+        appName: baseAccountAppName,
+        appLogoUrl: baseAccountAppLogoUrl,
+      );
+      if (result.address.isEmpty) return false;
+
+      isBaseAccountSession.value = true;
+      authProvider.value = 'base_account';
+      baseAccountMessage.value = '';
+      baseAccountSignature.value = '';
+      baseAccountNonce.value = '';
+      currentAddress.value = result.address;
+      isConnected.value = true;
+      chainId.value = result.chainId;
+      activeNetwork.value = _networkForChainId(result.chainId);
+      await refreshNativeBalance();
+      await _persistSession(WalletSessionProvider.baseAccount);
+      return true;
+    } catch (error) {
+      if (kDebugMode) {
+        print('Unable to restore Base Account session: $error');
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _restoreInjectedConnection() async {
+    if (!hasInjectedWallet) return false;
+    try {
+      final accounts = await ethereum!.getAccounts();
+      if (accounts.isEmpty) return false;
+      isBaseAccountSession.value = false;
+      authProvider.value = 'injected_wallet';
+      baseAccountMessage.value = '';
+      baseAccountSignature.value = '';
+      baseAccountNonce.value = '';
+      _setAccounts(accounts);
+      await refreshChainId();
+      await _persistSession(WalletSessionProvider.injectedWallet);
+      return true;
+    } catch (error) {
+      if (kDebugMode) {
+        print('Unable to restore injected wallet session: $error');
+      }
+      return false;
+    }
+  }
+
+  Future<void> _persistSession(WalletSessionProvider provider) async {
+    final address = currentAddress.value;
+    final currentChainId = chainId.value;
+    if (address.isEmpty || currentChainId == null) return;
+    await _sessionStore.save(WalletSessionSnapshot(
+      provider: provider,
+      address: address,
+      chainId: currentChainId,
+    ));
+  }
+
+  Future<void> _disconnectBaseProvider() async {
+    if (!isBaseAccountBridgeAvailable) return;
+    try {
+      await disconnectBaseAccount(
+        chainId: targetNetwork.chainId,
+        appName: baseAccountAppName,
+        appLogoUrl: baseAccountAppLogoUrl,
+      );
+    } catch (error) {
+      if (kDebugMode) {
+        print('Unable to disconnect Base Account provider: $error');
+      }
     }
   }
 

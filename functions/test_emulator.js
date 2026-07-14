@@ -194,6 +194,7 @@ async function main() {
     assert(src.includes('exports.health'), 'health function');
     assert(src.includes('exports.requestWalletNonce'), 'requestWalletNonce function');
     assert(src.includes('exports.linkWallet'), 'linkWallet function');
+    assert(src.includes('exports.verifyBaseAccountSession'), 'verifyBaseAccountSession function');
     assert(src.includes('exports.registerDevice'), 'registerDevice function');
     assert(src.includes('exports.trackTransaction'), 'trackTransaction function');
     assert(src.includes('exports.publishRoundManifest'), 'publishRoundManifest function');
@@ -211,6 +212,8 @@ async function main() {
     // Auth flow
     assert(src.includes('walletVerificationClient().verifyMessage'),
       'viem verifyMessage supports EOA and Base Account signatures');
+    assert(src.includes('validateBaseAccountSiwe'), 'Base Account SIWE validation');
+    assert(src.includes('walletAuthNonces'), 'Base Account SIWE replay protection');
     assert(src.includes('randomBytes(24)'), '24-byte random nonce');
     assert(src.includes('expiresAt'), 'nonce expiry');
     assert(src.includes('walletNonces'), 'walletNonces collection');

@@ -82,8 +82,15 @@ class FirebaseBackendService extends GetxService {
         debugPrint('Firebase transaction tracking skipped: $error');
       }));
     });
-    _walletWorker = ever<String>(walletService.currentAddress, (_) {
-      walletLinked.value = false;
+    _walletWorker = ever<String>(walletService.currentAddress, (address) {
+      if (address.isEmpty) {
+        walletLinked.value = false;
+        return;
+      }
+      unawaited(_loadWalletLink().catchError((Object error) {
+        walletLinked.value = false;
+        debugPrint('Firebase wallet link restore skipped: $error');
+      }));
     });
   }
 
@@ -142,6 +149,20 @@ class FirebaseBackendService extends GetxService {
       await walletService.connectBaseAccount();
     }
     final wallet = walletService.currentAddress.value;
+    if (walletService.isBaseAccountSession.value) {
+      await _functions!
+          .httpsCallable('verifyBaseAccountSession')
+          .call(<String, dynamic>{
+        'address': wallet,
+        'message': walletService.baseAccountMessage.value,
+        'signature': walletService.baseAccountSignature.value,
+        'nonce': walletService.baseAccountNonce.value,
+      });
+      walletLinked.value = true;
+      await registerDevice();
+      return;
+    }
+
     final nonceResult = await _functions!
         .httpsCallable('requestWalletNonce')
         .call(<String, dynamic>{'wallet': wallet});
@@ -164,6 +185,12 @@ class FirebaseBackendService extends GetxService {
       return;
     }
     await linkCurrentWallet();
+  }
+
+  void ensureCurrentWalletLinkedInBackground() {
+    unawaited(ensureCurrentWalletLinked().catchError((Object error) {
+      debugPrint('Firebase wallet verification skipped: $error');
+    }));
   }
 
   Future<void> registerDevice() async {

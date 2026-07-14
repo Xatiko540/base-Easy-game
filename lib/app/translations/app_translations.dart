@@ -423,6 +423,16 @@ class AppTranslations extends Translations {
           'profile.referralWeight': 'Referral',
           'profile.matrixWeight': 'Matrix',
           'profile.nftWeight': 'NFT/box',
+          'notifications.title': 'Notifications',
+          'notifications.markAllRead': 'Mark all as read',
+          'notifications.empty': 'No notifications yet',
+          'notifications.welcomeTitle': 'Welcome to Easy Games!',
+          'notifications.welcomeSubtitle':
+              'You have joined the game, and we are happy to see you here.',
+          'notifications.welcomeDescription':
+              'Learn about rounds, the matrix, winning cells, rewards, and game rules in the Information section.',
+          'notifications.now': 'Now',
+          'notifications.readRules': 'Read the game rules',
           'partner.structure': '@wallet partner structure',
           'partner.connectToSee': 'Connect wallet to see partner structure',
           'partner.firstLine': 'First line',
@@ -1020,6 +1030,16 @@ class AppTranslations extends Translations {
           'profile.referralWeight': 'Рефералы',
           'profile.matrixWeight': 'Матрица',
           'profile.nftWeight': 'NFT/box',
+          'notifications.title': 'Уведомления',
+          'notifications.markAllRead': 'Прочитать все',
+          'notifications.empty': 'Уведомлений пока нет',
+          'notifications.welcomeTitle': 'Добро пожаловать в Easy Games!',
+          'notifications.welcomeSubtitle':
+              'Вы присоединились к игре, и мы рады вас видеть.',
+          'notifications.welcomeDescription':
+              'Раунды, матрица, выигрышные ячейки, выплаты и правила игры описаны в разделе «Информация».',
+          'notifications.now': 'Сейчас',
+          'notifications.readRules': 'Изучить правила игры',
           'partner.structure': 'Партнерская структура @wallet',
           'partner.connectToSee':
               'Подключите кошелек, чтобы увидеть партнерскую структуру',
@@ -1116,8 +1136,7 @@ class AppTranslations extends Translations {
               'Начисляется один токен за рецикл раунда и +50 матричного рейтинга',
           'info.freezeTokenText':
               'Покупка заморозки и разморозки игроков. Игрок, оставшийся замороженным до конца раунда, не участвует в распределении наград.',
-          'info.shieldTokenText':
-              'Покупка и активация защиты',
+          'info.shieldTokenText': 'Покупка и активация защиты',
           'info.weightBoostText':
               'Покупка временного усиления и его влияние на подведения итогов, а так же на распределение призового пула',
           'utility.wallet': 'Кошелек',

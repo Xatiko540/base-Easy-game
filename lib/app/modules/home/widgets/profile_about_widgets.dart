@@ -229,7 +229,7 @@ class _ClaimMiniCard extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            if (action != null)
+            if (action != null && onTap != null)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(

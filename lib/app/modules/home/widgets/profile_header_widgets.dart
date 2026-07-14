@@ -4,7 +4,6 @@ class _ProfileHeader extends StatelessWidget {
   final String profileId;
   final ProfileDashboardSnapshot data;
   final String referralLink;
-  final bool walletConnected;
   final VoidCallback onCopy;
   final VoidCallback onShare;
 
@@ -12,7 +11,6 @@ class _ProfileHeader extends StatelessWidget {
     required this.profileId,
     required this.data,
     required this.referralLink,
-    required this.walletConnected,
     required this.onCopy,
     required this.onShare,
   });
@@ -28,7 +26,6 @@ class _ProfileHeader extends StatelessWidget {
         );
         final link = _ReferralCard(
           referralLink: referralLink,
-          enabled: walletConnected,
           onCopy: onCopy,
           onShare: onShare,
         );
@@ -204,13 +201,11 @@ String _profileSessionLabel(ProfileSessionStatus status) {
 
 class _ReferralCard extends StatelessWidget {
   final String referralLink;
-  final bool enabled;
   final VoidCallback onCopy;
   final VoidCallback onShare;
 
   const _ReferralCard({
     required this.referralLink,
-    required this.enabled,
     required this.onCopy,
     required this.onShare,
   });
@@ -238,9 +233,7 @@ class _ReferralCard extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            enabled
-                ? referralLink.replaceFirst('https://', '')
-                : 'profile.connectForReferral'.tr,
+            referralLink.replaceFirst('https://', ''),
             overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Color(0xFF4D78FF),
@@ -253,12 +246,12 @@ class _ReferralCard extends StatelessWidget {
             children: [
               _SmallAction(
                 label: 'common.copy'.tr,
-                onTap: enabled ? onCopy : null,
+                onTap: onCopy,
               ),
               const SizedBox(width: 8),
               _SmallAction(
                 label: 'common.share'.tr,
-                onTap: enabled ? onShare : null,
+                onTap: onShare,
               ),
             ],
           ),

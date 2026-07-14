@@ -315,7 +315,7 @@ class _ExpressTopBar extends StatelessWidget {
       if (Get.isRegistered<FirebaseBackendService>()) {
         final backend = Get.find<FirebaseBackendService>();
         if (backend.isReady.value) {
-          await backend.ensureCurrentWalletLinked();
+          backend.ensureCurrentWalletLinkedInBackground();
         }
       }
     } catch (e) {
@@ -407,7 +407,9 @@ Future<void> _handleMobileWalletTap(
     await walletService.connectBaseAccount();
     if (Get.isRegistered<FirebaseBackendService>()) {
       final backend = Get.find<FirebaseBackendService>();
-      if (backend.isReady.value) await backend.ensureCurrentWalletLinked();
+      if (backend.isReady.value) {
+        backend.ensureCurrentWalletLinkedInBackground();
+      }
     }
   } catch (error) {
     Get.snackbar(

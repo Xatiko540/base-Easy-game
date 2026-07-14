@@ -65,6 +65,9 @@ const baseBuilderDataSuffixParam = defineString("BASE_BUILDER_DATA_SUFFIX", {
 const allowLocalChainsParam = defineString("EASY_GAME_ALLOW_LOCAL_CHAINS", { default: "false" });
 const baseAccountAppNameParam = defineString("BASE_ACCOUNT_APP_NAME", { default: "Easy Game" });
 const baseAccountAppLogoUrlParam = defineString("BASE_ACCOUNT_APP_LOGO_URL", { default: "" });
+const baseAccountAllowedOriginsParam = defineString("BASE_ACCOUNT_ALLOWED_ORIGINS", {
+  default: "https://lottery-advance.web.app,https://lottery-advance.firebaseapp.com,https://easygame.io",
+});
 const region = "us-central1";
 const iface = new Interface(GAME_ABI);
 const maxDeviceTokensPerWallet = 10;
@@ -120,6 +123,92 @@ async function verifyWalletSignature(address, message, signature) {
     });
     return false;
   }
+}
+
+function siweField(message, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return message.match(new RegExp(`^${escaped}:\\s*(.+)$`, "mi"))?.[1]?.trim() || "";
+}
+
+function validateBaseAccountSiwe({ address, message, nonce }) {
+  if (typeof message !== "string" || message.length < 80 || message.length > 4096) {
+    throw new HttpsError("invalid-argument", "Valid SIWE message required");
+  }
+  if (typeof nonce !== "string" || !/^[A-Za-z0-9]{16,128}$/.test(nonce)) {
+    throw new HttpsError("invalid-argument", "Valid SIWE nonce required");
+  }
+  if (siweField(message, "Nonce") !== nonce) {
+    throw new HttpsError("permission-denied", "SIWE nonce mismatch");
+  }
+  if (Number(siweField(message, "Chain ID")) !== Number(chainIdParam.value())) {
+    throw new HttpsError("permission-denied", "SIWE chain mismatch");
+  }
+
+  const messageAddress = message.match(/\n(0x[0-9a-fA-F]{40})\n/)?.[1] || "";
+  if (!isAddress(messageAddress) || getAddress(messageAddress) !== getAddress(address)) {
+    throw new HttpsError("permission-denied", "SIWE wallet mismatch");
+  }
+
+  const issuedAt = Date.parse(siweField(message, "Issued At"));
+  const now = Date.now();
+  if (!Number.isFinite(issuedAt) || issuedAt > now + 2 * 60 * 1000 || issuedAt < now - 15 * 60 * 1000) {
+    throw new HttpsError("deadline-exceeded", "SIWE message expired");
+  }
+
+  let uri;
+  try {
+    uri = new URL(siweField(message, "URI"));
+  } catch (_) {
+    throw new HttpsError("invalid-argument", "Valid SIWE URI required");
+  }
+  const domain = message.match(/^(.+) wants you to sign in with your Ethereum account:\s*$/m)?.[1]?.trim() || "";
+  if (domain !== uri.host) {
+    throw new HttpsError("permission-denied", "SIWE domain mismatch");
+  }
+  const allowedOrigins = new Set(
+    baseAccountAllowedOriginsParam.value().split(",").map((value) => value.trim()).filter(Boolean),
+  );
+  const localOrigin = environmentParam.value() === "local" &&
+    (uri.hostname === "localhost" || uri.hostname === "127.0.0.1");
+  if (!localOrigin && !allowedOrigins.has(uri.origin)) {
+    throw new HttpsError("permission-denied", "SIWE origin is not allowed");
+  }
+}
+
+async function storeVerifiedWalletLink({ uid, playerAddress, nonceRef }) {
+  await db.runTransaction(async (transaction) => {
+    if (nonceRef) {
+      const nonceSnapshot = await transaction.get(nonceRef);
+      if (nonceSnapshot.exists) {
+        throw new HttpsError("already-exists", "SIWE nonce already used");
+      }
+      transaction.create(nonceRef, {
+        uid,
+        wallet: playerAddress,
+        usedAt: FieldValue.serverTimestamp(),
+      });
+    }
+    transaction.set(db.collection("walletLinks").doc(uid), {
+      uid,
+      wallet: playerAddress,
+      chainId: Number(chainIdParam.value()),
+      verifiedAt: FieldValue.serverTimestamp(),
+      authProvider: nonceRef ? "base_account_siwe" : "wallet_signature",
+    });
+    transaction.set(
+      db.collection("users").doc(`${chainIdParam.value()}_${playerAddress}`),
+      {
+        wallet: playerAddress,
+        chainId: Number(chainIdParam.value()),
+        exists: true,
+        walletVerified: true,
+        profileVersion: 1,
+        registeredAt: FieldValue.serverTimestamp(),
+        updatedAt: FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+  });
 }
 
 function publicContractAddress() {
@@ -444,6 +533,35 @@ async function runIndexer() {
 //     throw error;
 //   }
 // });
+
+exports.verifyBaseAccountSession = onCall({
+  region,
+  enforceAppCheck: true,
+  secrets: [rpcUrl],
+}, async (request) => {
+  requireApp(request);
+  const uid = requireUser(request);
+  await enforceRateLimit("verifyBaseAccountSession", uid, 10, 10 * 60);
+
+  const playerAddress = wallet(request.data?.address);
+  const message = request.data?.message;
+  const signature = request.data?.signature;
+  const nonce = request.data?.nonce;
+  if (!playerAddress) throw new HttpsError("invalid-argument", "Valid wallet required");
+  if (typeof signature !== "string" || signature.length < 20 || signature.length > 1024) {
+    throw new HttpsError("invalid-argument", "Valid Base Account signature required");
+  }
+
+  validateBaseAccountSiwe({ address: playerAddress, message, nonce });
+  const verified = await verifyWalletSignature(playerAddress, message, signature);
+  if (!verified) throw new HttpsError("permission-denied", "Invalid Base Account signature");
+
+  const nonceRef = db.collection("walletAuthNonces").doc(
+    hashId(`${chainIdParam.value()}:${nonce}`),
+  );
+  await storeVerifiedWalletLink({ uid, playerAddress, nonceRef });
+  return { wallet: playerAddress, verified: true, provider: "base_account" };
+});
 
 exports.requestWalletNonce = onCall({ region, enforceAppCheck: true }, async (request) => {
   requireApp(request);

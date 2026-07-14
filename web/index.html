@@ -110,6 +110,34 @@
           throw error;
         }
       },
+      async restore(chainId, appName, appLogoUrl) {
+        const targetChainId = Number(chainId);
+        const provider = this.getProvider(targetChainId, appName, appLogoUrl);
+        const accounts = await provider.request({ method: 'eth_accounts' });
+        if (!Array.isArray(accounts) || accounts.length === 0) {
+          return { address: '', chainId: targetChainId };
+        }
+        let restoredChainId = targetChainId;
+        try {
+          const chainHex = await provider.request({ method: 'eth_chainId' });
+          restoredChainId = Number.parseInt(String(chainHex), 16);
+        } catch (_) {
+          // The persisted account is still valid even if chain discovery fails.
+        }
+        return {
+          address: String(accounts[0]),
+          chainId: Number.isFinite(restoredChainId)
+            ? restoredChainId
+            : targetChainId,
+        };
+      },
+      async disconnect(chainId, appName, appLogoUrl) {
+        const provider = this.getProvider(Number(chainId), appName, appLogoUrl);
+        if (provider && typeof provider.disconnect === 'function') {
+          await provider.disconnect();
+        }
+        this.provider = null;
+      },
       async pay(amount, to, testnet, dataSuffix) {
         if (!window.base || typeof window.base.pay !== 'function') {
           throw new Error('Base Pay SDK is not loaded');

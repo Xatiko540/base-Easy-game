@@ -191,7 +191,7 @@ class _WeightBreakdown extends StatelessWidget {
 
 class _SmallAction extends StatelessWidget {
   final String label;
-  final VoidCallback? onTap;
+  final VoidCallback onTap;
 
   const _SmallAction({required this.label, required this.onTap});
 
@@ -200,16 +200,16 @@ class _SmallAction extends StatelessWidget {
     return TextButton(
       onPressed: onTap,
       style: TextButton.styleFrom(
-        backgroundColor: onTap == null
-            ? Colors.white.withValues(alpha: 0.05)
-            : const Color(0xFF4D78FF),
-        foregroundColor: onTap == null ? Colors.white30 : Colors.white,
+        backgroundColor: const Color(0xFF4D78FF),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(
         label,
-        style: const TextStyle(fontWeight: FontWeight.w900),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w900,
+        ),
       ),
     );
   }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/models/game_transaction_model.dart';
+import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/controllers/profile_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/profile_models.dart';
 import 'package:lottery_advance/app/modules/home/models/profile_session_model.dart';
@@ -29,7 +30,6 @@ class ProfileScreen extends StatelessWidget {
       builder: (profileController) {
         final data = profileController.dashboard.value;
         final loading = profileController.isLoading.value;
-        final walletConnected = profileController.isWalletConnected;
         final error = profileController.errorMessage.value;
         final transactionsError = profileController.transactionsError.value;
         final isClaimingPrize = profileController.isClaimingPrize.value;
@@ -49,7 +49,6 @@ class ProfileScreen extends StatelessWidget {
                     profileId: profileController.profileId,
                     data: data,
                     referralLink: profileController.referralLink,
-                    walletConnected: walletConnected,
                     onCopy: profileController.copyReferralLink,
                     onShare: profileController.shareReferralLink,
                   ),
