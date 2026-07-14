@@ -1,3 +1,4 @@
+import 'package:get/get.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 
 String roundPhaseTranslationKey(GameRoundPhase phase) {
@@ -33,6 +34,23 @@ String formatRoundCompactDate(DateTime value) {
   String two(int number) => number.toString().padLeft(2, '0');
   return '${two(local.day)}.${two(local.month)} '
       '${two(local.hour)}:${two(local.minute)}';
+}
+
+String localizedRoundCountdown(GameRoundViewState round) {
+  return formatRoundCardCountdown(
+    round.remaining,
+    dayUnit: 'time.dayShort'.tr,
+    hourUnit: 'time.hourShort'.tr,
+    minuteUnit: 'time.minuteShort'.tr,
+    secondUnit: 'time.secondShort'.tr,
+  );
+}
+
+String localizedRoundScheduleRange(GameRoundSchedule schedule) {
+  return 'round.scheduleRange'.trParams({
+    'start': formatRoundStart(schedule.startsAt),
+    'end': formatRoundStart(schedule.endsAt),
+  });
 }
 
 String formatRoundCardCountdown(

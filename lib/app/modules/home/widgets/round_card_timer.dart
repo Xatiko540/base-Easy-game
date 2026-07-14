@@ -34,8 +34,7 @@ class RoundCardTimer extends StatelessWidget {
           );
 
     return Tooltip(
-      message: '${formatRoundStart(schedule.startsAt)} -> '
-          '${formatRoundStart(schedule.endsAt)}',
+      message: localizedRoundScheduleRange(schedule),
       child: timer,
     );
   }
@@ -74,8 +73,7 @@ class InlineRoundCountdown extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Tooltip(
-      message: '${formatRoundStart(round.schedule.startsAt)} -> '
-          '${formatRoundStart(round.schedule.endsAt)}',
+      message: localizedRoundScheduleRange(round.schedule),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -101,13 +99,7 @@ class InlineRoundCountdown extends StatelessWidget {
   }
 }
 
-String _countdown(GameRoundViewState round) => formatRoundCardCountdown(
-      round.remaining,
-      dayUnit: 'time.dayShort'.tr,
-      hourUnit: 'time.hourShort'.tr,
-      minuteUnit: 'time.minuteShort'.tr,
-      secondUnit: 'time.secondShort'.tr,
-    );
+String _countdown(GameRoundViewState round) => localizedRoundCountdown(round);
 
 class _CompactRoundTimer extends StatelessWidget {
   const _CompactRoundTimer({

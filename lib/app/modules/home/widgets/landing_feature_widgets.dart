@@ -46,7 +46,7 @@ class _StartTimerStrip extends StatelessWidget {
   String _roundTimerText(GameRoundViewState round) {
     final parameters = {
       'level': '${round.schedule.level}',
-      'time': round.countdownLabel,
+      'time': localizedRoundCountdown(round),
     };
     switch (round.phase) {
       case GameRoundPhase.scheduled:
