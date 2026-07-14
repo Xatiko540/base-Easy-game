@@ -17,6 +17,7 @@ import '../models/levels_models.dart';
 import '../models/round_level_card_state.dart';
 import '../controllers/levels_provider.dart';
 import '../controllers/level_detail_controller.dart';
+import '../widgets/round_card_timer.dart';
 part '../widgets/levels_grid_widgets.dart';
 part '../widgets/levels_grid_presenter_widgets.dart';
 part '../widgets/levels_grid_card_widgets.dart';
@@ -66,18 +67,18 @@ class LevelsScreen extends StatelessWidget {
             builder: (context, constraints) {
               double width = constraints.maxWidth;
 
-              int crossAxisCount = width < 480
-                  ? 2
+              int crossAxisCount = width < 600
+                  ? 1
                   : width < 800
                       ? 2
                       : width < 1200
                           ? 3
                           : 4;
 
-              double childAspectRatio = width < 480
-                  ? 0.82
+              double childAspectRatio = width < 600
+                  ? 1.18
                   : width < 800
-                      ? 1.05
+                      ? 0.9
                       : 1.26;
 
               return SingleChildScrollView(
@@ -179,6 +180,7 @@ class LevelsScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(CupertinoIcons.question_circle,
                                   color: Colors.white, size: 14),

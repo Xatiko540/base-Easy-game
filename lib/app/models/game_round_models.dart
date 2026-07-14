@@ -63,6 +63,16 @@ class GameRoundSchedule {
       throw const FormatException('Round document has no data');
     }
 
+    return GameRoundSchedule.fromMap(
+      documentId: doc.id,
+      data: data,
+    );
+  }
+
+  factory GameRoundSchedule.fromMap({
+    required String documentId,
+    required Map<String, dynamic> data,
+  }) {
     final config = _map(data['config']);
     final state = _map(data['state']);
     final schedule = config.isEmpty ? data : config;
@@ -76,7 +86,7 @@ class GameRoundSchedule {
 
     if (!startsAt.isBefore(entriesCloseAt) ||
         !entriesCloseAt.isBefore(endsAt)) {
-      throw FormatException('Invalid round time boundaries in ${doc.id}');
+      throw FormatException('Invalid round time boundaries in $documentId');
     }
 
     final round = GameRoundSchedule(

@@ -54,6 +54,7 @@ class _LevelCardPresenter extends StatelessWidget {
         subtitle: 'round.actionsUnavailable'.tr,
         icon: CupertinoIcons.shield_slash,
         color: Colors.redAccent,
+        round: round,
       );
     }
     if (level.hasError) {
@@ -65,6 +66,7 @@ class _LevelCardPresenter extends StatelessWidget {
         subtitle: 'levels.roundDataUnavailable'.tr,
         icon: CupertinoIcons.exclamationmark_triangle,
         color: Colors.orangeAccent,
+        round: round,
       );
     }
 
@@ -87,6 +89,7 @@ class _LevelCardPresenter extends StatelessWidget {
         icon: CupertinoIcons.snow,
         color: Colors.lightBlueAccent,
         onTap: detailTap,
+        round: round,
       );
     }
 
@@ -100,6 +103,8 @@ class _LevelCardPresenter extends StatelessWidget {
           subtitle: round.countdownLabel,
           icon: CupertinoIcons.timer,
           color: Colors.orangeAccent,
+          round: round,
+          showTimer: true,
         );
       case GameRoundPhase.open:
         if (level.isPlayerActive) {
@@ -107,6 +112,7 @@ class _LevelCardPresenter extends StatelessWidget {
             data: level,
             currencySymbol: currencySymbol,
             roundId: BigInt.from(round.schedule.roundId),
+            round: round,
           );
         }
         return ActivateCard(
@@ -125,6 +131,8 @@ class _LevelCardPresenter extends StatelessWidget {
           icon: CupertinoIcons.clock,
           color: Colors.orangeAccent,
           onTap: detailTap,
+          round: round,
+          showTimer: true,
         );
       case GameRoundPhase.settlementReady:
         return StatusCard(
@@ -136,6 +144,7 @@ class _LevelCardPresenter extends StatelessWidget {
           icon: CupertinoIcons.building_2_fill,
           color: EasyGameTheme.tealSoft,
           onTap: detailTap,
+          round: round,
         );
       case GameRoundPhase.settled:
         return StatusCard(
@@ -149,6 +158,7 @@ class _LevelCardPresenter extends StatelessWidget {
           icon: CupertinoIcons.star,
           color: EasyGameTheme.tealSoft,
           onTap: detailTap,
+          round: round,
         );
       case GameRoundPhase.cancelled:
       case GameRoundPhase.paused:
@@ -163,6 +173,7 @@ class _LevelCardPresenter extends StatelessWidget {
               : CupertinoIcons.xmark_circle,
           color: Colors.redAccent,
           onTap: detailTap,
+          round: round,
         );
       case GameRoundPhase.uninitialized:
         return StatusCard(
@@ -173,6 +184,7 @@ class _LevelCardPresenter extends StatelessWidget {
           subtitle: 'round.actionsUnavailable'.tr,
           icon: CupertinoIcons.exclamationmark_circle,
           color: Colors.orangeAccent,
+          round: round,
         );
     }
   }

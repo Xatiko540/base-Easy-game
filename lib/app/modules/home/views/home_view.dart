@@ -12,8 +12,6 @@ import 'package:lottery_advance/utils/input_decorations.dart';
 import 'package:lottery_advance/utils/remove_scroll_glow.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
-import 'levels.dart';
-
 class HomeView extends StatelessWidget {
   final contractLink = Get.find<ContractLinking>();
   final avatarSize = 100.0;
@@ -469,7 +467,8 @@ class HomeView extends StatelessWidget {
                                 fillColor: primaryColor,
                                 hint: 'Enter name of account to save',
                                 icon: const Icon(
-                                  CupertinoIcons.person_crop_circle_badge_checkmark,
+                                  CupertinoIcons
+                                      .person_crop_circle_badge_checkmark,
                                   color: primaryColor,
                                 )),
                           )
@@ -511,7 +510,8 @@ class HomeView extends StatelessWidget {
                                       onPressed: () {
                                         contractLink.check.value = true;
                                       },
-                                      icon: const Icon(CupertinoIcons.checkmark)),
+                                      icon:
+                                          const Icon(CupertinoIcons.checkmark)),
                                 if (contractLink.check.value)
                                   const SizedBox(
                                     width: 32,
@@ -581,7 +581,7 @@ class HomeView extends StatelessWidget {
                           !contractLink.isLoading.value)
                       ? MaterialButton(
                           // onPressed: () => Get.to(() => LotteriesView()),
-                          onPressed: () => Get.to(() => LevelsScreen()),
+                          onPressed: () => Get.toNamed('/levels'),
                           color: Colors.green,
                           textColor: Colors.white,
                           shape: RoundedRectangleBorder(

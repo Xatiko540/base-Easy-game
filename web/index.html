@@ -33,6 +33,13 @@
   <title>Easy Games</title>
   <link rel="manifest" href="manifest.json">
   <link rel="stylesheet" href="styles.css" />
+  <script>
+    // Firebase App Check debug tokens are enabled only for local development.
+    // Production Hosting always uses reCAPTCHA Enterprise attestation.
+    if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+      self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    }
+  </script>
   <script
     src="https://unpkg.com/@base-org/account@2.5.7/dist/base-account.min.js"
     integrity="sha384-z/H3F7/mCsCBw2Y+lmSTDyeznQ75MEFzPVd7+iEpu8dGb//Z7OYTeS/hImUfDzZL"
@@ -157,7 +164,7 @@
       }, 260);
     });
   </script>
-  <script src="flutter_bootstrap.js" async></script>
+  <script src="flutter_bootstrap.js?v=20260713-1" async></script>
 
 </body>
 </html>

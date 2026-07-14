@@ -1,7 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/modules/home/views/utility_screens.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -45,8 +44,13 @@ class UiNavigationService {
     if (query != null) openMemberPreview(query);
   }
 
-  static void openLevels() {
-    Get.to(() => const LevelsScreen());
+  static void openLevels({String? walletAddress}) {
+    Get.toNamed(
+      '/levels',
+      parameters: walletAddress?.trim().isNotEmpty == true
+          ? {'wallet': walletAddress!.trim()}
+          : null,
+    );
   }
 
   static void openMatrix() {

@@ -17,6 +17,7 @@ import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
 import 'package:lottery_advance/app/repositories/game_user_repository.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/controllers/notifications_controller.dart';
+import 'package:lottery_advance/app/modules/home/views/start_page.dart';
 import 'package:lottery_advance/app/translations/app_translations.dart';
 import 'package:lottery_advance/core/binary_matrix.dart';
 import 'package:lottery_advance/utils/theme.dart';
@@ -95,6 +96,10 @@ void main() async {
             ? Routes.INVITE
             : AppPages.INITIAL,
         getPages: AppPages.routes,
+        unknownRoute: GetPage(
+          name: '/not-found',
+          page: () => ExpressGameScreen(),
+        ),
         translations: AppTranslations(),
         locale: languageService.locale,
         fallbackLocale: const Locale('en'),

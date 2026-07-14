@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
-import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/services/base_pay_service.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
@@ -216,7 +215,7 @@ class ActivateExpressGameScreen extends StatelessWidget {
                                     '${'payment.transaction'.tr}: $txHash',
                                     snackPosition: SnackPosition.BOTTOM,
                                   );
-                                  Get.offAll(() => LevelsScreen());
+                                  Get.offAllNamed('/levels');
                                 } catch (e) {
                                   Get.snackbar(
                                     'payment.unavailable'.tr,

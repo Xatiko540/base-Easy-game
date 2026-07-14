@@ -4,12 +4,14 @@ class LevelCard extends StatelessWidget {
   final RoundLevelCardState data;
   final BigInt roundId;
   final String currencySymbol;
+  final GameRoundViewState round;
 
   const LevelCard({
     Key? key,
     required this.data,
     required this.roundId,
     required this.currencySymbol,
+    required this.round,
   }) : super(key: key);
 
   @override
@@ -42,17 +44,24 @@ class LevelCard extends StatelessWidget {
                     _CardHeader(
                       level: data.level,
                       coin: weiToEthDouble(data.ethPriceWei),
-                      currencySymbol: currencySymbol,
                     ),
                     const Spacer(),
-                    Text(
-                      'levels.waitingLine'.tr,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: Color(0xFF9B9B9B),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'levels.waitingLine'.tr,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Color(0xFF9B9B9B),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        InlineRoundCountdown(round: round),
+                      ],
                     ),
                     const SizedBox(height: 7),
                     _ProgressBar(value: displayProgress / 100),
@@ -161,9 +170,12 @@ class ActivateCard extends StatelessWidget {
           _CardHeader(
             level: level,
             coin: coin,
-            currencySymbol: currencySymbol,
           ),
           const Spacer(),
+          if (round != null) ...[
+            RoundCardTimer(round: round!, prominent: false),
+            const SizedBox(height: 14),
+          ],
           Center(
             child: Text(
               'levels.availableActivation'.tr,
@@ -175,7 +187,7 @@ class ActivateCard extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 20),
+          const SizedBox(height: 16),
           _GradientActionButton(
             label: 'levels.activate'.tr,
             onTap: () {
@@ -205,6 +217,8 @@ class StatusCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback? onTap;
+  final GameRoundViewState? round;
+  final bool showTimer;
 
   const StatusCard({
     Key? key,
@@ -216,6 +230,8 @@ class StatusCard extends StatelessWidget {
     required this.icon,
     required this.color,
     this.onTap,
+    this.round,
+    this.showTimer = false,
   }) : super(key: key);
 
   @override
@@ -234,40 +250,43 @@ class StatusCard extends StatelessWidget {
             _CardHeader(
               level: level,
               coin: coin,
-              currencySymbol: currencySymbol,
             ),
             const Spacer(),
-            Center(
-              child: Icon(
-                icon,
-                size: 42,
-                color: color,
-              ),
-            ),
-            const SizedBox(height: 14),
-            Center(
-              child: Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Color(0xFFAAAAAA),
-                  fontSize: 17,
-                  fontWeight: FontWeight.w900,
+            if (showTimer && round != null)
+              Center(child: RoundCardTimer(round: round!))
+            else ...[
+              Center(
+                child: Icon(
+                  icon,
+                  size: 42,
+                  color: color,
                 ),
               ),
-            ),
-            const SizedBox(height: 6),
-            Center(
-              child: Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
+              const SizedBox(height: 14),
+              Center(
+                child: Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFAAAAAA),
+                    fontSize: 17,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
               ),
-            ),
+              const SizedBox(height: 6),
+              Center(
+                child: Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+            ],
             const Spacer(),
           ],
         ),

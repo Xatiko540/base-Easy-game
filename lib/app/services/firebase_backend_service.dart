@@ -28,11 +28,29 @@ class FirebaseBackendService extends GetxService {
   String _vapidKey = '';
 
   FirebaseFunctions? _functions;
+  Future<void>? _initialization;
   StreamSubscription<RemoteMessage>? _messageSubscription;
   Worker? _paymentWorker;
   Worker? _walletWorker;
 
-  Future<void> init() async {
+  Future<void> init() {
+    return _initialization ??= _initialize();
+  }
+
+  Future<void> _initialize() async {
+    isReady.value = false;
+    errorMessage.value = '';
+
+    try {
+      await _initializeFirebase();
+      isReady.value = true;
+    } catch (error) {
+      errorMessage.value = _firebaseErrorMessage(error);
+      rethrow;
+    }
+  }
+
+  Future<void> _initializeFirebase() async {
     if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
@@ -67,7 +85,15 @@ class FirebaseBackendService extends GetxService {
     _walletWorker = ever<String>(walletService.currentAddress, (_) {
       walletLinked.value = false;
     });
-    isReady.value = true;
+  }
+
+  String _firebaseErrorMessage(Object error) {
+    final message = error.toString();
+    if (message.contains('recaptcha-error') ||
+        message.contains('App Check token')) {
+      return 'Firebase App Check could not verify this browser.';
+    }
+    return message;
   }
 
   Future<void> _fetchConfig() async {

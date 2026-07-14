@@ -101,7 +101,7 @@ class _ProgramPanel extends StatelessWidget {
                   if (!compact) const Spacer(),
                   if (!compact)
                     _ProgramCta(
-                      onTap: () => Get.to(() => LevelsScreen()),
+                      onTap: () => Get.toNamed('/levels'),
                     ),
                 ],
               ),
@@ -124,7 +124,7 @@ class _ProgramPanel extends StatelessWidget {
                   if (compact) const Spacer(),
                   if (compact)
                     _ProgramCta(
-                      onTap: () => Get.to(() => LevelsScreen()),
+                      onTap: () => Get.toNamed('/levels'),
                       compact: true,
                     ),
                 ],
@@ -179,7 +179,7 @@ class _ProgramCta extends StatelessWidget {
 
 class _MatrixCell extends StatelessWidget {
   final int level;
-  final ProfileLevelState? levelState;
+  final RoundLevelCardState? levelState;
 
   const _MatrixCell({
     required this.level,
@@ -188,11 +188,10 @@ class _MatrixCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final round = Get.find<GameRoundsController>().roundForLevel(level);
-    final state = levelState?.state;
-    final available = levelState?.available ?? level >= 3;
-    final active = state?.active ?? false;
-    final frozen = state?.frozen ?? false;
+    final round = levelState?.round;
+    final available = round?.canEnter == true;
+    final active = levelState?.isPlayerActive == true;
+    final frozen = levelState?.isFrozen == true;
     final borderColor = frozen
         ? const Color(0xFFFFA62B)
         : active
@@ -205,10 +204,12 @@ class _MatrixCell extends StatelessWidget {
       borderRadius: BorderRadius.circular(10),
       onTap: round == null
           ? null
-          : () => Get.to(() => EasyGameLevelDetailScreen(
-                level: level,
-                roundId: BigInt.from(round.schedule.roundId),
-              )),
+          : active
+              ? () => Get.to(() => EasyGameLevelDetailScreen(
+                    level: level,
+                    roundId: BigInt.from(round.schedule.roundId),
+                  ))
+              : () => Get.toNamed('/levels'),
       child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),

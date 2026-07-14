@@ -3,6 +3,7 @@
 import 'package:get/get.dart';
 
 import '../modules/home/models/levels_models.dart';
+import '../modules/home/controllers/profile_controller.dart';
 import '../modules/home/views/invite_screen.dart';
 import '../modules/home/views/partner_bonus_screen.dart';
 import '../modules/home/views/start_page.dart';
@@ -41,10 +42,17 @@ class AppPages {
     GetPage(
       name: _Paths.PROFILE,
       page: () => ProfileScreen(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<ProfileController>(() => ProfileController());
+      }),
     ),
     GetPage(
       name: _Paths.LEVELS,
-      page: () => LevelsScreen(),
+      page: () => LevelsScreen(
+        walletAddress: Get.parameters['wallet']?.trim().isNotEmpty == true
+            ? Get.parameters['wallet']!.trim()
+            : null,
+      ),
     ),
     GetPage(
       name: _Paths.PARTNER_BONUS,

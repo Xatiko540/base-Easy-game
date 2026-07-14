@@ -36,6 +36,51 @@ class _ProfileSectionHeading extends StatelessWidget {
   }
 }
 
+class _ProfileErrorBanner extends StatelessWidget {
+  final String message;
+  final VoidCallback onRefresh;
+
+  const _ProfileErrorBanner({
+    required this.message,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: EasyGameTheme.gold.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: EasyGameTheme.gold.withValues(alpha: 0.45)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            CupertinoIcons.exclamationmark_triangle,
+            color: EasyGameTheme.gold,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white70),
+            ),
+          ),
+          TextButton(
+            onPressed: onRefresh,
+            child: Text('common.refresh'.tr),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _StatusPill extends StatelessWidget {
   final String label;
   final Color color;
@@ -146,7 +191,7 @@ class _WeightBreakdown extends StatelessWidget {
 
 class _SmallAction extends StatelessWidget {
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   const _SmallAction({required this.label, required this.onTap});
 
@@ -155,14 +200,16 @@ class _SmallAction extends StatelessWidget {
     return TextButton(
       onPressed: onTap,
       style: TextButton.styleFrom(
-        backgroundColor: const Color(0xFF4D78FF),
+        backgroundColor: onTap == null
+            ? Colors.white.withValues(alpha: 0.05)
+            : const Color(0xFF4D78FF),
+        foregroundColor: onTap == null ? Colors.white30 : Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       child: Text(
         label,
-        style:
-            const TextStyle(color: Colors.white, fontWeight: FontWeight.w900),
+        style: const TextStyle(fontWeight: FontWeight.w900),
       ),
     );
   }

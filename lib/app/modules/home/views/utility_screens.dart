@@ -6,9 +6,9 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
-import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/services/firebase_data_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
+import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/models/matrix_round_models.dart';
 import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
@@ -385,10 +385,8 @@ class MemberPreviewScreen extends StatelessWidget {
               subtitle: data.isWallet
                   ? 'utility.openFiltered'.tr
                   : 'utility.openProgramView'.tr,
-              onTap: () => Get.to(
-                () => LevelsScreen(
-                  walletAddress: data.isWallet ? data.normalizedAddress : null,
-                ),
+              onTap: () => UiNavigationService.openLevels(
+                walletAddress: data.isWallet ? data.normalizedAddress : null,
               ),
             ),
           ],
@@ -500,7 +498,7 @@ class PromoScreen extends StatelessWidget {
           icon: CupertinoIcons.play_arrow,
           title: 'utility.openLevels'.tr,
           subtitle: 'utility.openProgramView'.tr,
-          onTap: () => Get.to(() => LevelsScreen()),
+          onTap: UiNavigationService.openLevels,
         ),
       ],
     );

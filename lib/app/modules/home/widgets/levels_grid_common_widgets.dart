@@ -3,12 +3,10 @@ part of '../views/levels.dart';
 class _CardHeader extends StatelessWidget {
   final int level;
   final double coin;
-  final String currencySymbol;
 
   const _CardHeader({
     required this.level,
     required this.coin,
-    required this.currencySymbol,
   });
 
   @override

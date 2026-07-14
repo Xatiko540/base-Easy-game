@@ -3,10 +3,14 @@ part of '../views/profilescreen.dart';
 class _AboutContractsRow extends StatelessWidget {
   final ProfileController controller;
   final ProfileDashboardSnapshot data;
+  final bool isClaimingPrize;
+  final bool isClaimingReferral;
 
   const _AboutContractsRow({
     required this.controller,
     required this.data,
+    required this.isClaimingPrize,
+    required this.isClaimingReferral,
   });
 
   @override
@@ -15,10 +19,14 @@ class _AboutContractsRow extends StatelessWidget {
       builder: (context, constraints) {
         final stacked = constraints.maxWidth < 920;
         final about = _AboutEasyGamePanel(
+          controller: controller,
           data: data,
+          isClaimingPrize: isClaimingPrize,
+          isClaimingReferral: isClaimingReferral,
         );
         final contracts = _ContractsStatsPanel(
           onCopyContract: controller.copyContractAddress,
+          onOpenContract: controller.openContractExplorer,
           data: data,
           currency: Get.find<WalletConnectService>().nativeSymbol,
         );
@@ -47,10 +55,16 @@ class _AboutContractsRow extends StatelessWidget {
 }
 
 class _AboutEasyGamePanel extends StatelessWidget {
+  final ProfileController controller;
   final ProfileDashboardSnapshot data;
+  final bool isClaimingPrize;
+  final bool isClaimingReferral;
 
   const _AboutEasyGamePanel({
+    required this.controller,
     required this.data,
+    required this.isClaimingPrize,
+    required this.isClaimingReferral,
   });
 
   @override
@@ -85,18 +99,31 @@ class _AboutEasyGamePanel extends StatelessWidget {
                   value:
                       '${formatWeiToEth(data.claimablePrizeWei)} ${walletService.nativeSymbol}',
                   label: 'levelDetail.claimablePrize'.tr,
-                  action: 'levelDetail.claimPrize'.tr,
+                  action: isClaimingPrize
+                      ? 'common.loading'.tr
+                      : 'levelDetail.claimPrize'.tr,
                   accent: EasyGameTheme.teal,
-                  onTap: () => Get.to(() => LevelsScreen()),
+                  onTap: data.claimablePrizeWei > BigInt.zero ||
+                          data.settlementPrizeUsdc > BigInt.zero
+                      ? isClaimingPrize
+                          ? null
+                          : controller.claimPrize
+                      : null,
                 ),
                 _ClaimMiniCard(
                   icon: CupertinoIcons.link,
                   value:
                       '${formatWeiToEth(data.referralBonusWei)} ${walletService.nativeSymbol}',
                   label: 'levelDetail.referralBonus'.tr,
-                  action: 'profile.claimRefShort'.tr,
+                  action: isClaimingReferral
+                      ? 'common.loading'.tr
+                      : 'profile.claimRefShort'.tr,
                   accent: EasyGameTheme.purple,
-                  onTap: () => Get.to(() => PartnerBonusScreen()),
+                  onTap: data.referralBonusWei > BigInt.zero
+                      ? isClaimingReferral
+                          ? null
+                          : controller.claimReferralBonus
+                      : null,
                 ),
                 _ClaimMiniCard(
                   icon: CupertinoIcons.tray_full,
@@ -202,7 +229,7 @@ class _ClaimMiniCard extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            if (action != null && onTap != null)
+            if (action != null)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
@@ -234,11 +261,13 @@ class _ContractsStatsPanel extends StatelessWidget {
   final ProfileDashboardSnapshot data;
   final String currency;
   final VoidCallback onCopyContract;
+  final VoidCallback onOpenContract;
 
   const _ContractsStatsPanel({
     required this.data,
     required this.currency,
     required this.onCopyContract,
+    required this.onOpenContract,
   });
 
   @override
@@ -295,6 +324,18 @@ class _ContractsStatsPanel extends StatelessWidget {
                     CupertinoIcons.doc_on_doc,
                     color: Colors.white38,
                     size: 15,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Tooltip(
+                  message: 'profile.openExplorer'.tr,
+                  child: InkWell(
+                    onTap: onOpenContract,
+                    child: const Icon(
+                      CupertinoIcons.arrow_up_right_square,
+                      color: Colors.white38,
+                      size: 16,
+                    ),
                   ),
                 ),
               ],

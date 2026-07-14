@@ -1,5 +1,6 @@
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
+import 'package:lottery_advance/app/models/matrix_round_models.dart';
 import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
 import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
@@ -34,28 +35,54 @@ class RoundLevelsRepository extends GetxService {
     if (round == null) return RoundLevelCardState(level: level);
 
     final roundId = BigInt.from(round.schedule.roundId);
-    try {
-      final shouldLoadPlayer =
-          playerAddress?.isNotEmpty == true || _wallet.isConnected.value;
-      final values = await Future.wait<dynamic>([
-        _wallet.getRoundMatrixStats(roundId),
-        if (shouldLoadPlayer)
-          _wallet.getRoundPlayerState(
-            roundId,
-            playerAddress: playerAddress,
-          ),
-      ]);
+    final matrix = await _loadMatrixStats(roundId, round);
+    final shouldLoadPlayer =
+        playerAddress?.isNotEmpty == true || _wallet.isConnected.value;
+
+    if (!shouldLoadPlayer) {
       return RoundLevelCardState(
         level: level,
         round: round,
-        matrix: values[0],
-        player: shouldLoadPlayer ? values[1] : null,
+        matrix: matrix,
+      );
+    }
+
+    try {
+      final player = await _wallet.getRoundPlayerState(
+        roundId,
+        playerAddress: playerAddress,
+      );
+      return RoundLevelCardState(
+        level: level,
+        round: round,
+        matrix: matrix,
+        player: player,
       );
     } catch (error) {
       return RoundLevelCardState(
         level: level,
         round: round,
+        matrix: matrix,
         errorMessage: error.toString(),
+      );
+    }
+  }
+
+  Future<RoundMatrixStats> _loadMatrixStats(
+    BigInt roundId,
+    GameRoundViewState round,
+  ) async {
+    try {
+      return await _wallet.getRoundMatrixStats(roundId);
+    } catch (_) {
+      final chainState = round.chainState;
+      return RoundMatrixStats(
+        prizePoolEth: chainState?.prizePoolEth ?? BigInt.zero,
+        prizePoolUsdc: chainState?.prizePoolUsdc ?? BigInt.zero,
+        totalWeight: BigInt.zero,
+        activeCells: chainState?.occupiedCells ?? BigInt.zero,
+        nextCellId: BigInt.zero,
+        nextOpenParentId: BigInt.zero,
       );
     }
   }

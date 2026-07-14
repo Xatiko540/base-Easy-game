@@ -1,72 +1,139 @@
+import 'dart:async';
+
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
-import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
+import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
+import 'package:lottery_advance/app/models/game_transaction_model.dart';
 import 'package:lottery_advance/app/modules/home/models/profile_models.dart';
+import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
+import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
+import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
+import 'package:lottery_advance/app/services/firebase_backend_service.dart';
+import 'package:lottery_advance/app/services/game_settlement_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ProfileController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
-
-  ProfileController();
+  final RoundLevelsRepository _roundLevels = Get.find<RoundLevelsRepository>();
+  final GameRoundsRepository _rounds = Get.find<GameRoundsRepository>();
+  final GameSettlementService _settlement = Get.find<GameSettlementService>();
+  final FirebaseBackendService _backend = Get.find<FirebaseBackendService>();
 
   final dashboard = ProfileDashboardSnapshot.empty().obs;
   final isLoading = false.obs;
+  final isClaimingPrize = false.obs;
+  final isClaimingReferral = false.obs;
   final errorMessage = ''.obs;
-  Worker? _connectionWorker;
-  Worker? _addressWorker;
+  final transactionsError = ''.obs;
 
-  String get referralLink =>
-      ReferralLinkService.buildReferralLink(walletService.currentAddress.value);
+  final List<Worker> _workers = [];
+  StreamSubscription<List<GameTransaction>>? _transactionsSubscription;
+  int _refreshRun = 0;
+
+  bool get isWalletConnected =>
+      walletService.isConnected.value &&
+      walletService.currentAddress.value.isNotEmpty;
+
+  bool get isGameRegistered => dashboard.value.player?.exists == true;
+
+  String get referralLink => ReferralLinkService.buildReferralLink(
+        isWalletConnected ? walletService.currentAddress.value : '',
+      );
 
   String get profileId {
-    final address = walletService.currentAddress.value;
-    if (address.length < 8) {
-      return '325234';
-    }
-    final tail = address.substring(address.length - 6);
-    return (int.tryParse(tail.replaceAll(RegExp(r'[^0-9]'), '')) ?? 325234)
-        .toString()
-        .padLeft(6, '0')
-        .substring(0, 6);
+    final normalized = ReferralLinkService.normalizeAddress(
+      walletService.currentAddress.value,
+    );
+    if (normalized.isEmpty) return '------';
+    final numeric =
+        BigInt.parse(normalized.substring(2), radix: 16) % BigInt.from(1000000);
+    return numeric.toString().padLeft(6, '0');
   }
 
   @override
   void onInit() {
     super.onInit();
-    refreshDashboard();
-    _connectionWorker = ever<bool>(
-      walletService.isConnected,
-      (_) => refreshDashboard(),
-    );
-    _addressWorker = ever<String>(
-      walletService.currentAddress,
-      (_) => refreshDashboard(),
-    );
+    _workers.addAll([
+      ever<bool>(walletService.isConnected, (_) => _handleIdentityChange()),
+      ever<String>(
+          walletService.currentAddress, (_) => _handleIdentityChange()),
+      ever<int?>(walletService.chainId, (_) => _handleIdentityChange()),
+      ever<Map<int, int>>(_rounds.selectedRoundIds, (_) => refreshDashboard()),
+      ever<bool>(_backend.isReady, (ready) {
+        if (ready) _subscribeToTransactions();
+      }),
+    ]);
+    _subscribeToTransactions();
+    unawaited(refreshDashboard());
   }
 
   @override
   void onClose() {
-    _connectionWorker?.dispose();
-    _addressWorker?.dispose();
+    _refreshRun++;
+    _transactionsSubscription?.cancel();
+    for (final worker in _workers) {
+      worker.dispose();
+    }
     super.onClose();
   }
 
+  void _handleIdentityChange() {
+    if (isClosed) return;
+    dashboard.value = ProfileDashboardSnapshot.empty();
+    _subscribeToTransactions();
+    unawaited(refreshDashboard());
+  }
+
+  void _subscribeToTransactions() {
+    _transactionsSubscription?.cancel();
+    transactionsError.value = '';
+    if (!isWalletConnected || !_backend.isReady.value) {
+      dashboard.value = dashboard.value.copyWith(transactions: const []);
+      return;
+    }
+
+    _transactionsSubscription = _backend
+        .watchRecentTransactions(
+      chainId: walletService.chainId.value,
+      wallet: walletService.currentAddress.value,
+    )
+        .listen(
+      (transactions) {
+        if (isClosed) return;
+        dashboard.value = dashboard.value.copyWith(transactions: transactions);
+      },
+      onError: (Object error) {
+        if (isClosed) return;
+        transactionsError.value = error.toString();
+      },
+    );
+  }
+
   Future<void> refreshDashboard() async {
+    final run = ++_refreshRun;
     isLoading.value = true;
     errorMessage.value = '';
     try {
-      dashboard.value = await _loadDashboard();
+      final snapshot = await _loadDashboard();
+      if (isClosed || run != _refreshRun) return;
+      dashboard.value = snapshot.copyWith(
+        transactions: dashboard.value.transactions,
+      );
     } catch (error) {
+      if (isClosed || run != _refreshRun) return;
       errorMessage.value = error.toString();
-      dashboard.value = ProfileDashboardSnapshot.empty();
     } finally {
-      isLoading.value = false;
+      if (!isClosed && run == _refreshRun) isLoading.value = false;
     }
   }
 
   void copyReferralLink() {
+    if (!isWalletConnected) {
+      _showWalletRequired();
+      return;
+    }
     Clipboard.setData(ClipboardData(text: referralLink));
     Get.snackbar(
       'common.copy'.tr,
@@ -76,6 +143,10 @@ class ProfileController extends GetxController {
   }
 
   Future<void> shareReferralLink() async {
+    if (!isWalletConnected) {
+      _showWalletRequired();
+      return;
+    }
     final url = Uri.parse(referralLink);
     if (await canLaunchUrl(url)) {
       await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -90,6 +161,7 @@ class ProfileController extends GetxController {
 
   void copyContractAddress() {
     final address = dashboard.value.contractAddress;
+    if (_isZeroAddress(address)) return;
     Clipboard.setData(ClipboardData(text: address));
     Get.snackbar(
       'common.copied'.tr,
@@ -98,101 +170,121 @@ class ProfileController extends GetxController {
     );
   }
 
+  Future<void> openContractExplorer() async {
+    final address = dashboard.value.contractAddress;
+    final explorer = walletService.currentNetwork.explorerUrl;
+    if (_isZeroAddress(address) || explorer.isEmpty) return;
+    await launchUrl(
+      Uri.parse('$explorer/address/$address'),
+      mode: LaunchMode.externalApplication,
+    );
+  }
+
+  Future<void> claimPrize() async {
+    if (!isWalletConnected) {
+      _showWalletRequired();
+      return;
+    }
+    if (dashboard.value.claimablePrizeWei <= BigInt.zero &&
+        dashboard.value.settlementPrizeUsdc <= BigInt.zero) {
+      Get.snackbar('profile.claimPrize'.tr, 'profile.nothingToClaim'.tr);
+      return;
+    }
+    isClaimingPrize.value = true;
+    try {
+      await _settlement.claimPrize();
+      Get.snackbar('common.ready'.tr, 'profile.claimConfirmed'.tr);
+      await refreshDashboard();
+    } catch (error) {
+      Get.snackbar('common.error'.tr, error.toString());
+    } finally {
+      isClaimingPrize.value = false;
+    }
+  }
+
+  Future<void> claimReferralBonus() async {
+    if (!isWalletConnected) {
+      _showWalletRequired();
+      return;
+    }
+    if (dashboard.value.referralBonusWei <= BigInt.zero) {
+      Get.snackbar('profile.claimReferral'.tr, 'profile.nothingToClaim'.tr);
+      return;
+    }
+    isClaimingReferral.value = true;
+    try {
+      await walletService.claimEasyGameReferralBonus();
+      Get.snackbar('common.ready'.tr, 'profile.claimConfirmed'.tr);
+      await refreshDashboard();
+    } catch (error) {
+      Get.snackbar('common.error'.tr, error.toString());
+    } finally {
+      isClaimingReferral.value = false;
+    }
+  }
+
   Future<ProfileDashboardSnapshot> _loadDashboard() async {
-    if (!walletService.isConnected.value) {
-      return ProfileDashboardSnapshot.empty();
-    }
+    if (!isWalletConnected) return ProfileDashboardSnapshot.empty();
 
-    var contractAddress = '0x0000000000000000000000000000000000000000';
-    try {
-      contractAddress = await walletService.resolveEasyGameAddress();
-    } catch (_) {
-      contractAddress = '0x0000000000000000000000000000000000000000';
-    }
+    final values = await Future.wait<Object?>([
+      _safeLoad(walletService.resolveEasyGameAddress),
+      _safeLoad(walletService.getEasyGamePlayerSummary),
+      _safeLoad(() => _roundLevels.loadCards()),
+      _safeLoad(_settlement.getClaimable),
+    ]);
 
-    EasyGamePlayerSummary? player;
-    try {
-      player = await walletService.getEasyGamePlayerSummary();
-    } catch (_) {
-      player = null;
-    }
+    final contractAddress =
+        values[0] as String? ?? '0x0000000000000000000000000000000000000000';
+    final player = values[1] as EasyGamePlayerSummary?;
+    final levels = values[2] as List<RoundLevelCardState>? ??
+        const <RoundLevelCardState>[];
+    final settlement =
+        values[3] as SettlementClaimable? ?? SettlementClaimable.zero;
 
-    final levels = <ProfileLevelState>[];
-    var activeCount = 0;
-    var frozenCount = 0;
-    var totalEarnedWei = BigInt.zero;
-    var totalPrizePoolWei = BigInt.zero;
-    var totalActiveCells = BigInt.zero;
-    var totalWeight = BigInt.zero;
-
-    for (var level = easyGameLevelCount; level >= 1; level--) {
-      EasyGameLevelState state;
-      EasyGameAdvanceLevelStats? stats;
-      BigInt priceWei;
-      var available = false;
-
-      try {
-        state = await walletService.getEasyGameLevel(level: level);
-      } catch (_) {
-        state = EasyGameLevelState(
-          active: false,
-          frozen: false,
-          cycles: BigInt.zero,
-          positionId: BigInt.zero,
-          earnedWei: BigInt.zero,
-        );
-      }
-
-      try {
-        stats = await walletService.getEasyGameAdvanceLevelStats(level);
-        totalPrizePoolWei += stats.prizePoolWei;
-        totalActiveCells += stats.activeCells;
-        totalWeight += stats.totalWeight;
-      } catch (_) {
-        stats = null;
-      }
-
-      try {
-        priceWei = await walletService.getEasyGameLevelPriceWei(level);
-      } catch (_) {
-        priceWei = BigInt.zero;
-      }
-
-      try {
-        available = await walletService.isEasyGameLevelAvailable(level);
-      } catch (_) {
-        available = level >= 3;
-      }
-
-      if (state.active) {
-        activeCount++;
-      }
-      if (state.frozen) {
-        frozenCount++;
-      }
-      totalEarnedWei += state.earnedWei;
-
-      levels.add(
-        ProfileLevelState(
-          level: level,
-          state: state,
-          stats: stats,
-          priceWei: priceWei,
-          available: available,
-        ),
-      );
-    }
+    final activeCount = levels.where((level) => level.isPlayerActive).length;
+    final frozenCount = levels.where((level) => level.isFrozen).length;
+    final totalPrizePoolWei = levels.fold<BigInt>(
+      BigInt.zero,
+      (sum, level) => sum + level.prizePoolWei,
+    );
+    final totalActiveCells = levels.fold<BigInt>(
+      BigInt.zero,
+      (sum, level) => sum + level.activeCells,
+    );
+    final totalWeight = levels.fold<BigInt>(
+      BigInt.zero,
+      (sum, level) => sum + level.totalWeight,
+    );
 
     return ProfileDashboardSnapshot(
       contractAddress: contractAddress,
       player: player,
       levels: levels,
+      transactions: dashboard.value.transactions,
       activeCount: activeCount,
       frozenCount: frozenCount,
-      totalEarnedWei: totalEarnedWei,
+      totalEarnedWei: settlement.ethAmount,
       totalPrizePoolWei: totalPrizePoolWei,
       totalActiveCells: totalActiveCells,
       totalWeight: totalWeight,
+      settlementPrizeWei: settlement.ethAmount,
+      settlementPrizeUsdc: settlement.usdcAmount,
     );
+  }
+
+  Future<T?> _safeLoad<T>(Future<T> Function() load) async {
+    try {
+      return await load();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  bool _isZeroAddress(String address) =>
+      address.isEmpty ||
+      address == '0x0000000000000000000000000000000000000000';
+
+  void _showWalletRequired() {
+    Get.snackbar('common.error'.tr, 'common.walletNotConnected'.tr);
   }
 }
