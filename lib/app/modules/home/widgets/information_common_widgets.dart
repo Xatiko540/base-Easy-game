@@ -14,167 +14,65 @@ class _InfoHeroCard extends StatefulWidget {
 }
 
 class _InfoHeroCardState extends State<_InfoHeroCard> {
-  bool _isExpanded = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final compact = constraints.maxWidth < 600;
-
-        return Container(
-          width: double.infinity,
-          margin: const EdgeInsets.only(bottom: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: EasyGameTheme.teal.withValues(alpha: 0.22),
-            ),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                EasyGameTheme.surface.withValues(alpha: 0.94),
-                EasyGameTheme.cardDark.withValues(alpha: 0.96),
-                EasyGameTheme.teal.withValues(alpha: 0.05),
-              ],
-            ),
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Material(
-            color: Colors.transparent,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                InkWell(
-                  onTap: () => setState(() => _isExpanded = !_isExpanded),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compact ? 16 : 22,
-                      vertical: compact ? 16 : 20,
-                    ),
-                    child: Row(
-                      children: [
-                        const _InfoHexIcon(
-                          icon: CupertinoIcons.game_controller,
-                          color: EasyGameTheme.teal,
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Text(
-                            widget.title,
-                            style: TextStyle(
-                              color: EasyGameTheme.text,
-                              fontSize: compact ? 19 : 22,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        AnimatedRotation(
-                          turns: _isExpanded ? 0 : -0.25,
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.easeOutCubic,
-                          child: const Icon(
-                            Icons.keyboard_arrow_down_rounded,
-                            color: EasyGameTheme.teal,
-                            size: 28,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                AnimatedSize(
-                  duration: const Duration(milliseconds: 280),
-                  curve: Curves.easeInOutCubic,
-                  alignment: Alignment.topCenter,
-                  child: _isExpanded
-                      ? Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            compact ? 16 : 22,
-                            0,
-                            compact ? 16 : 22,
-                            compact ? 18 : 22,
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Divider(
-                                height: 1,
-                                color: EasyGameTheme.borderSoft,
-                              ),
-                              SizedBox(height: compact ? 16 : 20),
-                              Text(
-                                widget.text,
-                                style: TextStyle(
-                                  color: EasyGameTheme.textMuted,
-                                  fontSize: compact ? 14 : 16,
-                                  height: 1.65,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
-                        )
-                      : const SizedBox.shrink(),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _InfoTextCard extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String text;
-
-  const _InfoTextCard({
-    required this.icon,
-    required this.title,
-    required this.text,
-  });
+  bool _isExpanded = false;
 
   @override
   Widget build(BuildContext context) {
     return _Panel(
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compact = constraints.maxWidth < 520;
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _InfoSectionTitle(icon: icon, title: title),
-              const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: EdgeInsets.all(compact ? 14 : 18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF192334).withValues(alpha: 0.72),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(
-                    color: EasyGameTheme.teal.withValues(alpha: 0.18),
-                  ),
-                ),
-                child: SelectionArea(
-                  child: Text(
-                    text,
-                    style: TextStyle(
-                      color: EasyGameTheme.textMuted,
-                      fontSize: compact ? 14 : 15,
-                      height: 1.6,
-                      fontWeight: FontWeight.w600,
-                    ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          InkWell(
+            borderRadius: BorderRadius.circular(10),
+            onTap: () => setState(() => _isExpanded = !_isExpanded),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: _InfoSectionTitle(
+                icon: CupertinoIcons.game_controller,
+                title: widget.title,
+                trailing: AnimatedRotation(
+                  turns: _isExpanded ? 0 : -0.25,
+                  duration: const Duration(milliseconds: 220),
+                  curve: Curves.easeOutCubic,
+                  child: const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    color: EasyGameTheme.teal,
+                    size: 27,
                   ),
                 ),
               ),
-            ],
-          );
-        },
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeInOutCubic,
+            alignment: Alignment.topCenter,
+            child: _isExpanded
+                ? Padding(
+                    padding: const EdgeInsets.only(top: 16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Divider(
+                          height: 1,
+                          color: EasyGameTheme.borderSoft,
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          widget.text,
+                          style: const TextStyle(
+                            color: EasyGameTheme.textMuted,
+                            fontSize: 15,
+                            height: 1.65,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )
+                : const SizedBox.shrink(),
+          ),
+        ],
       ),
     );
   }

@@ -8,7 +8,8 @@
   "scripts": {
     "lint": "eslint .",
     "serve": "npx -y firebase-tools@latest emulators:start --only functions,firestore",
-    "deploy": "npx -y firebase-tools@latest deploy --only functions,firestore"
+    "deploy": "npx -y firebase-tools@latest deploy --only functions,firestore",
+    "publish:test-schedule": "node --env-file=../.env publish_base_sepolia_schedule.js"
   },
   "dependencies": {
     "@base-org/account": "^2.5.7",

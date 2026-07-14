@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
@@ -36,10 +38,29 @@ class PartnerBonusScreen extends StatelessWidget {
           onRefresh: partnerController.refreshSnapshot,
           child: SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 1240),
+              constraints: const BoxConstraints(maxWidth: 980),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        CupertinoIcons.person_3,
+                        color: Colors.blueAccent,
+                        size: 32,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'nav.partnerBonus'.tr,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   Obx(
                     () => Text(
                       walletService.isConnected.value
@@ -51,7 +72,7 @@ class PartnerBonusScreen extends StatelessWidget {
                           const TextStyle(color: Colors.white60, fontSize: 14),
                     ),
                   ),
-                  const SizedBox(height: 18),
+                  const SizedBox(height: 20),
                   if (loading)
                     const LinearProgressIndicator(
                       color: EasyGameTheme.teal,
@@ -62,43 +83,14 @@ class PartnerBonusScreen extends StatelessWidget {
                     data: data,
                     currency: walletService.nativeSymbol,
                   ),
-                  const SizedBox(height: 22),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final compact = constraints.maxWidth < 860;
-                      final left = Column(
-                        children: [
-                          _PersonalReferralPanel(
-                            controller: partnerController,
-                          ),
-                          const SizedBox(height: 22),
-                          _ClaimableReferralPanel(
-                            controller: partnerController,
-                          ),
-                          const SizedBox(height: 22),
-                          const _BonusTable(),
-                        ],
-                      );
-                      final right = Column(
-                        children: [
-                          _ReferralRulesPanel(data: data),
-                          const SizedBox(height: 22),
-                          const _ReferralFlowPanel(),
-                        ],
-                      );
-                      if (compact) {
-                        return Column(children: [left, right]);
-                      }
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(flex: 6, child: left),
-                          const SizedBox(width: 22),
-                          Expanded(flex: 6, child: right),
-                        ],
-                      );
-                    },
+                  const SizedBox(height: 20),
+                  _PersonalReferralPanel(
+                    controller: partnerController,
                   ),
+                  _ClaimableReferralPanel(controller: partnerController),
+                  _ReferralRulesPanel(data: data),
+                  const _ReferralFlowPanel(),
+                  const _BonusTable(),
                 ],
               ),
             ),

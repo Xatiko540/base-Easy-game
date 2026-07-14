@@ -261,7 +261,12 @@ class _InfoResource {
   final String text;
   final Color color;
 
-  const _InfoResource(this.icon, this.title, this.text, this.color);
+  const _InfoResource(
+    this.icon,
+    this.title,
+    this.text,
+    this.color,
+  );
 }
 
 String _shortAddress(String address) {

@@ -16,7 +16,7 @@ class _PartnerMetricGrid extends StatelessWidget {
         icon: CupertinoIcons.person_3,
         title: 'partner.tickets'.tr,
         value: data.totalTickets.toString(),
-        delta: '+${data.baseWeight} wt',
+        delta: '+${data.baseWeight} rating',
         color: EasyGameTheme.teal,
       ),
       _PartnerMetricCard(
@@ -88,15 +88,24 @@ class _PartnerMetricCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C2D),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2B2B45)),
+        gradient: LinearGradient(
+          colors: [
+            EasyGameTheme.surface.withValues(alpha: 0.85),
+            EasyGameTheme.cardDark.withValues(alpha: 0.92),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: EasyGameTheme.borderSoft.withValues(alpha: 0.35),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Icon(icon, color: color, size: 28),
+          _PartnerHexIcon(icon: icon, color: color),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

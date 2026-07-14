@@ -2,9 +2,25 @@ require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config(); // Загружаем переменные окружения из .env
 
 const MNEMONIC = process.env.MNEMONIC;
+const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY?.trim();
 const BASE_RPC_URL = process.env.BASE_RPC_URL || "https://mainnet.base.org";
 const BASE_SEPOLIA_RPC_URL = process.env.BASE_SEPOLIA_RPC_URL || "";
 const BASESCAN_API_KEY = process.env.BASESCAN_API_KEY || "";
+
+function deploymentAccounts() {
+  if (DEPLOYER_PRIVATE_KEY) {
+    const normalized = DEPLOYER_PRIVATE_KEY.startsWith("0x")
+      ? DEPLOYER_PRIVATE_KEY
+      : `0x${DEPLOYER_PRIVATE_KEY}`;
+    if (!/^0x[0-9a-fA-F]{64}$/.test(normalized)) {
+      throw new Error("DEPLOYER_PRIVATE_KEY must contain exactly 32 bytes");
+    }
+    return [normalized];
+  }
+  return MNEMONIC ? { mnemonic: MNEMONIC } : [];
+}
+
+const DEPLOYMENT_ACCOUNTS = deploymentAccounts();
 
 module.exports = {
   solidity: {
@@ -22,12 +38,12 @@ module.exports = {
   networks: {
     base: {
       url: BASE_RPC_URL,
-      accounts: MNEMONIC ? { mnemonic: MNEMONIC } : [],
+      accounts: DEPLOYMENT_ACCOUNTS,
       chainId: 8453,
     },
     baseSepolia: {
       url: BASE_SEPOLIA_RPC_URL,
-      accounts: MNEMONIC ? { mnemonic: MNEMONIC } : [],
+      accounts: DEPLOYMENT_ACCOUNTS,
       chainId: 84532,
     },
     // Local Ganache for development/testing
