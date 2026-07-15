@@ -62,9 +62,12 @@ contract EasyGameRoundManager is RoundScheduleLogic {
     function setScheduleSigner(address newSigner) external onlyOwner {
         if (newSigner == address(0)) revert ZeroAddress();
         address oldSigner = scheduleSigner;
+        if (oldSigner == newSigner) return;
+        allowedScheduleSigners[oldSigner] = false;
         scheduleSigner = newSigner;
         allowedScheduleSigners[newSigner] = true;
         emit ScheduleSignerChanged(oldSigner, newSigner);
+        emit ScheduleSignerPermissionChanged(oldSigner, false);
         emit ScheduleSignerPermissionChanged(newSigner, true);
     }
 

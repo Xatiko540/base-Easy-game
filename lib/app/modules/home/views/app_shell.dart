@@ -14,7 +14,6 @@ class ExpressAppShell extends StatelessWidget {
   final Widget child;
   final String title;
   final String? breadcrumb;
-  final String? balanceLabel;
   final VoidCallback? onRefresh;
   final String? activeSection;
 
@@ -23,7 +22,6 @@ class ExpressAppShell extends StatelessWidget {
     required this.child,
     required this.title,
     this.breadcrumb,
-    this.balanceLabel,
     this.onRefresh,
     this.activeSection,
   }) : super(key: key);
@@ -77,7 +75,6 @@ class ExpressAppShell extends StatelessWidget {
                             child: _ExpressTopBar(
                               title: title,
                               breadcrumb: breadcrumb,
-                              balanceLabel: balanceLabel,
                               onRefresh: onRefresh,
                               activeSection: activeSection ?? title,
                             ),
@@ -177,14 +174,12 @@ class _ExpressSidebar extends StatelessWidget {
 class _ExpressTopBar extends StatelessWidget {
   final String title;
   final String? breadcrumb;
-  final String? balanceLabel;
   final VoidCallback? onRefresh;
   final String activeSection;
 
   const _ExpressTopBar({
     required this.title,
     this.breadcrumb,
-    this.balanceLabel,
     this.onRefresh,
     required this.activeSection,
   });
@@ -228,7 +223,7 @@ class _ExpressTopBar extends StatelessWidget {
                             ),
                           ),
                         if (!compact) const SizedBox(width: 10),
-                        _BalanceChip(balanceLabel: balanceLabel),
+                        const _BalanceChip(),
                         const SizedBox(width: 10),
                         Obx(
                           () => _TopChip(
@@ -368,8 +363,14 @@ class _MobileTopBar extends StatelessWidget {
         const SizedBox(width: 6),
         Obx(
           () => _TopChip(
-            icon: CupertinoIcons.hexagon,
-            label: 'Base',
+            icon: walletService.isConnected.value
+                ? CupertinoIcons.money_dollar
+                : CupertinoIcons.hexagon,
+            label: walletService.isConnected.value
+                ? walletService.nativeBalanceWei.value == null
+                    ? '... ${walletService.nativeSymbol}'
+                    : '${_formatShellWei(walletService.nativeBalanceWei.value!)} ${walletService.nativeSymbol}'
+                : 'Base',
             emphasized: !walletService.isConnected.value,
             onTap: () => _handleMobileWalletTap(context, walletService),
           ),
@@ -573,25 +574,22 @@ class _MobileMenuItem {
 }
 
 class _BalanceChip extends StatelessWidget {
-  final String? balanceLabel;
-
-  const _BalanceChip({this.balanceLabel});
+  const _BalanceChip();
 
   @override
   Widget build(BuildContext context) {
-    if (balanceLabel != null) {
-      return _TopChip(
-        icon: CupertinoIcons.money_dollar,
-        label: balanceLabel!,
-      );
-    }
-
     final walletService = Get.find<WalletConnectService>();
     return Obx(
       () => _TopChip(
         icon: CupertinoIcons.money_dollar,
-        label:
-            '${_formatShellWei(walletService.nativeBalanceWei.value ?? BigInt.zero)} ${walletService.nativeSymbol}',
+        label: walletService.isConnected.value
+            ? walletService.nativeBalanceWei.value == null
+                ? '... ${walletService.nativeSymbol}'
+                : '${_formatShellWei(walletService.nativeBalanceWei.value!)} ${walletService.nativeSymbol}'
+            : '-- ${walletService.nativeSymbol}',
+        onTap: walletService.isConnected.value
+            ? () => walletService.refreshNativeBalanceSilently()
+            : null,
       ),
     );
   }
@@ -845,7 +843,7 @@ class _FloatingHelpButtons extends StatelessWidget {
   }
 }
 
-String _formatShellWei(BigInt wei, {int decimals = 4}) {
+String _formatShellWei(BigInt wei, {int decimals = 6}) {
   final negative = wei < BigInt.zero;
   final value = negative ? -wei : wei;
   final divisor = BigInt.from(10).pow(18);
@@ -858,6 +856,10 @@ String _formatShellWei(BigInt wei, {int decimals = 4}) {
   final clipped =
       padded.substring(0, decimals).replaceFirst(RegExp(r'0+$'), '');
   if (clipped.isEmpty) {
+    if (value != BigInt.zero) {
+      final leadingZeros = ''.padRight(decimals - 1, '0');
+      return '${negative ? '-' : ''}<0.${leadingZeros}1';
+    }
     return '${negative ? '-' : ''}$whole';
   }
   return '${negative ? '-' : ''}$whole.$clipped';

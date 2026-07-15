@@ -358,6 +358,25 @@ class AppTranslations extends Translations {
           'payment.networkOk': 'Network check OK',
           'payment.switchNetwork': 'Switch network to @network',
           'payment.amount': 'Payment amount @amount @currency',
+          'payment.availableBalance': 'Available balance',
+          'payment.balanceUnavailable': 'Balance unavailable',
+          'payment.refreshBalance': 'Refresh balance',
+          'payment.insufficientBalance':
+              'The connected wallet does not currently have enough funds for this payment.',
+          'payment.contractPreflight': 'Contract readiness',
+          'payment.preflightUnavailable': 'Checking on-chain availability',
+          'payment.levelEmergencyPaused': 'Level paused',
+          'payment.levelEmergencyPausedHint':
+              'This level is paused in the EasyGame contract. Payment is blocked until the contract owner enables it.',
+          'payment.usdcGasRequired':
+              'Direct USDC activation requires a small Base ETH balance for approval and activation gas. Use Base Pay for sponsored payment gas.',
+          'payment.nativeGasRequired':
+              'Keep additional Base ETH in the wallet to pay transaction gas.',
+          'payment.alreadyProcessing': 'A payment is already being processed.',
+          'payment.usdcConfigurationMismatch':
+              'The configured USDC address does not match the EasyGame contract.',
+          'payment.basePayConfigurationMismatch':
+              'The configured Base Pay gateway does not match the EasyGame contract.',
           'payment.gasEstimate': 'Gas estimate',
           'payment.transaction': 'Transaction',
           'payment.pay': 'Pay @amount @currency',
@@ -964,6 +983,25 @@ class AppTranslations extends Translations {
           'payment.networkOk': 'Проверка сети OK',
           'payment.switchNetwork': 'Переключите сеть на @network',
           'payment.amount': 'Сумма оплаты @amount @currency',
+          'payment.availableBalance': 'Доступный баланс',
+          'payment.balanceUnavailable': 'Баланс недоступен',
+          'payment.refreshBalance': 'Обновить баланс',
+          'payment.insufficientBalance':
+              'На подключённом кошельке сейчас недостаточно средств для этой оплаты.',
+          'payment.contractPreflight': 'Готовность контракта',
+          'payment.preflightUnavailable': 'Проверяем доступность в блокчейне',
+          'payment.levelEmergencyPaused': 'Уровень приостановлен',
+          'payment.levelEmergencyPausedHint':
+              'Этот уровень приостановлен в контракте EasyGame. Оплата заблокирована, пока владелец контракта не включит уровень.',
+          'payment.usdcGasRequired':
+              'Для прямой USDC-активации нужен небольшой баланс Base ETH на gas подтверждения и активации. В Base Pay gas платежа спонсируется.',
+          'payment.nativeGasRequired':
+              'Оставьте дополнительный Base ETH в кошельке для оплаты gas транзакции.',
+          'payment.alreadyProcessing': 'Платёж уже обрабатывается.',
+          'payment.usdcConfigurationMismatch':
+              'Настроенный адрес USDC не совпадает с адресом в контракте EasyGame.',
+          'payment.basePayConfigurationMismatch':
+              'Настроенный Base Pay gateway не совпадает с адресом в контракте EasyGame.',
           'payment.gasEstimate': 'Оценка газа',
           'payment.transaction': 'Транзакция',
           'payment.pay': 'Оплатить @amount @currency',

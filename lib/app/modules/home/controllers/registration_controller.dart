@@ -3,33 +3,39 @@ import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
+import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
 import 'package:lottery_advance/app/modules/home/views/activate_express_game_screen.dart';
+import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/services/base_pay_service.dart';
 
 class RegistrationController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final GameRoundsController _rounds = Get.find<GameRoundsController>();
+  final RoundLevelsRepository _levelPrices = Get.find<RoundLevelsRepository>();
 
   RegistrationController();
 
   final uplineController = TextEditingController();
   final selectedLevel = 3.obs;
-  final selectedAmount = 0.1.obs;
+  final selectedPriceUnits = BigInt.zero.obs;
+  final RxMap<int, ContractLevelPrice> contractPrices =
+      <int, ContractLevelPrice>{}.obs;
+  final RxMap<int, bool> contractAvailability = <int, bool>{}.obs;
   final paymentAsset = EasyGamePaymentAsset.native.obs;
   final Rxn<GameRoundViewState> selectedRound = Rxn<GameRoundViewState>();
   final networkChecked = false.obs;
   final balanceChecked = false.obs;
   final balanceMessage = ''.obs;
+  final List<Worker> _workers = [];
 
   void configure({
     required int level,
-    required double amount,
     String? inviter,
     GameRoundViewState? round,
   }) {
     selectedLevel.value = level;
-    selectedAmount.value = amount;
     paymentAsset.value = EasyGamePaymentAsset.native;
     networkChecked.value = false;
     balanceChecked.value = false;
@@ -40,7 +46,23 @@ class RegistrationController extends GetxController {
   }
 
   @override
+  void onInit() {
+    super.onInit();
+    _workers.addAll([
+      ever<Map<int, GameRoundViewState>>(_rounds.roundsByLevel, (_) {
+        selectedRound.value = _roundForLevel(selectedLevel.value);
+        _applyRoundPrice();
+      }),
+      ever<int?>(walletService.chainId, (_) => _loadContractPrices()),
+    ]);
+    _loadContractPrices();
+  }
+
+  @override
   void onClose() {
+    for (final worker in _workers) {
+      worker.dispose();
+    }
     uplineController.dispose();
     super.onClose();
   }
@@ -54,6 +76,23 @@ class RegistrationController extends GetxController {
 
   String get currencySymbol =>
       paysWithUsdc ? 'USDC' : walletService.nativeSymbol;
+
+  String get selectedPriceLabel => formatAssetAmount(selectedPriceUnits.value);
+
+  BigInt priceForLevel(int level) {
+    final round = _roundForLevel(level);
+    if (round != null) {
+      return paysWithUsdc ? round.usdcPrice : round.ethPriceWei;
+    }
+    final fallback = contractPrices[level];
+    return paysWithUsdc
+        ? fallback?.usdcPrice ?? BigInt.zero
+        : fallback?.ethPriceWei ?? BigInt.zero;
+  }
+
+  bool canEnterLevel(int level) =>
+      _roundForLevel(level)?.canEnter == true &&
+      contractAvailability[level] != false;
 
   void selectPaymentAsset(EasyGamePaymentAsset asset) {
     paymentAsset.value = asset;
@@ -102,9 +141,8 @@ class RegistrationController extends GetxController {
 
     try {
       await walletService.ensureBaseNetwork();
-      final round = _requireOpenRound();
-      final price =
-          paysWithUsdc ? round.schedule.usdcPrice : round.schedule.ethPriceWei;
+      final round = await _requireOpenRound();
+      final price = paysWithUsdc ? round.usdcPrice : round.ethPriceWei;
       if (paymentAsset.value == EasyGamePaymentAsset.basePay) {
         final basePay = Get.find<BasePayService>();
         if (!basePay.isAvailable) {
@@ -112,7 +150,7 @@ class RegistrationController extends GetxController {
         }
         balanceChecked.value = true;
         balanceMessage.value = '';
-        selectedAmount.value = assetToDouble(price);
+        selectedPriceUnits.value = price;
         Get.snackbar(
           'registration.balanceOk'.tr,
           'payment.basePayBalanceHint'.tr,
@@ -128,7 +166,7 @@ class RegistrationController extends GetxController {
       balanceMessage.value = hasEnoughBalance
           ? ''
           : '${'registration.balanceLow'.tr}: ${formatAssetAmount(price)} $currencySymbol';
-      selectedAmount.value = assetToDouble(price);
+      selectedPriceUnits.value = price;
       Get.snackbar(
         hasEnoughBalance
             ? 'registration.balanceOk'.tr
@@ -202,19 +240,17 @@ class RegistrationController extends GetxController {
         uplineController.text = normalized;
       }
 
-      final round = _requireOpenRound();
-      final price =
-          paysWithUsdc ? round.schedule.usdcPrice : round.schedule.ethPriceWei;
-      selectedAmount.value = assetToDouble(price);
+      final round = await _requireOpenRound();
+      final price = paysWithUsdc ? round.usdcPrice : round.ethPriceWei;
+      selectedPriceUnits.value = price;
       networkChecked.value = true;
 
       Get.to(
         () => ActivateExpressGameScreen(
           level: selectedLevel.value,
-          totalAmount: selectedAmount.value,
           inviter: uplineController.text.trim(),
           paymentAsset: paymentAsset.value,
-          round: round.schedule,
+          initialRound: round,
         ),
       );
     } catch (e) {
@@ -227,33 +263,42 @@ class RegistrationController extends GetxController {
   }
 
   GameRoundViewState? _roundForLevel(int level) {
-    if (!Get.isRegistered<GameRoundsController>()) return null;
-    return Get.find<GameRoundsController>().roundForLevel(level);
+    return _rounds.roundForLevel(level);
   }
 
-  GameRoundViewState _requireOpenRound() {
+  Future<GameRoundViewState> _requireOpenRound() async {
     final round = selectedRound.value;
     if (round == null || !round.canEnter) {
       throw Exception('round.actionsUnavailable'.tr);
+    }
+    final available =
+        await walletService.isEasyGameLevelAvailable(selectedLevel.value);
+    contractAvailability[selectedLevel.value] = available;
+    if (!available) {
+      throw Exception('payment.levelEmergencyPausedHint'.tr);
     }
     return round;
   }
 
   void _applyRoundPrice() {
-    final schedule = selectedRound.value?.schedule;
-    if (schedule == null) {
-      selectedAmount.value = 0;
-      return;
-    }
-    final amount = paysWithUsdc ? schedule.usdcPrice : schedule.ethPriceWei;
-    selectedAmount.value = assetToDouble(amount);
+    selectedPriceUnits.value = priceForLevel(selectedLevel.value);
   }
 
-  double assetToDouble(BigInt amount) {
-    if (paysWithUsdc) {
-      return amount.toDouble() / 1000000;
+  Future<void> _loadContractPrices() async {
+    final requests = <Future<void>>[];
+    for (var level = 1; level <= easyGameLevelCount; level++) {
+      requests.add(Future.wait<dynamic>([
+        _levelPrices.loadContractPrice(level),
+        walletService.isEasyGameLevelAvailable(level),
+      ]).then((values) {
+        if (!isClosed) {
+          contractPrices[level] = values[0] as ContractLevelPrice;
+          contractAvailability[level] = values[1] as bool;
+        }
+      }).catchError((_) {}));
     }
-    return weiToEthDouble(amount);
+    await Future.wait(requests);
+    if (!isClosed) _applyRoundPrice();
   }
 
   String formatAssetAmount(BigInt amount) {

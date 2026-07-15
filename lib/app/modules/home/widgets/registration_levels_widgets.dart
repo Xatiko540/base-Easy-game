@@ -3,11 +3,17 @@ part of '../views/registrationlevel.dart';
 class _ActiveGamesStrip extends StatelessWidget {
   final int selectedLevel;
   final String currencySymbol;
+  final bool paysWithUsdc;
+  final Map<int, BigInt> prices;
+  final Map<int, bool> canEnter;
   final ValueChanged<int> onPickLevel;
 
   const _ActiveGamesStrip({
     required this.selectedLevel,
     required this.currencySymbol,
+    required this.paysWithUsdc,
+    required this.prices,
+    required this.canEnter,
     required this.onPickLevel,
   });
 
@@ -57,10 +63,11 @@ class _ActiveGamesStrip extends StatelessWidget {
                 itemCount: easyGameLevelCount,
                 itemBuilder: (context, index) {
                   final level = easyGameLevelCount - index;
-                  final locked = level <= 2;
+                  final locked = canEnter[level] != true;
                   return _MiniLevelButton(
                     level: level,
-                    amount: levelPrice(level),
+                    amount: prices[level] ?? BigInt.zero,
+                    paysWithUsdc: paysWithUsdc,
                     currencySymbol: currencySymbol,
                     selected: selectedLevel == level,
                     locked: locked,
@@ -78,7 +85,8 @@ class _ActiveGamesStrip extends StatelessWidget {
 
 class _MiniLevelButton extends StatelessWidget {
   final int level;
-  final double amount;
+  final BigInt amount;
+  final bool paysWithUsdc;
   final String currencySymbol;
   final bool selected;
   final bool locked;
@@ -87,6 +95,7 @@ class _MiniLevelButton extends StatelessWidget {
   const _MiniLevelButton({
     required this.level,
     required this.amount,
+    required this.paysWithUsdc,
     required this.currencySymbol,
     required this.selected,
     required this.locked,
@@ -136,7 +145,7 @@ class _MiniLevelButton extends StatelessWidget {
               ],
             ),
             Text(
-              '${formatRegistrationAmount(amount)} $currencySymbol',
+              '${paysWithUsdc ? formatUsdc(amount, decimals: 6) : formatWeiToEth(amount, decimals: 8)} $currencySymbol',
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
                 color: Colors.white,

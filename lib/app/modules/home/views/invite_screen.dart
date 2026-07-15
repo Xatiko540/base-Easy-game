@@ -178,7 +178,6 @@ class InviteScreen extends StatelessWidget {
       () => RegistrationScreen(
         LevelStatus.waiting,
         level: 3,
-        amount: levelPrice(3),
         inviter: inviter,
       ),
     );

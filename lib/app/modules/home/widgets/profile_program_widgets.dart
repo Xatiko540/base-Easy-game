@@ -192,7 +192,7 @@ class _MatrixCell extends StatelessWidget {
         Get.find<GameRoundsController>().roundForLevel(level);
     // The program overview is public. Keep its pre-login appearance while
     // round data is still loading; wallet-only state is layered on top below.
-    final available = round?.canEnter ?? level >= 3;
+    final available = levelState?.canEnter ?? false;
     final active = levelState?.isPlayerActive == true;
     final frozen = levelState?.isFrozen == true;
     final borderColor = frozen

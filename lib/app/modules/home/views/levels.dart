@@ -51,7 +51,6 @@ class LevelsScreen extends StatelessWidget {
         final loading = levelsProvider.isLoading.value;
         final errorMessage = levelsProvider.errorMessage.value;
         final currency = walletService.nativeSymbol;
-        final totalEarnedWei = levelsProvider.totalEarnedWei;
         final connected = walletService.isConnected.value;
         final identity = walletAddress?.isNotEmpty == true
             ? _shortLevelIdentity(walletAddress!)
@@ -61,7 +60,6 @@ class LevelsScreen extends StatelessWidget {
         return ExpressAppShell(
           title: 'levels.title'.tr,
           breadcrumb: '$identity / Easy Games',
-          balanceLabel: '${formatWeiToEth(totalEarnedWei)} $currency',
           onRefresh: levelsProvider.refreshAll,
           child: LayoutBuilder(
             builder: (context, constraints) {
@@ -339,19 +337,17 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                         walletLabel: walletService.isConnected.value
                             ? walletService.shortAddress
                             : 'common.notConnected'.tr,
-                        onActivate: data.card.isPlayerActive ||
-                                data.card.round?.canEnter != true
-                            ? null
-                            : () {
-                                Get.to(() => RegistrationScreen(
-                                      LevelStatus.waiting,
-                                      level: level,
-                                      amount:
-                                          weiToEthDouble(data.card.ethPriceWei),
-                                      inviter: walletService.activeInviter,
-                                      round: data.card.round,
-                                    ));
-                              },
+                        onActivate:
+                            data.card.isPlayerActive || !data.card.canEnter
+                                ? null
+                                : () {
+                                    Get.to(() => RegistrationScreen(
+                                          LevelStatus.waiting,
+                                          level: level,
+                                          inviter: walletService.activeInviter,
+                                          round: data.card.round,
+                                        ));
+                                  },
                       ),
                       const SizedBox(height: 16),
                       _LevelStatsStrip(

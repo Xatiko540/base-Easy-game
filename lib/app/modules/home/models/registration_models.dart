@@ -1,7 +1,7 @@
 class SplitRow {
   final String label;
   final double percent;
-  final double value;
+  final BigInt value;
 
   const SplitRow(this.label, this.percent, this.value);
 }

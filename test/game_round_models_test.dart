@@ -90,6 +90,8 @@ void main() {
       paused: false,
       prizePoolEth: BigInt.zero,
       prizePoolUsdc: BigInt.zero,
+      ethPriceWei: BigInt.from(200000000000000000),
+      usdcPrice: BigInt.from(200000),
       phase: GameRoundPhase.open,
     );
     final state = GameRoundViewState.fromSchedule(

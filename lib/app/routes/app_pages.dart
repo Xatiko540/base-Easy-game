@@ -24,10 +24,6 @@ class AppPages {
     return int.tryParse(Get.parameters[name] ?? '') ?? fallback;
   }
 
-  static double _doubleParam(String name, double fallback) {
-    return double.tryParse(Get.parameters[name] ?? '') ?? fallback;
-  }
-
   static String _inviterParam() {
     return ReferralLinkService.inviterFromParams(Get.parameters).isNotEmpty
         ? ReferralLinkService.inviterFromParams(Get.parameters)
@@ -91,7 +87,6 @@ class AppPages {
       page: () => RegistrationScreen(
         LevelStatus.waiting,
         level: _intParam('level', 1),
-        amount: _doubleParam('amount', levelPrice(_intParam('level', 1))),
         inviter: _inviterParam(),
       ),
     ),
@@ -100,7 +95,6 @@ class AppPages {
       page: () => RegistrationScreen(
         LevelStatus.waiting,
         level: _intParam('level', 1),
-        amount: _doubleParam('amount', levelPrice(_intParam('level', 1))),
         inviter: _inviterParam(),
       ),
     ),

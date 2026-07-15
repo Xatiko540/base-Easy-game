@@ -257,6 +257,14 @@ class GameRoundViewState {
 
   bool get canEnter => isConfigurationTrusted && phase == GameRoundPhase.open;
 
+  BigInt get ethPriceWei => chainState?.initialized == true
+      ? chainState!.ethPriceWei
+      : schedule.ethPriceWei;
+
+  BigInt get usdcPrice => chainState?.initialized == true
+      ? chainState!.usdcPrice
+      : schedule.usdcPrice;
+
   String get countdownLabel => formatRoundDuration(remaining);
 }
 

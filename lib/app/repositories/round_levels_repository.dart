@@ -9,6 +9,17 @@ class RoundLevelsRepository extends GetxService {
   final WalletConnectService _wallet = Get.find<WalletConnectService>();
   final GameRoundsRepository _rounds = Get.find<GameRoundsRepository>();
 
+  Future<ContractLevelPrice> loadContractPrice(int level) async {
+    final prices = await Future.wait([
+      _wallet.getEasyGameLevelPriceWei(level),
+      _wallet.getEasyGameLevelPriceUsdc(level),
+    ]);
+    return ContractLevelPrice(
+      ethPriceWei: prices[0],
+      usdcPrice: prices[1],
+    );
+  }
+
   Future<List<RoundLevelCardState>> loadCards({String? playerAddress}) async {
     final cards = <RoundLevelCardState>[];
     final requests = <Future<RoundLevelCardState>>[];
@@ -32,10 +43,44 @@ class RoundLevelsRepository extends GetxService {
     required GameRoundViewState? round,
     String? playerAddress,
   }) async {
-    if (round == null) return RoundLevelCardState(level: level);
+    if (round == null) {
+      try {
+        final values = await Future.wait<dynamic>([
+          loadContractPrice(level),
+          _wallet.isEasyGameLevelAvailable(level),
+        ]);
+        final prices = values[0] as ContractLevelPrice;
+        return RoundLevelCardState(
+          level: level,
+          contractEthPriceWei: prices.ethPriceWei,
+          contractUsdcPrice: prices.usdcPrice,
+          contractLevelAvailable: values[1] as bool,
+        );
+      } catch (error) {
+        return RoundLevelCardState(
+          level: level,
+          errorMessage: error.toString(),
+        );
+      }
+    }
 
     final roundId = BigInt.from(round.schedule.roundId);
-    final matrix = await _loadMatrixStats(roundId, round);
+    late final RoundMatrixStats matrix;
+    late final bool contractLevelAvailable;
+    try {
+      final values = await Future.wait<dynamic>([
+        _loadMatrixStats(roundId, round),
+        _wallet.isEasyGameLevelAvailable(level),
+      ]);
+      matrix = values[0] as RoundMatrixStats;
+      contractLevelAvailable = values[1] as bool;
+    } catch (error) {
+      return RoundLevelCardState(
+        level: level,
+        round: round,
+        errorMessage: error.toString(),
+      );
+    }
     final shouldLoadPlayer =
         playerAddress?.isNotEmpty == true || _wallet.isConnected.value;
 
@@ -44,6 +89,7 @@ class RoundLevelsRepository extends GetxService {
         level: level,
         round: round,
         matrix: matrix,
+        contractLevelAvailable: contractLevelAvailable,
       );
     }
 
@@ -57,12 +103,14 @@ class RoundLevelsRepository extends GetxService {
         round: round,
         matrix: matrix,
         player: player,
+        contractLevelAvailable: contractLevelAvailable,
       );
     } catch (error) {
       return RoundLevelCardState(
         level: level,
         round: round,
         matrix: matrix,
+        contractLevelAvailable: contractLevelAvailable,
         errorMessage: error.toString(),
       );
     }

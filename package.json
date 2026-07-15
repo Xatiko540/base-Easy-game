@@ -1,9 +1,10 @@
 {
   "scripts": {
+    "levels:enable:base-sepolia": "hardhat run scripts/enable-base-sepolia-levels.js --network baseSepolia",
     "compile": "hardhat compile && node scripts/sync-app-artifacts.js",
     "clean": "hardhat clean",
     "deploy": "hardhat run scripts/deploy.js",
-    "preflight:base-sepolia": "node scripts/preflight-base-sepolia.js",
+    "preflight:base-sepolia": "hardhat run scripts/preflight-base-sepolia.js --network baseSepolia",
     "deploy:base-sepolia": "hardhat run scripts/deploy.js --network baseSepolia",
     "deploy:ganache": "hardhat run scripts/deploy.js --network localhost",
     "smoke:ganache": "hardhat run scripts/smoke-ganache.js --network localhost",

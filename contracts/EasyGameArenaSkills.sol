@@ -95,10 +95,24 @@ contract EasyGameArenaSkills {
 
     function getUnfreezePriceUsdc(uint256 roundId, address player) public view returns (uint256) {
         PlayerRound memory state = gameCore.getPlayerRound(player, roundId);
-        (, uint256 pool, uint256 totalWeight,,,) = gameCore.getRoundGameStats(roundId);
-        if (!state.active || totalWeight == 0 || pool == 0) return MIN_UNFREEZE_PRICE_USDC;
-        uint256 expectedPrize = pool * state.totalWeight / totalWeight;
-        uint256 dynamicPrice = expectedPrize * UNFREEZE_EXPECTED_PRIZE_BPS / BPS;
+        (uint256 ethPool, uint256 usdcPool, uint256 totalWeight,,,) =
+            gameCore.getRoundGameStats(roundId);
+        if (!state.active || totalWeight == 0) return MIN_UNFREEZE_PRICE_USDC;
+
+        uint256 expectedPrizeUsdc = (usdcPool * state.totalWeight) / totalWeight;
+        if (ethPool != 0) {
+            RoundConfig memory config = roundManager.getRoundConfig(roundId);
+            if (config.ethPrice != 0 && config.usdcPrice != 0) {
+                uint256 expectedPrizeEth = (ethPool * state.totalWeight) / totalWeight;
+                // The signed ticket-price ratio is fixed for the entire round,
+                // avoiding a mutable or untrusted client-side exchange rate.
+                expectedPrizeUsdc +=
+                    (expectedPrizeEth * config.usdcPrice) /
+                    config.ethPrice;
+            }
+        }
+        uint256 dynamicPrice =
+            (expectedPrizeUsdc * UNFREEZE_EXPECTED_PRIZE_BPS) / BPS;
         return dynamicPrice > MIN_UNFREEZE_PRICE_USDC ? dynamicPrice : MIN_UNFREEZE_PRICE_USDC;
     }
 

@@ -43,7 +43,7 @@ class LevelCard extends StatelessWidget {
                   children: [
                     _CardHeader(
                       level: data.level,
-                      coin: weiToEthDouble(data.ethPriceWei),
+                      priceWei: data.ethPriceWei,
                     ),
                     const Spacer(),
                     Row(
@@ -144,14 +144,14 @@ class LevelCard extends StatelessWidget {
 
 class ActivateCard extends StatelessWidget {
   final int level;
-  final double coin;
+  final BigInt priceWei;
   final String currencySymbol;
   final GameRoundViewState? round;
 
   const ActivateCard({
     Key? key,
     required this.level,
-    required this.coin,
+    required this.priceWei,
     required this.currencySymbol,
     this.round,
   }) : super(key: key);
@@ -169,7 +169,7 @@ class ActivateCard extends StatelessWidget {
         children: [
           _CardHeader(
             level: level,
-            coin: coin,
+            priceWei: priceWei,
           ),
           const Spacer(),
           if (round != null) ...[
@@ -195,7 +195,6 @@ class ActivateCard extends StatelessWidget {
                 () => RegistrationScreen(
                   LevelStatus.waiting,
                   level: level,
-                  amount: coin,
                   inviter: Get.find<WalletConnectService>().activeInviter,
                   round: round,
                 ),
@@ -210,7 +209,7 @@ class ActivateCard extends StatelessWidget {
 
 class StatusCard extends StatelessWidget {
   final int level;
-  final double coin;
+  final BigInt priceWei;
   final String currencySymbol;
   final String title;
   final String subtitle;
@@ -223,7 +222,7 @@ class StatusCard extends StatelessWidget {
   const StatusCard({
     Key? key,
     required this.level,
-    required this.coin,
+    required this.priceWei,
     required this.currencySymbol,
     required this.title,
     required this.subtitle,
@@ -249,7 +248,7 @@ class StatusCard extends StatelessWidget {
           children: [
             _CardHeader(
               level: level,
-              coin: coin,
+              priceWei: priceWei,
             ),
             const Spacer(),
             if (showTimer && round != null)

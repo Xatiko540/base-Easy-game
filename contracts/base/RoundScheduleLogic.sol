@@ -17,6 +17,9 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
     bytes32 private constant _VERSION_HASH = keccak256("2");
     uint16 public constant CURRENT_PAYMENT_SPLIT_VERSION = 1;
     uint16 public constant MAX_WINNERS_PER_ROUND = 8;
+    uint32 public constant MAX_PLAYERS_PER_ROUND = 1_000_000;
+    uint256 public constant MAX_ETH_PRICE = 1_000 ether;
+    uint256 public constant MAX_USDC_PRICE = 1_000_000_000 * 1e6;
     uint256 private constant _SECP256K1_HALF_ORDER =
         0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
 
@@ -155,6 +158,11 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         returns (bytes32 configHash)
     {
         _validateRoundConfig(config);
+        // Manifests may be published in advance, but a third party must not be
+        // able to make a future round the active round for its level early.
+        if (block.timestamp < config.startsAt) {
+            revert RoundNotStarted(config.roundId);
+        }
         if (!allowedScheduleSigners[_recoverSigner(roundConfigDigest(config), signature)]) {
             revert InvalidScheduleSignature();
         }
@@ -173,11 +181,10 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         if (existingRoundId != 0 && existingRoundId != config.roundId) {
             RoundState storage existingState = _roundStates[existingRoundId];
             RoundConfig storage existingConfig = _roundConfigs[existingRoundId];
-            if (
-                !existingState.cancelled &&
-                !existingState.settled &&
-                existingConfig.endsAt > config.startsAt
-            ) {
+            bool overlaps =
+                config.startsAt < existingConfig.endsAt &&
+                existingConfig.startsAt < config.endsAt;
+            if (!existingState.cancelled && !existingState.settled && overlaps) {
                 revert RoundConfigMismatch(config.roundId);
             }
         }
@@ -207,13 +214,13 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         if (
             config.startsAt >= config.entriesCloseAt ||
             config.entriesCloseAt >= config.endsAt ||
-            config.freezeClosesAt < config.startsAt ||
-            config.freezeClosesAt > config.endsAt
+            config.freezeClosesAt != config.endsAt
         ) {
             revert InvalidRoundTimeRange();
         }
         if (
             config.maxPlayers == 0 ||
+            config.maxPlayers > MAX_PLAYERS_PER_ROUND ||
             config.maxWinners == 0 ||
             config.maxWinners > MAX_WINNERS_PER_ROUND ||
             config.freezeLimit == 0 ||
@@ -222,6 +229,12 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
             revert InvalidRoundCapacity();
         }
         if (config.ethPrice == 0 && config.usdcPrice == 0) {
+            revert InvalidRoundPrice();
+        }
+        if (
+            config.ethPrice > MAX_ETH_PRICE ||
+            config.usdcPrice > MAX_USDC_PRICE
+        ) {
             revert InvalidRoundPrice();
         }
         if (config.paymentSplitVersion != CURRENT_PAYMENT_SPLIT_VERSION) {

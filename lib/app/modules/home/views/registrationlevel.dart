@@ -19,7 +19,6 @@ part '../widgets/registration_summary_widgets.dart';
 
 class RegistrationScreen extends StatelessWidget {
   final int level;
-  final double amount;
   final String? inviter;
   final GameRoundViewState? round;
 
@@ -27,7 +26,6 @@ class RegistrationScreen extends StatelessWidget {
     LevelStatus level1, {
     Key? key,
     this.level = 3,
-    this.amount = 0.1,
     String? inviter,
     this.round,
   })  : inviter = inviter ?? WalletConnectService.easyGameInviter,
@@ -40,7 +38,6 @@ class RegistrationScreen extends StatelessWidget {
       init: RegistrationController()
         ..configure(
           level: level,
-          amount: amount,
           inviter: inviter,
           round: round,
         ),
@@ -54,7 +51,9 @@ class RegistrationScreen extends StatelessWidget {
         final walletService = Get.find<WalletConnectService>();
         final currency = registrationController.currencySymbol;
         final selectedLevel = registrationController.selectedLevel.value;
-        final selectedAmount = registrationController.selectedAmount.value;
+        final selectedPriceUnits =
+            registrationController.selectedPriceUnits.value;
+        final selectedPriceLabel = registrationController.selectedPriceLabel;
         final paymentAsset = registrationController.paymentAsset.value;
         final networkChecked = registrationController.networkChecked.value;
         final balanceChecked = registrationController.balanceChecked.value;
@@ -64,7 +63,6 @@ class RegistrationScreen extends StatelessWidget {
           title: 'registration.title'.tr.replaceAll('\n', ' '),
           breadcrumb:
               '${'app.name'.tr} / ${'registration.title'.tr.split('\n').first}',
-          balanceLabel: '${selectedAmount.toStringAsFixed(3)} $currency',
           activeSection: 'Dashboard',
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -202,7 +200,7 @@ class RegistrationScreen extends StatelessWidget {
                                     DropdownMenuItem(
                                       value: i,
                                       child: Text(
-                                        'Level $i (${levelPrice(i).toStringAsFixed(3)} $currency)',
+                                        'Level $i (${registrationController.formatAssetAmount(registrationController.priceForLevel(i))} $currency)',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w800,
@@ -251,7 +249,8 @@ class RegistrationScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 22),
                           _PaymentSummary(
-                            amount: selectedAmount,
+                            amount: selectedPriceUnits,
+                            paysWithUsdc: registrationController.paysWithUsdc,
                             currencySymbol: currency,
                           ),
                           const SizedBox(height: 24),
@@ -274,7 +273,7 @@ class RegistrationScreen extends StatelessWidget {
                               child: Container(
                                 alignment: Alignment.center,
                                 child: Text(
-                                  '${'registration.activate'.tr} (${selectedAmount.toStringAsFixed(3)} $currency)',
+                                  '${'registration.activate'.tr} ($selectedPriceLabel $currency)',
                                   style: const TextStyle(
                                     fontSize: 16,
                                     color: Colors.white,
@@ -291,6 +290,15 @@ class RegistrationScreen extends StatelessWidget {
                     _ActiveGamesStrip(
                       selectedLevel: selectedLevel,
                       currencySymbol: currency,
+                      paysWithUsdc: registrationController.paysWithUsdc,
+                      prices: {
+                        for (var item = 1; item <= easyGameLevelCount; item++)
+                          item: registrationController.priceForLevel(item),
+                      },
+                      canEnter: {
+                        for (var item = 1; item <= easyGameLevelCount; item++)
+                          item: registrationController.canEnterLevel(item),
+                      },
                       onPickLevel: registrationController.selectLevel,
                     ),
                   ],

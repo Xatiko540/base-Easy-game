@@ -45,17 +45,23 @@ class BasePayService extends GetxService {
     required GameRoundSchedule round,
     required String inviter,
   }) async {
+    if (isProcessing) {
+      throw StateError('payment.alreadyProcessing'.tr);
+    }
     if (!isAvailable) {
       throw StateError('payment.basePayUnavailable'.tr);
     }
     final wallet = Get.find<WalletConnectService>();
     if (!wallet.isConnected.value) await wallet.connectBaseAccount();
     await wallet.ensureBaseNetwork();
+    if (!await wallet.isEasyGameLevelAvailable(round.level)) {
+      throw StateError('payment.levelEmergencyPausedHint'.tr);
+    }
     final backend = Get.find<FirebaseBackendService>();
     await backend.ensureCurrentWalletLinked();
 
     final config = Get.find<AppConfigService>();
-    final gateway = config.get('basePayGatewayAddress');
+    final gateway = await wallet.resolveBasePayGatewayAddress();
     final testnet = config.getInt('targetBaseChainId') ==
         WalletConnectService.baseSepoliaChainId;
     final amount = _formatUsdc(round.usdcPrice);

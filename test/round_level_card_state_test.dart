@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
+import 'package:lottery_advance/app/models/game_round_chain_models.dart';
 import 'package:lottery_advance/app/models/matrix_round_models.dart';
 import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
 
@@ -47,8 +48,53 @@ void main() {
   );
 
   test('progress uses occupied round cells and manifest capacity', () {
-    final state = RoundLevelCardState(level: 5, round: round(), matrix: matrix);
+    final state = RoundLevelCardState(
+      level: 5,
+      round: round(),
+      matrix: matrix,
+      contractLevelAvailable: true,
+    );
     expect(state.fillPercent, 25);
+  });
+
+  test('initialized round uses prices read from the round manager', () {
+    final manifestRound = round();
+    final chainState = GameRoundChainState(
+      roundId: BigInt.from(501),
+      configHash: manifestRound.schedule.configHash,
+      initializedAt: startsAt,
+      occupiedCells: BigInt.zero,
+      winnersRegistered: BigInt.zero,
+      initialized: true,
+      settled: false,
+      cancelled: false,
+      paused: false,
+      prizePoolEth: BigInt.zero,
+      prizePoolUsdc: BigInt.zero,
+      ethPriceWei: BigInt.from(210000000000000000),
+      usdcPrice: BigInt.from(210000),
+      phase: GameRoundPhase.open,
+    );
+    final trustedRound = GameRoundViewState.fromSchedule(
+      manifestRound.schedule,
+      startsAt,
+      chainState,
+    );
+    final state = RoundLevelCardState(level: 5, round: trustedRound);
+
+    expect(state.ethPriceWei, BigInt.from(210000000000000000));
+    expect(state.usdcPrice, BigInt.from(210000));
+  });
+
+  test('level without a round exposes fallback prices read from core', () {
+    final state = RoundLevelCardState(
+      level: 5,
+      contractEthPriceWei: BigInt.from(200000000000000000),
+      contractUsdcPrice: BigInt.from(200000),
+    );
+
+    expect(state.ethPriceWei, BigInt.from(200000000000000000));
+    expect(state.usdcPrice, BigInt.from(200000));
   });
 
   test('chance is derived from player and round total weight', () {
@@ -97,5 +143,17 @@ void main() {
       ),
     );
     expect(frozen.playerStatus, RoundLevelPlayerStatus.frozen);
+  });
+
+  test('emergency pause blocks an otherwise open round', () {
+    final state = RoundLevelCardState(
+      level: 5,
+      round: round(),
+      contractLevelAvailable: false,
+    );
+
+    expect(state.isEmergencyPaused, isTrue);
+    expect(state.canEnter, isFalse);
+    expect(state.playerStatus, RoundLevelPlayerStatus.unavailable);
   });
 }

@@ -9,11 +9,24 @@ enum RoundLevelPlayerStatus {
   completed
 }
 
+class ContractLevelPrice {
+  final BigInt ethPriceWei;
+  final BigInt usdcPrice;
+
+  const ContractLevelPrice({
+    required this.ethPriceWei,
+    required this.usdcPrice,
+  });
+}
+
 class RoundLevelCardState {
   final int level;
   final GameRoundViewState? round;
   final RoundMatrixStats? matrix;
   final RoundPlayerState? player;
+  final BigInt? contractEthPriceWei;
+  final BigInt? contractUsdcPrice;
+  final bool? contractLevelAvailable;
   final String? errorMessage;
 
   const RoundLevelCardState({
@@ -21,12 +34,16 @@ class RoundLevelCardState {
     this.round,
     this.matrix,
     this.player,
+    this.contractEthPriceWei,
+    this.contractUsdcPrice,
+    this.contractLevelAvailable,
     this.errorMessage,
   });
 
   BigInt get roundId => BigInt.from(round?.schedule.roundId ?? 0);
-  BigInt get ethPriceWei => round?.schedule.ethPriceWei ?? BigInt.zero;
-  BigInt get usdcPrice => round?.schedule.usdcPrice ?? BigInt.zero;
+  BigInt get ethPriceWei =>
+      round?.ethPriceWei ?? contractEthPriceWei ?? BigInt.zero;
+  BigInt get usdcPrice => round?.usdcPrice ?? contractUsdcPrice ?? BigInt.zero;
   BigInt get prizePoolWei => matrix?.prizePoolEth ?? BigInt.zero;
   BigInt get prizePoolUsdc => matrix?.prizePoolUsdc ?? BigInt.zero;
   BigInt get totalWeight => matrix?.totalWeight ?? BigInt.zero;
@@ -39,15 +56,19 @@ class RoundLevelCardState {
   bool get isFrozen => player?.frozen == true;
   bool get hasRound => round != null;
   bool get hasError => errorMessage?.isNotEmpty == true;
+  bool get isEmergencyPaused => contractLevelAvailable == false;
+  bool get canEnter =>
+      round?.canEnter == true && contractLevelAvailable == true;
 
   RoundLevelPlayerStatus get playerStatus {
     if (!hasRound) return RoundLevelPlayerStatus.unavailable;
+    if (isEmergencyPaused) return RoundLevelPlayerStatus.unavailable;
     if (isFrozen) return RoundLevelPlayerStatus.frozen;
     if (isPlayerActive && round!.phase == GameRoundPhase.settled) {
       return RoundLevelPlayerStatus.completed;
     }
     if (isPlayerActive) return RoundLevelPlayerStatus.active;
-    return round!.canEnter
+    return canEnter
         ? RoundLevelPlayerStatus.available
         : RoundLevelPlayerStatus.unavailable;
   }

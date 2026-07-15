@@ -29,7 +29,7 @@ class _LandingTopBar extends StatelessWidget {
                 : 'start.connectWallet'.tr,
             gradient: !walletService.isConnected.value,
             onTap: walletService.isConnected.value
-                ? walletService.refreshNativeBalance
+                ? walletService.refreshNativeBalanceSilently
                 : onConnect,
           ),
         ),

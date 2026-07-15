@@ -19,13 +19,11 @@ class _LevelCardPresenter extends StatelessWidget {
   }
 
   Widget _buildCard(GameRoundViewState? round) {
-    final coin = weiToEthDouble(
-      round?.schedule.ethPriceWei ?? level.ethPriceWei,
-    );
+    final priceWei = round?.ethPriceWei ?? level.ethPriceWei;
     if (round == null) {
       return StatusCard(
         level: level.level,
-        coin: coin,
+        priceWei: priceWei,
         currencySymbol: currencySymbol,
         title: 'round.unavailable'.tr,
         subtitle: 'levels.scheduleUnavailable'.tr,
@@ -37,7 +35,7 @@ class _LevelCardPresenter extends StatelessWidget {
         level.roundId != BigInt.from(round.schedule.roundId)) {
       return StatusCard(
         level: level.level,
-        coin: coin,
+        priceWei: priceWei,
         currencySymbol: currencySymbol,
         title: 'common.loading'.tr,
         subtitle: 'levels.roundDataRefreshing'.tr,
@@ -48,7 +46,7 @@ class _LevelCardPresenter extends StatelessWidget {
     if (!round.isConfigurationTrusted) {
       return StatusCard(
         level: level.level,
-        coin: coin,
+        priceWei: priceWei,
         currencySymbol: currencySymbol,
         title: 'round.configurationMismatch'.tr,
         subtitle: 'round.actionsUnavailable'.tr,
@@ -57,10 +55,22 @@ class _LevelCardPresenter extends StatelessWidget {
         round: round,
       );
     }
+    if (level.isEmergencyPaused) {
+      return StatusCard(
+        level: level.level,
+        priceWei: priceWei,
+        currencySymbol: currencySymbol,
+        title: 'payment.levelEmergencyPaused'.tr,
+        subtitle: 'payment.levelEmergencyPausedHint'.tr,
+        icon: CupertinoIcons.pause_circle,
+        color: Colors.redAccent,
+        round: round,
+      );
+    }
     if (level.hasError) {
       return StatusCard(
         level: level.level,
-        coin: coin,
+        priceWei: priceWei,
         currencySymbol: currencySymbol,
         title: 'common.error'.tr,
         subtitle: 'levels.roundDataUnavailable'.tr,
@@ -82,7 +92,7 @@ class _LevelCardPresenter extends StatelessWidget {
     if (level.isFrozen) {
       return StatusCard(
         level: level.level,
-        coin: coin,
+        priceWei: priceWei,
         currencySymbol: currencySymbol,
         title: 'common.frozen'.tr,
         subtitle: 'levels.openMatrixToUnfreeze'.tr,
@@ -97,7 +107,7 @@ class _LevelCardPresenter extends StatelessWidget {
       case GameRoundPhase.scheduled:
         return StatusCard(
           level: level.level,
-          coin: coin,
+          priceWei: priceWei,
           currencySymbol: currencySymbol,
           title: 'levels.availableIn'.tr,
           subtitle: localizedRoundCountdown(round),
@@ -117,14 +127,14 @@ class _LevelCardPresenter extends StatelessWidget {
         }
         return ActivateCard(
           level: level.level,
-          coin: coin,
+          priceWei: priceWei,
           currencySymbol: currencySymbol,
           round: round,
         );
       case GameRoundPhase.locked:
         return StatusCard(
           level: level.level,
-          coin: coin,
+          priceWei: priceWei,
           currencySymbol: currencySymbol,
           title: 'round.locked'.tr,
           subtitle: localizedRoundCountdown(round),
@@ -137,7 +147,7 @@ class _LevelCardPresenter extends StatelessWidget {
       case GameRoundPhase.settlementReady:
         return StatusCard(
           level: level.level,
-          coin: coin,
+          priceWei: priceWei,
           currencySymbol: currencySymbol,
           title: 'round.settlementReady'.tr,
           subtitle: 'round.waitingSettlement'.tr,
@@ -149,7 +159,7 @@ class _LevelCardPresenter extends StatelessWidget {
       case GameRoundPhase.settled:
         return StatusCard(
           level: level.level,
-          coin: coin,
+          priceWei: priceWei,
           currencySymbol: currencySymbol,
           title: 'round.settled'.tr,
           subtitle: level.isPlayerActive
@@ -164,7 +174,7 @@ class _LevelCardPresenter extends StatelessWidget {
       case GameRoundPhase.paused:
         return StatusCard(
           level: level.level,
-          coin: coin,
+          priceWei: priceWei,
           currencySymbol: currencySymbol,
           title: roundPhaseTranslationKey(round.phase).tr,
           subtitle: 'round.actionsUnavailable'.tr,
@@ -178,7 +188,7 @@ class _LevelCardPresenter extends StatelessWidget {
       case GameRoundPhase.uninitialized:
         return StatusCard(
           level: level.level,
-          coin: coin,
+          priceWei: priceWei,
           currencySymbol: currencySymbol,
           title: 'round.uninitialized'.tr,
           subtitle: 'round.actionsUnavailable'.tr,

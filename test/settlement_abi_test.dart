@@ -8,11 +8,11 @@ import 'package:web3dart/web3dart.dart';
 void main() {
   test('Base Sepolia deployment addresses are bundled with the app', () {
     const expected = <String, String>{
-      'EasyGameAdvance': '0x99190EeBBF301d5f99D301E8819bF8C3eB835B89',
-      'EasyGameRoundManager': '0x7f88408841b53f0219Ef2aa941f35aeB044f5340',
-      'EasyGameRoundSettlement': '0x9502C447947482cC81Fe41488d7f782Bf13AB14E',
-      'EasyGameArenaSkills': '0x6fb3aA2cc774CE55d2533c3e75B6932C8459F447',
-      'EasyGameBasePayGateway': '0x5E772Fda40d58114D62251346fd73E54D9Ede398',
+      'EasyGameAdvance': '0x6d878b377e6CCE9B0134bF306A6c85880EF5B139',
+      'EasyGameRoundManager': '0x856C4E5cb4C5EFcFdC533B651B9B8724d290512F',
+      'EasyGameRoundSettlement': '0x8437F6aE3e7e56d707d66b316383630B501B7Aa5',
+      'EasyGameArenaSkills': '0xF0706314ec9b060796897f2A9FB34266D08f595c',
+      'EasyGameBasePayGateway': '0xB4FEC3E440321a751FB7f117b4Bb2BD38Fbc6709',
     };
 
     for (final entry in expected.entries) {
