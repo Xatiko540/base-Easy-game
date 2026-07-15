@@ -153,17 +153,6 @@ class StatisticsScreen extends StatelessWidget {
                 );
               },
             ),
-            _InfoBlock(
-              title: 'stats.strategyTitle'.tr,
-              text: 'stats.strategyText'.tr,
-            ),
-            _StatusCard(
-              title: 'utility.easyGameContract'.tr,
-              value: data == null
-                  ? 'common.loading'.tr
-                  : _shortAddress(data.contractAddress),
-              icon: CupertinoIcons.doc_text,
-            ),
           ],
         );
       },

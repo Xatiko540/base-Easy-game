@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/app_config_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
@@ -98,6 +99,8 @@ void main() async {
         translations: AppTranslations(),
         locale: languageService.locale,
         fallbackLocale: const Locale('en'),
+        supportedLocales: LanguageService.supportedLocales,
+        localizationsDelegates: GlobalMaterialLocalizations.delegates,
         defaultTransition: Transition.fadeIn,
         theme: lightTheme,
         darkTheme: darkTheme,

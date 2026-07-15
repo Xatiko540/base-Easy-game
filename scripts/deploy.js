@@ -121,6 +121,9 @@ async function main() {
   let usdcAddress = process.env.USDC_ADDRESS || "";
   let mockUsdc;
   const deployLegacyLottery = process.env.DEPLOY_LEGACY_LOTTERY === "true";
+  const uniformTestLevelPriceEth = String(
+    process.env.TEST_UNIFORM_LEVEL_PRICE_ETH || ""
+  ).trim();
 
   if (isLocalNetwork && process.env.LOCAL_USE_MOCK_USDC !== "false") {
     const MockUSDC = await hre.ethers.getContractFactory("MockUSDC");
@@ -189,6 +192,27 @@ async function main() {
   await easyGame.waitForDeployment();
 
   const easyGameAddress = await recordDeployment("EasyGameAdvance", easyGame);
+
+  if (uniformTestLevelPriceEth) {
+    if (![84532, 1337, 31337, 5777].includes(chainId)) {
+      throw new Error(
+        "TEST_UNIFORM_LEVEL_PRICE_ETH is restricted to Base Sepolia and local networks."
+      );
+    }
+    const uniformPrice = hre.ethers.parseEther(uniformTestLevelPriceEth);
+    if (uniformPrice <= 0n) {
+      throw new Error("TEST_UNIFORM_LEVEL_PRICE_ETH must be greater than zero.");
+    }
+    for (let level = 1; level <= 17; level += 1) {
+      await recordTransaction(
+        `EasyGameAdvance.setLevelPrice.${level}`,
+        await easyGame.setLevelPrice(level, uniformPrice)
+      );
+    }
+    console.log(
+      `Configured all 17 ETH level prices to ${uniformTestLevelPriceEth} ETH.`
+    );
+  }
 
   const setCoreTx = await roundManager.setGameCore(easyGameAddress);
   await recordTransaction("RoundManager.setGameCore", setCoreTx);

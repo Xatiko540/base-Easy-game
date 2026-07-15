@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
@@ -8,60 +10,68 @@ void showLanguageSelector(BuildContext context) {
 
   showModalBottomSheet(
     context: context,
+    isScrollControlled: true,
     backgroundColor: const Color(0xFF202223),
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
     ),
     builder: (context) {
       return SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
-          child: Obx(
-            () => Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'language.title'.tr,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
+        child: SizedBox(
+          height: math.min(MediaQuery.sizeOf(context).height * 0.85, 760),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 24),
+            child: Obx(
+              () => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'language.title'.tr,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 22,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'language.subtitle'.tr,
-                  style: const TextStyle(
-                    color: Colors.white54,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
+                  const SizedBox(height: 4),
+                  Text(
+                    'language.subtitle'.tr,
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 18),
-                _LanguageOption(
-                  code: 'system',
-                  title: 'language.system'.tr,
-                  flag: 'SYS',
-                  selected: languageService.useSystem.value,
-                ),
-                const SizedBox(height: 10),
-                _LanguageOption(
-                  code: 'en',
-                  title: 'language.english'.tr,
-                  flag: 'EN',
-                  selected: !languageService.useSystem.value &&
-                      languageService.languageCode.value == 'en',
-                ),
-                const SizedBox(height: 10),
-                _LanguageOption(
-                  code: 'ru',
-                  title: 'language.russian'.tr,
-                  flag: 'RU',
-                  selected: !languageService.useSystem.value &&
-                      languageService.languageCode.value == 'ru',
-                ),
-              ],
+                  const SizedBox(height: 18),
+                  Expanded(
+                    child: ListView.separated(
+                      itemCount: LanguageService.supportedLanguages.length + 1,
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemBuilder: (context, index) {
+                        if (index == 0) {
+                          return _LanguageOption(
+                            code: 'system',
+                            title: 'language.system'.tr,
+                            flag: 'SYS',
+                            selected: languageService.useSystem.value,
+                          );
+                        }
+
+                        final language =
+                            LanguageService.supportedLanguages[index - 1];
+                        return _LanguageOption(
+                          code: language.code,
+                          title: language.translationKey.tr,
+                          flag: language.badge,
+                          selected: !languageService.useSystem.value &&
+                              languageService.languageCode.value ==
+                                  language.code,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

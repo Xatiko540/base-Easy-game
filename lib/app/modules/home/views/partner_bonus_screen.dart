@@ -89,7 +89,6 @@ class PartnerBonusScreen extends StatelessWidget {
                   ),
                   _ClaimableReferralPanel(controller: partnerController),
                   _ReferralRulesPanel(data: data),
-                  const _ReferralFlowPanel(),
                   const _BonusTable(),
                 ],
               ),

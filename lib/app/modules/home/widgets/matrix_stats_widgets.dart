@@ -154,7 +154,7 @@ class _PayoutDistributionPanel extends StatelessWidget {
   }
 }
 
-class _LevelVolumePanel extends StatelessWidget {
+class _LevelVolumePanel extends StatefulWidget {
   final List<_LevelArenaStat> rows;
   final String currency;
 
@@ -164,42 +164,206 @@ class _LevelVolumePanel extends StatelessWidget {
   });
 
   @override
+  State<_LevelVolumePanel> createState() => _LevelVolumePanelState();
+}
+
+class _LevelVolumePanelState extends State<_LevelVolumePanel> {
+  int? _highlightedIndex;
+  late DateTimeRange _selectedPeriod;
+
+  @override
+  void initState() {
+    super.initState();
+    final today = DateUtils.dateOnly(DateTime.now());
+    _selectedPeriod = DateTimeRange(
+      start: DateTime(today.year, today.month - 5, 1),
+      end: today,
+    );
+  }
+
+  Future<void> _openCalendar() async {
+    final today = DateUtils.dateOnly(DateTime.now());
+    final selected = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(today.year - 3),
+      lastDate: today,
+      initialDateRange: _selectedPeriod,
+      builder: (context, child) {
+        final theme = Theme.of(context);
+        return Theme(
+          data: theme.copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: EasyGameTheme.teal,
+              onPrimary: Color(0xFF071A18),
+              surface: Color(0xFF1C1C2D),
+              onSurface: Colors.white,
+            ),
+            dialogTheme: const DialogThemeData(
+              backgroundColor: Color(0xFF1C1C2D),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (selected != null && mounted) {
+      setState(() => _selectedPeriod = selected);
+    }
+  }
+
+  void _highlightAt(Offset position, double width, int itemCount) {
+    if (itemCount == 0) return;
+    final plotWidth = math.max(1.0, width - 62);
+    final relativeX = (position.dx - 46).clamp(0.0, plotWidth);
+    final index =
+        itemCount == 1 ? 0 : (relativeX / plotWidth * (itemCount - 1)).round();
+    if (_highlightedIndex != index) {
+      setState(() => _highlightedIndex = index);
+    }
+  }
+
+  String _periodLabel(BuildContext context) {
+    final localizations = MaterialLocalizations.of(context);
+    return '${localizations.formatCompactDate(_selectedPeriod.start)} — '
+        '${localizations.formatCompactDate(_selectedPeriod.end)}';
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final sorted = [...rows]
-      ..sort((a, b) => b.fillPercent.compareTo(a.fillPercent));
-    final topRows = sorted.take(6).toList();
+    final rowsByLevel = {
+      for (final row in widget.rows) row.level: row,
+    };
+    final allRows = List<_LevelArenaStat>.generate(17, (index) {
+      final level = index + 1;
+      return rowsByLevel[level] ??
+          _LevelArenaStat(
+            level: level,
+            priceWei: BigInt.zero,
+            activeCells: BigInt.zero,
+            prizePoolWei: BigInt.zero,
+            totalWeight: BigInt.zero,
+          );
+    });
+    final chartRows = allRows;
 
     return _Panel(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'stats.levelVolume'.tr,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-            ),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: 14,
+            runSpacing: 12,
+            children: [
+              Text(
+                'stats.levelVolume'.tr,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  onTap: _openCalendar,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    decoration: BoxDecoration(
+                      color: EasyGameTheme.teal.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: EasyGameTheme.teal.withValues(alpha: 0.34),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          CupertinoIcons.calendar,
+                          color: EasyGameTheme.teal,
+                          size: 17,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          _periodLabel(context),
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(width: 7),
+                        const Icon(
+                          CupertinoIcons.chevron_down,
+                          color: EasyGameTheme.teal,
+                          size: 13,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 18),
-          SizedBox(
-            height: 170,
+          const SizedBox(height: 20),
+          Container(
+            height: 250,
             width: double.infinity,
-            child: CustomPaint(
-              painter: _VolumeLinePainter(topRows),
+            padding: const EdgeInsets.fromLTRB(8, 12, 8, 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFF171727),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF2B2B45)),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                return MouseRegion(
+                  cursor: SystemMouseCursors.precise,
+                  onHover: (event) => _highlightAt(
+                    event.localPosition,
+                    constraints.maxWidth,
+                    chartRows.length,
+                  ),
+                  onExit: (_) {
+                    if (_highlightedIndex != null) {
+                      setState(() => _highlightedIndex = null);
+                    }
+                  },
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapDown: (details) => _highlightAt(
+                      details.localPosition,
+                      constraints.maxWidth,
+                      chartRows.length,
+                    ),
+                    child: CustomPaint(
+                      size: Size.infinite,
+                      painter: _VolumeLinePainter(
+                        rows: chartRows,
+                        highlightedIndex: _highlightedIndex,
+                        levelLabel: 'common.level'.tr,
+                      ),
+                    ),
+                  ),
+                );
+              },
             ),
           ),
           const SizedBox(height: 18),
           Text(
-            'stats.topLevels'.tr,
+            'levels.allLevels'.tr,
             style: const TextStyle(
               color: Colors.white54,
               fontWeight: FontWeight.w800,
             ),
           ),
           const SizedBox(height: 10),
-          for (final row in topRows)
-            _LevelProgressRow(row: row, currency: currency),
+          for (final row in allRows)
+            _LevelProgressRow(row: row, currency: widget.currency),
         ],
       ),
     );
@@ -373,37 +537,78 @@ class _DistributionDonutPainter extends CustomPainter {
 
 class _VolumeLinePainter extends CustomPainter {
   final List<_LevelArenaStat> rows;
+  final int? highlightedIndex;
+  final String levelLabel;
 
-  const _VolumeLinePainter(this.rows);
+  const _VolumeLinePainter({
+    required this.rows,
+    required this.highlightedIndex,
+    required this.levelLabel,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
+    const left = 46.0;
+    const right = 16.0;
+    const top = 14.0;
+    const bottom = 34.0;
+    final plotRect = Rect.fromLTRB(
+      left,
+      top,
+      math.max(left, size.width - right),
+      math.max(top, size.height - bottom),
+    );
     final gridPaint = Paint()
       ..color = Colors.white.withValues(alpha: 0.07)
       ..strokeWidth = 1;
-    for (var i = 0; i < 4; i++) {
-      final y = size.height * (i / 3);
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    for (var i = 0; i < 5; i++) {
+      final ratio = i / 4;
+      final y = plotRect.bottom - plotRect.height * ratio;
+      canvas.drawLine(
+        Offset(plotRect.left, y),
+        Offset(plotRect.right, y),
+        gridPaint,
+      );
+      _drawText(
+        canvas,
+        '${(ratio * 100).round()}%',
+        Offset(0, y - 7),
+        const TextStyle(color: Colors.white38, fontSize: 10),
+      );
     }
 
     if (rows.isEmpty) {
       return;
     }
 
-    final path = Path();
+    final points = <Offset>[];
     for (var i = 0; i < rows.length; i++) {
-      final x = rows.length == 1 ? 0.0 : size.width * i / (rows.length - 1);
-      final y = size.height * (1 - (rows[i].fillPercent.clamp(0, 100) / 100));
-      if (i == 0) {
-        path.moveTo(x, y);
-      } else {
-        path.lineTo(x, y);
-      }
+      final x = rows.length == 1
+          ? plotRect.center.dx
+          : plotRect.left + plotRect.width * i / (rows.length - 1);
+      final ratio = rows[i].fillPercent.clamp(0, 100) / 100;
+      points.add(Offset(x, plotRect.bottom - plotRect.height * ratio));
+    }
+
+    final path = Path();
+    path.moveTo(points.first.dx, points.first.dy);
+    for (var i = 1; i < points.length; i++) {
+      final previous = points[i - 1];
+      final current = points[i];
+      final controlX = (previous.dx + current.dx) / 2;
+      path.cubicTo(
+        controlX,
+        previous.dy,
+        controlX,
+        current.dy,
+        current.dx,
+        current.dy,
+      );
     }
 
     final fillPath = Path.from(path)
-      ..lineTo(size.width, size.height)
-      ..lineTo(0, size.height)
+      ..lineTo(points.last.dx, plotRect.bottom)
+      ..lineTo(points.first.dx, plotRect.bottom)
       ..close();
 
     final fillPaint = Paint()
@@ -414,7 +619,7 @@ class _VolumeLinePainter extends CustomPainter {
           EasyGameTheme.teal.withValues(alpha: 0.25),
           EasyGameTheme.teal.withValues(alpha: 0.02),
         ],
-      ).createShader(Offset.zero & size);
+      ).createShader(plotRect);
     canvas.drawPath(fillPath, fillPaint);
 
     final linePaint = Paint()
@@ -423,9 +628,100 @@ class _VolumeLinePainter extends CustomPainter {
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
     canvas.drawPath(path, linePaint);
+
+    final pointPaint = Paint()..color = EasyGameTheme.teal;
+    for (final point in points) {
+      canvas.drawCircle(point, 2.6, pointPaint);
+    }
+
+    final labelStep = size.width < 520 ? 4 : (rows.length > 10 ? 2 : 1);
+    for (var i = 0; i < rows.length; i++) {
+      if (i % labelStep != 0 && i != rows.length - 1) continue;
+      final label = rows[i].level.toString();
+      final textPainter = TextPainter(
+        text: TextSpan(
+          text: label,
+          style: const TextStyle(color: Colors.white38, fontSize: 10),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      textPainter.paint(
+        canvas,
+        Offset(points[i].dx - textPainter.width / 2, plotRect.bottom + 10),
+      );
+    }
+
+    final selected = highlightedIndex;
+    if (selected == null || selected < 0 || selected >= points.length) return;
+    final point = points[selected];
+    canvas.drawLine(
+      Offset(point.dx, plotRect.top),
+      Offset(point.dx, plotRect.bottom),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.48)
+        ..strokeWidth = 1,
+    );
+    canvas.drawCircle(point, 7, Paint()..color = Colors.white);
+    canvas.drawCircle(point, 4, Paint()..color = EasyGameTheme.teal);
+
+    const tooltipWidth = 112.0;
+    const tooltipHeight = 56.0;
+    final tooltipLeft = (point.dx + 10)
+        .clamp(plotRect.left, math.max(plotRect.left, size.width - 124))
+        .toDouble();
+    final tooltipTop = point.dy - tooltipHeight - 12 < plotRect.top
+        ? point.dy + 12
+        : point.dy - tooltipHeight - 12;
+    final tooltipRect = Rect.fromLTWH(
+      tooltipLeft,
+      tooltipTop,
+      tooltipWidth,
+      tooltipHeight,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(tooltipRect, const Radius.circular(10)),
+      Paint()..color = const Color(0xFF10101C),
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(tooltipRect, const Radius.circular(10)),
+      Paint()
+        ..color = const Color(0xFF393958)
+        ..style = PaintingStyle.stroke,
+    );
+    _drawText(
+      canvas,
+      '$levelLabel ${rows[selected].level}',
+      Offset(tooltipRect.left + 12, tooltipRect.top + 9),
+      const TextStyle(color: Colors.white54, fontSize: 11),
+    );
+    _drawText(
+      canvas,
+      '${rows[selected].fillPercent.toStringAsFixed(2)}%',
+      Offset(tooltipRect.left + 12, tooltipRect.top + 29),
+      const TextStyle(
+        color: EasyGameTheme.teal,
+        fontSize: 14,
+        fontWeight: FontWeight.w900,
+      ),
+    );
+  }
+
+  void _drawText(
+    Canvas canvas,
+    String text,
+    Offset offset,
+    TextStyle style,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(canvas, offset);
   }
 
   @override
   bool shouldRepaint(covariant _VolumeLinePainter oldDelegate) =>
-      oldDelegate.rows != rows;
+      oldDelegate.rows != rows ||
+      oldDelegate.highlightedIndex != highlightedIndex ||
+      oldDelegate.levelLabel != levelLabel;
 }
