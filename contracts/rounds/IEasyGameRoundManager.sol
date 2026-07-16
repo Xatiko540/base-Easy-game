@@ -7,7 +7,8 @@ interface IEasyGameRoundManager {
     function initializeAndRegisterEntry(
         RoundConfig calldata config,
         bytes calldata signature,
-        address player
+        address player,
+        address inviter
     ) external returns (bytes32 configHash);
 
     function getRoundConfig(uint256 roundId)
@@ -23,4 +24,16 @@ interface IEasyGameRoundManager {
     function getRoundPhase(uint256 roundId) external view returns (RoundPhase);
 
     function markRoundSettled(uint256 roundId, uint16 winnersRegistered) external;
+
+    function getPlayerSeasonProgress(uint256 seasonId, address player)
+        external
+        view
+        returns (
+            bool started,
+            uint8 startLevel,
+            uint8 highestLevel,
+            uint16 activatedLevels,
+            uint32 directInvites,
+            uint32 inviteCapacity
+        );
 }

@@ -156,7 +156,7 @@ class _MatrixArenaController extends GetxController {
     return _MatrixArenaSnapshot(
       level: level,
       roundId: roundId,
-      priceWei: round.schedule.ethPriceWei,
+      priceWei: round.ethPriceWei,
       activeCells: stats.activeCells,
       totalWeight: stats.totalWeight,
       prizePoolWei: stats.prizePoolEth,

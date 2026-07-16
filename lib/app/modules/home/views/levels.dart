@@ -17,6 +17,7 @@ import '../models/levels_models.dart';
 import '../models/round_level_card_state.dart';
 import '../controllers/levels_provider.dart';
 import '../controllers/level_detail_controller.dart';
+import '../widgets/round_card_timer.dart';
 part '../widgets/levels_grid_widgets.dart';
 part '../widgets/levels_grid_presenter_widgets.dart';
 part '../widgets/levels_grid_card_widgets.dart';
@@ -50,7 +51,6 @@ class LevelsScreen extends StatelessWidget {
         final loading = levelsProvider.isLoading.value;
         final errorMessage = levelsProvider.errorMessage.value;
         final currency = walletService.nativeSymbol;
-        final totalEarnedWei = levelsProvider.totalEarnedWei;
         final connected = walletService.isConnected.value;
         final identity = walletAddress?.isNotEmpty == true
             ? _shortLevelIdentity(walletAddress!)
@@ -60,24 +60,22 @@ class LevelsScreen extends StatelessWidget {
         return ExpressAppShell(
           title: 'levels.title'.tr,
           breadcrumb: '$identity / Easy Games',
-          balanceLabel: '${formatWeiToEth(totalEarnedWei)} $currency',
-          onRefresh: levelsProvider.refreshAll,
           child: LayoutBuilder(
             builder: (context, constraints) {
               double width = constraints.maxWidth;
 
-              int crossAxisCount = width < 480
-                  ? 2
+              int crossAxisCount = width < 600
+                  ? 1
                   : width < 800
                       ? 2
                       : width < 1200
                           ? 3
                           : 4;
 
-              double childAspectRatio = width < 480
-                  ? 0.82
+              double childAspectRatio = width < 600
+                  ? 1.18
                   : width < 800
-                      ? 1.05
+                      ? 0.9
                       : 1.26;
 
               return SingleChildScrollView(
@@ -134,13 +132,20 @@ class LevelsScreen extends StatelessWidget {
                         if (errorMessage.isNotEmpty)
                           _LevelStateBanner(
                             message: errorMessage,
-                            onRefresh: levelsProvider.fetchLevels,
                           ),
-                        if (loading)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: LinearProgressIndicator(),
+                        SizedBox(
+                          height: 2,
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 220),
+                            opacity: loading ? 1 : 0,
+                            child: const LinearProgressIndicator(
+                              minHeight: 2,
+                              color: EasyGameTheme.teal,
+                              backgroundColor: Colors.transparent,
+                            ),
                           ),
+                        ),
+                        const SizedBox(height: 10),
                         GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
@@ -179,6 +184,7 @@ class LevelsScreen extends StatelessWidget {
                             borderRadius: BorderRadius.circular(18),
                           ),
                           child: Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               const Icon(CupertinoIcons.question_circle,
                                   color: Colors.white, size: 14),
@@ -206,7 +212,6 @@ class LevelsScreen extends StatelessWidget {
                       transactions: levelsProvider.transactions.toList(),
                       isLoading: levelsProvider.isTransactionsLoading.value,
                       errorMessage: levelsProvider.transactionsError.value,
-                      onRefresh: levelsProvider.refreshAll,
                     ),
                   ],
                 ),
@@ -326,7 +331,6 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                       _LevelStateBanner(
                         message: 'levels.unableLoadDetails'.trParams(
                             {'error': detailController.errorMessage.value}),
-                        onRefresh: detailController.refreshDetail,
                       ),
                     if (data != null) ...[
                       _LevelHeroPanel(
@@ -337,19 +341,17 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                         walletLabel: walletService.isConnected.value
                             ? walletService.shortAddress
                             : 'common.notConnected'.tr,
-                        onActivate: data.card.isPlayerActive ||
-                                data.card.round?.canEnter != true
-                            ? null
-                            : () {
-                                Get.to(() => RegistrationScreen(
-                                      LevelStatus.waiting,
-                                      level: level,
-                                      amount:
-                                          weiToEthDouble(data.card.ethPriceWei),
-                                      inviter: walletService.activeInviter,
-                                      round: data.card.round,
-                                    ));
-                              },
+                        onActivate:
+                            data.card.isPlayerActive || !data.card.canEnter
+                                ? null
+                                : () {
+                                    Get.to(() => RegistrationScreen(
+                                          LevelStatus.waiting,
+                                          level: level,
+                                          inviter: walletService.activeInviter,
+                                          round: data.card.round,
+                                        ));
+                                  },
                       ),
                       const SizedBox(height: 16),
                       _LevelStatsStrip(

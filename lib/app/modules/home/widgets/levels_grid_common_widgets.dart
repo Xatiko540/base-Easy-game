@@ -2,13 +2,11 @@ part of '../views/levels.dart';
 
 class _CardHeader extends StatelessWidget {
   final int level;
-  final double coin;
-  final String currencySymbol;
+  final BigInt priceWei;
 
   const _CardHeader({
     required this.level,
-    required this.coin,
-    required this.currencySymbol,
+    required this.priceWei,
   });
 
   @override
@@ -29,7 +27,7 @@ class _CardHeader extends StatelessWidget {
         const _CoinIcon(size: 14),
         const SizedBox(width: 5),
         Text(
-          formatLevelPrice(coin),
+          formatWeiToEth(priceWei),
           style: const TextStyle(
             color: Colors.white,
             fontSize: 14,

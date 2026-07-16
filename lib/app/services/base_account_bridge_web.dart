@@ -17,6 +17,16 @@ class BaseAccountSignInResult {
   });
 }
 
+class BaseAccountSessionResult {
+  final String address;
+  final int chainId;
+
+  const BaseAccountSessionResult({
+    required this.address,
+    required this.chainId,
+  });
+}
+
 class BasePayResult {
   final String id;
   final String amount;
@@ -78,6 +88,46 @@ Future<BaseAccountSignInResult> signInWithBaseAccount({
     nonce: data['nonce']?.toString() ?? '',
     chainId: int.tryParse(data['chainId']?.toString() ?? '') ?? chainId,
   );
+}
+
+Future<BaseAccountSessionResult> restoreBaseAccountSession({
+  required int chainId,
+  required String appName,
+  required String appLogoUrl,
+}) async {
+  final bridge = _bridge();
+  final raw = await bridge
+      .callMethod<JSPromise<JSAny?>>(
+        'restore'.toJS,
+        chainId.toJS,
+        appName.toJS,
+        appLogoUrl.toJS,
+      )
+      .toDart;
+  final data = raw?.dartify();
+  if (data is! Map) {
+    throw Exception('Invalid Base Account session response');
+  }
+  return BaseAccountSessionResult(
+    address: data['address']?.toString() ?? '',
+    chainId: int.tryParse(data['chainId']?.toString() ?? '') ?? chainId,
+  );
+}
+
+Future<void> disconnectBaseAccount({
+  required int chainId,
+  required String appName,
+  required String appLogoUrl,
+}) async {
+  final bridge = _bridge();
+  await bridge
+      .callMethod<JSPromise<JSAny?>>(
+        'disconnect'.toJS,
+        chainId.toJS,
+        appName.toJS,
+        appLogoUrl.toJS,
+      )
+      .toDart;
 }
 
 Future<dynamic> baseAccountRequest(String method, List<dynamic> params) async {

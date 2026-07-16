@@ -314,11 +314,20 @@ abstract contract AdminInterface is EasyGameAdvanceStorage, GameLogic {
         emit LevelUsdcPriceChanged(level, oldPrice, newPrice);
     }
 
-    function setUsdcToken(address newToken) external onlyOwner {
-        require(newToken != address(0), "USDC token required");
-        address oldToken = address(usdcToken);
-        usdcToken = IERC20Minimal(newToken);
-        emit UsdcTokenChanged(oldToken, newToken);
+    /// @notice USDC is shared with immutable gateway, skills and settlement
+    /// contracts. Changing only the core token would split accounting between
+    /// different assets, so token migration requires a coordinated redeploy.
+    function setUsdcToken(address) external view onlyOwner {
+        revert UsdcTokenLocked();
+    }
+
+    function setAllLevelPrices(uint256 newPrice) external onlyOwner {
+        require(newPrice > 0, "Price is required");
+        for (uint8 level = 1; level <= LEVEL_COUNT; level++) {
+            uint256 oldPrice = levelPrices[level];
+            levelPrices[level] = newPrice;
+            emit LevelPriceChanged(level, oldPrice, newPrice);
+        }
     }
 
     function setLevelAvailable(uint8 level, bool available) external onlyOwner {

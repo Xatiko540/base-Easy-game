@@ -12,6 +12,8 @@ class GameRoundChainState {
   final bool paused;
   final BigInt prizePoolEth;
   final BigInt prizePoolUsdc;
+  final BigInt ethPriceWei;
+  final BigInt usdcPrice;
   final GameRoundPhase phase;
 
   const GameRoundChainState({
@@ -26,6 +28,8 @@ class GameRoundChainState {
     required this.paused,
     required this.prizePoolEth,
     required this.prizePoolUsdc,
+    required this.ethPriceWei,
+    required this.usdcPrice,
     required this.phase,
   });
 }

@@ -10,6 +10,7 @@ contract EasyGameRoundManager is RoundScheduleLogic {
     event ScheduleSignerChanged(address indexed oldSigner, address indexed newSigner);
     event ScheduleSignerPermissionChanged(address indexed signer, bool allowed);
     event GameCoreChanged(address indexed oldCore, address indexed newCore);
+    event ArenaSkillsChanged(address indexed oldSkills, address indexed newSkills);
     event RoundPauseChanged(uint256 indexed roundId, bool paused);
     event RoundCancelled(uint256 indexed roundId);
     event SettlementContractChanged(address indexed oldSettlement, address indexed newSettlement);
@@ -34,6 +35,13 @@ contract EasyGameRoundManager is RoundScheduleLogic {
         address oldCore = gameCore;
         gameCore = newCore;
         emit GameCoreChanged(oldCore, newCore);
+    }
+
+    function setArenaSkills(address newSkills) external onlyOwner {
+        if (newSkills == address(0)) revert ZeroAddress();
+        address oldSkills = arenaSkills;
+        arenaSkills = newSkills;
+        emit ArenaSkillsChanged(oldSkills, newSkills);
     }
 
     function setSettlementContract(address newSettlement) external onlyOwner {
@@ -62,9 +70,12 @@ contract EasyGameRoundManager is RoundScheduleLogic {
     function setScheduleSigner(address newSigner) external onlyOwner {
         if (newSigner == address(0)) revert ZeroAddress();
         address oldSigner = scheduleSigner;
+        if (oldSigner == newSigner) return;
+        allowedScheduleSigners[oldSigner] = false;
         scheduleSigner = newSigner;
         allowedScheduleSigners[newSigner] = true;
         emit ScheduleSignerChanged(oldSigner, newSigner);
+        emit ScheduleSignerPermissionChanged(oldSigner, false);
         emit ScheduleSignerPermissionChanged(newSigner, true);
     }
 

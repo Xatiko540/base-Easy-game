@@ -15,6 +15,9 @@ interface IEasyGameSettlementCore {
     );
     function getRoundMatrixNode(uint256 roundId, uint256 cellId)
         external view returns (MatrixNode memory);
+    function getPlayerRound(address player, uint256 roundId)
+        external view returns (PlayerRound memory);
+    function hasPendingRoundRecycles(uint256 roundId) external view returns (bool);
     function releaseRoundPools(uint256 roundId)
         external returns (uint256 ethAmount, uint256 usdcAmount);
 }
@@ -96,12 +99,15 @@ contract EasyGameRoundSettlement {
             "Round is not ready"
         );
         RoundConfig memory config = roundManager.getRoundConfig(roundId);
+        require(!gameCore.hasPendingRoundRecycles(roundId), "Pending round recycles");
         uint256 candidateCount = winningCellIds.length;
         require(candidateCount == config.maxWinners && proofs.length == candidateCount, "Complete winner set required");
 
         (,,,, uint256 nextCell,) = gameCore.getRoundGameStats(roundId);
         address[] memory winners = new address[](candidateCount);
+        uint256[] memory winnerWeights = new uint256[](candidateCount);
         uint16 winnerCount;
+        uint256 totalWinnerWeight;
         uint256 previousCell;
         for (uint256 i = 0; i < candidateCount; i++) {
             uint256 cellId = winningCellIds[i];
@@ -114,10 +120,14 @@ contract EasyGameRoundSettlement {
             MatrixNode memory node = gameCore.getRoundMatrixNode(roundId, cellId);
             if (node.player == address(0) || _alreadyIncluded(winners, winnerCount, node.player)) continue;
             (uint64 frozenUntil,,) = arenaSkills.arenaStatus(roundId, node.player);
-            if (frozenUntil >= config.endsAt) {
+            if (frozenUntil >= config.freezeClosesAt) {
                 emit FrozenWinnerSkipped(roundId, cellId, node.player);
                 continue;
             }
+            uint256 weight = gameCore.getPlayerRound(node.player, roundId).totalWeight;
+            require(weight > 0, "Winner has no weight");
+            winnerWeights[winnerCount] = weight;
+            totalWinnerWeight += weight;
             winners[winnerCount++] = node.player;
             emit WinnerRegistered(roundId, cellId, node.player);
         }
@@ -133,7 +143,14 @@ contract EasyGameRoundSettlement {
             rolloverUsdcByLevel[config.level] = usdcAmount;
             emit PrizeRolledOver(roundId, config.level, ethAmount, usdcAmount);
         } else {
-            _allocate(winners, winnerCount, ethAmount, usdcAmount);
+            _allocateWeighted(
+                winners,
+                winnerWeights,
+                winnerCount,
+                totalWinnerWeight,
+                ethAmount,
+                usdcAmount
+            );
             emit RoundPrizeAllocated(roundId, config.level, winnerCount, ethAmount, usdcAmount);
         }
 
@@ -157,20 +174,26 @@ contract EasyGameRoundSettlement {
         emit SettlementPrizeClaimed(msg.sender, ethAmount, usdcAmount);
     }
 
-    function _allocate(
+    function _allocateWeighted(
         address[] memory winners,
+        uint256[] memory weights,
         uint16 winnerCount,
+        uint256 totalWeight,
         uint256 ethAmount,
         uint256 usdcAmount
     ) private {
-        uint256 ethShare = ethAmount / winnerCount;
-        uint256 usdcShare = usdcAmount / winnerCount;
-        uint256 ethRemainder = ethAmount - (ethShare * winnerCount);
-        uint256 usdcRemainder = usdcAmount - (usdcShare * winnerCount);
+        uint256 allocatedEth;
+        uint256 allocatedUsdc;
         for (uint256 i = 0; i < winnerCount; i++) {
-            claimableEth[winners[i]] += ethShare + (i == 0 ? ethRemainder : 0);
-            claimableUsdc[winners[i]] += usdcShare + (i == 0 ? usdcRemainder : 0);
+            uint256 ethShare = (ethAmount * weights[i]) / totalWeight;
+            uint256 usdcShare = (usdcAmount * weights[i]) / totalWeight;
+            allocatedEth += ethShare;
+            allocatedUsdc += usdcShare;
+            claimableEth[winners[i]] += ethShare;
+            claimableUsdc[winners[i]] += usdcShare;
         }
+        claimableEth[winners[0]] += ethAmount - allocatedEth;
+        claimableUsdc[winners[0]] += usdcAmount - allocatedUsdc;
     }
 
     function _alreadyIncluded(address[] memory winners, uint16 count, address player)

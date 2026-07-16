@@ -161,7 +161,7 @@ class _SchedulePreview extends StatelessWidget {
                                 formatRoundStart(round.schedule.startsAt))),
                             DataCell(Text('${round.schedule.level}')),
                             DataCell(Text(
-                              '${formatWeiToEth(round.schedule.ethPriceWei)} ETH',
+                              '${formatWeiToEth(round.ethPriceWei)} ETH',
                             )),
                             DataCell(
                               Text(

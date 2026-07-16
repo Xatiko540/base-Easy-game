@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
@@ -14,15 +12,15 @@ class LandingController extends GetxController {
 
   Future<void> connectAndEnter() async {
     if (walletService.isConnected.value) {
-      Get.to(() => const LevelsScreen());
+      UiNavigationService.openLevels();
       return;
     }
 
     try {
       await walletService.connectBaseAccount();
       if (walletService.isConnected.value) {
-        await linkFirebaseWallet();
-        Get.to(() => const LevelsScreen());
+        linkFirebaseWallet();
+        UiNavigationService.openLevels();
       }
     } catch (e) {
       Get.snackbar(
@@ -33,15 +31,11 @@ class LandingController extends GetxController {
     }
   }
 
-  Future<void> linkFirebaseWallet() async {
+  void linkFirebaseWallet() {
     if (!Get.isRegistered<FirebaseBackendService>()) return;
     final backend = Get.find<FirebaseBackendService>();
     if (!backend.isReady.value) return;
-    try {
-      await backend.ensureCurrentWalletLinked();
-    } catch (error) {
-      debugPrint('Firebase wallet link skipped: $error');
-    }
+    backend.ensureCurrentWalletLinkedInBackground();
   }
 
   void openPreview() {

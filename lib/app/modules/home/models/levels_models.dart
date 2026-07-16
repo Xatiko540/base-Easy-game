@@ -4,29 +4,6 @@ import 'package:lottery_advance/app/modules/home/models/round_level_card_state.d
 
 const int easyGameLevelCount = 17;
 
-double levelPrice(int level) {
-  const prices = {
-    1: 0.05,
-    2: 0.07,
-    3: 0.1,
-    4: 0.14,
-    5: 0.2,
-    6: 0.28,
-    7: 0.4,
-    8: 0.55,
-    9: 0.8,
-    10: 1.1,
-    11: 1.6,
-    12: 2.2,
-    13: 3.2,
-    14: 4.4,
-    15: 6.5,
-    16: 8.0,
-    17: 12.0,
-  };
-  return prices[level] ?? 0.05;
-}
-
 String formatUsdc(BigInt amount, {int decimals = 2}) {
   final base = BigInt.from(10).pow(6); // USDC имеет 6 дециклов
   final whole = amount ~/ base;

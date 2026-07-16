@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/app_config_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/services/wallet_session_store.dart';
 import 'package:lottery_advance/app/services/notifications_service.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/base_pay_service.dart';
@@ -18,6 +19,7 @@ import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
 import 'package:lottery_advance/app/repositories/game_user_repository.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/controllers/notifications_controller.dart';
+import 'package:lottery_advance/app/modules/home/views/start_page.dart';
 import 'package:lottery_advance/app/translations/app_translations.dart';
 import 'package:lottery_advance/core/binary_matrix.dart';
 import 'package:lottery_advance/utils/theme.dart';
@@ -53,6 +55,8 @@ void main() async {
     if (kDebugMode) {
       print("[DEBUG] main: BinaryMatrix printed.");
     }
+
+    Get.put(WalletSessionStore(), permanent: true);
 
     if (kDebugMode) {
       print("[DEBUG] main: Registering WalletConnectService...");
@@ -96,6 +100,10 @@ void main() async {
             ? Routes.INVITE
             : AppPages.INITIAL,
         getPages: AppPages.routes,
+        unknownRoute: GetPage(
+          name: '/not-found',
+          page: () => ExpressGameScreen(),
+        ),
         translations: AppTranslations(),
         locale: languageService.locale,
         fallbackLocale: const Locale('en'),

@@ -16,6 +16,11 @@
     },
     {
       "inputs": [],
+      "name": "UsdcTokenLocked",
+      "type": "error"
+    },
+    {
+      "inputs": [],
       "name": "ZeroAddress",
       "type": "error"
     },
@@ -2577,6 +2582,19 @@
     {
       "inputs": [
         {
+          "internalType": "uint256",
+          "name": "newPrice",
+          "type": "uint256"
+        }
+      ],
+      "name": "setAllLevelPrices",
+      "outputs": [],
+      "stateMutability": "nonpayable",
+      "type": "function"
+    },
+    {
+      "inputs": [
+        {
           "internalType": "address",
           "name": "newGateway",
           "type": "address"
@@ -2684,13 +2702,13 @@
       "inputs": [
         {
           "internalType": "address",
-          "name": "newToken",
+          "name": "",
           "type": "address"
         }
       ],
       "name": "setUsdcToken",
       "outputs": [],
-      "stateMutability": "nonpayable",
+      "stateMutability": "view",
       "type": "function"
     },
     {

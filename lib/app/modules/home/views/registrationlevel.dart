@@ -13,13 +13,11 @@ import '../models/levels_models.dart';
 
 part '../widgets/registration_widgets.dart';
 part '../widgets/registration_asset_widgets.dart';
-part '../widgets/registration_levels_widgets.dart';
 part '../widgets/registration_common_widgets.dart';
 part '../widgets/registration_summary_widgets.dart';
 
 class RegistrationScreen extends StatelessWidget {
   final int level;
-  final double amount;
   final String? inviter;
   final GameRoundViewState? round;
 
@@ -27,7 +25,6 @@ class RegistrationScreen extends StatelessWidget {
     LevelStatus level1, {
     Key? key,
     this.level = 3,
-    this.amount = 0.1,
     String? inviter,
     this.round,
   })  : inviter = inviter ?? WalletConnectService.easyGameInviter,
@@ -40,7 +37,6 @@ class RegistrationScreen extends StatelessWidget {
       init: RegistrationController()
         ..configure(
           level: level,
-          amount: amount,
           inviter: inviter,
           round: round,
         ),
@@ -54,7 +50,9 @@ class RegistrationScreen extends StatelessWidget {
         final walletService = Get.find<WalletConnectService>();
         final currency = registrationController.currencySymbol;
         final selectedLevel = registrationController.selectedLevel.value;
-        final selectedAmount = registrationController.selectedAmount.value;
+        final selectedPriceUnits =
+            registrationController.selectedPriceUnits.value;
+        final selectedPriceLabel = registrationController.selectedPriceLabel;
         final paymentAsset = registrationController.paymentAsset.value;
         final networkChecked = registrationController.networkChecked.value;
         final balanceChecked = registrationController.balanceChecked.value;
@@ -64,7 +62,6 @@ class RegistrationScreen extends StatelessWidget {
           title: 'registration.title'.tr.replaceAll('\n', ' '),
           breadcrumb:
               '${'app.name'.tr} / ${'registration.title'.tr.split('\n').first}',
-          balanceLabel: '${selectedAmount.toStringAsFixed(3)} $currency',
           activeSection: 'Dashboard',
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(vertical: 12),
@@ -202,7 +199,7 @@ class RegistrationScreen extends StatelessWidget {
                                     DropdownMenuItem(
                                       value: i,
                                       child: Text(
-                                        'Level $i (${levelPrice(i).toStringAsFixed(3)} $currency)',
+                                        'Level $i (${registrationController.formatAssetAmount(registrationController.priceForLevel(i))} $currency)',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w800,
@@ -251,47 +248,19 @@ class RegistrationScreen extends StatelessWidget {
                           ),
                           const SizedBox(height: 22),
                           _PaymentSummary(
-                            amount: selectedAmount,
+                            amount: selectedPriceUnits,
+                            paysWithUsdc: registrationController.paysWithUsdc,
                             currencySymbol: currency,
+                            paymentAsset: paymentAsset,
                           ),
                           const SizedBox(height: 24),
-                          ElevatedButton(
+                          _ProjectActionButton(
                             onPressed: registrationController.continueToPayment,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              padding: const EdgeInsets.symmetric(vertical: 15),
-                              minimumSize: const Size(double.infinity, 54),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: Ink(
-                              decoration: BoxDecoration(
-                                gradient: EasyGameTheme.actionGradient,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Container(
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '${'registration.activate'.tr} (${selectedAmount.toStringAsFixed(3)} $currency)',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                            ),
+                            label:
+                                '${'registration.activate'.tr} ($selectedPriceLabel $currency)',
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 26),
-                    _ActiveGamesStrip(
-                      selectedLevel: selectedLevel,
-                      currencySymbol: currency,
-                      onPickLevel: registrationController.selectLevel,
                     ),
                   ],
                 ),

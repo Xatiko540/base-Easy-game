@@ -8,6 +8,7 @@ const deploymentSummary = {
   startBlock: null,
   contracts: {},
   transactions: {},
+  roles: {},
 };
 
 async function recordDeployment(name, contract) {
@@ -106,24 +107,37 @@ async function main() {
   const isLocalNetwork = [1337, 31337, 5777].includes(chainId);
   const useLocalWallets =
     isLocalNetwork && process.env.LOCAL_USE_ENV_WALLETS !== "true";
-  const projectWallet = useLocalWallets
-    ? deployer.address
-    : process.env.PROJECT_WALLET || deployer.address;
-  const treasuryAddress = useLocalWallets
-    ? deployer.address
-    : process.env.TREASURY_ADDRESS || deployer.address;
-  const operatorWallet = useLocalWallets
-    ? deployer.address
-    : process.env.OPERATOR_WALLET || deployer.address;
-  const basePayFulfiller = useLocalWallets
-    ? deployer.address
-    : process.env.BASE_PAY_FULFILLER_ADDRESS || operatorWallet;
+  const configuredAddress = (name, localFallback = deployer.address) => {
+    const value = useLocalWallets ? localFallback : process.env[name];
+    if (!value || !hre.ethers.isAddress(value) || value === hre.ethers.ZeroAddress) {
+      throw new Error(`${name} must be configured with a non-zero address.`);
+    }
+    return hre.ethers.getAddress(value);
+  };
+  const projectWallet = configuredAddress("PROJECT_WALLET");
+  const treasuryAddress = configuredAddress("TREASURY_ADDRESS");
+  const operatorWallet = configuredAddress("OPERATOR_WALLET");
+  const adminOwner = configuredAddress("ADMIN_OWNER_ADDRESS");
+  const scheduleSigner = configuredAddress("SCHEDULE_SIGNER_ADDRESS");
+  const basePayFulfiller = configuredAddress("BASE_PAY_FULFILLER_ADDRESS");
+  const skillTreasury = configuredAddress("SKILL_TREASURY_ADDRESS");
+  if (!isLocalNetwork && adminOwner === basePayFulfiller) {
+    throw new Error(
+      "ADMIN_OWNER_ADDRESS and BASE_PAY_FULFILLER_ADDRESS must be different for two-party Base Pay refunds."
+    );
+  }
+  deploymentSummary.roles = {
+    projectWallet,
+    treasuryAddress,
+    operatorWallet,
+    adminOwner,
+    scheduleSigner,
+    basePayFulfiller,
+    skillTreasury,
+  };
   let usdcAddress = process.env.USDC_ADDRESS || "";
   let mockUsdc;
   const deployLegacyLottery = process.env.DEPLOY_LEGACY_LOTTERY === "true";
-  const uniformTestLevelPriceEth = String(
-    process.env.TEST_UNIFORM_LEVEL_PRICE_ETH || ""
-  ).trim();
 
   if (isLocalNetwork && process.env.LOCAL_USE_MOCK_USDC !== "false") {
     const MockUSDC = await hre.ethers.getContractFactory("MockUSDC");
@@ -142,7 +156,10 @@ async function main() {
   console.log(`Project wallet: ${projectWallet}`);
   console.log(`Treasury: ${treasuryAddress}`);
   console.log(`Operator wallet: ${operatorWallet}`);
+  console.log(`Admin owner: ${adminOwner}`);
+  console.log(`Schedule signer: ${scheduleSigner}`);
   console.log(`Base Pay fulfiller: ${basePayFulfiller}`);
+  console.log(`Skill treasury: ${skillTreasury}`);
   console.log(`USDC token: ${usdcAddress}`);
 
   if (
@@ -172,7 +189,7 @@ async function main() {
   const EasyGameRoundManager = await hre.ethers.getContractFactory(
     "EasyGameRoundManager"
   );
-  const roundManager = await EasyGameRoundManager.deploy(operatorWallet);
+  const roundManager = await EasyGameRoundManager.deploy(scheduleSigner);
   await roundManager.waitForDeployment();
   const roundManagerAddress = await recordDeployment(
     "EasyGameRoundManager",
@@ -193,24 +210,29 @@ async function main() {
 
   const easyGameAddress = await recordDeployment("EasyGameAdvance", easyGame);
 
-  if (uniformTestLevelPriceEth) {
-    if (![84532, 1337, 31337, 5777].includes(chainId)) {
-      throw new Error(
-        "TEST_UNIFORM_LEVEL_PRICE_ETH is restricted to Base Sepolia and local networks."
-      );
+  const legacyTestLevelPrice = String(
+    process.env.TEST_UNIFORM_LEVEL_PRICE_ETH || ""
+  ).trim();
+  if (
+    legacyTestLevelPrice &&
+    ![84532, 1337, 31337, 5777].includes(chainId)
+  ) {
+    throw new Error(
+      "TEST_UNIFORM_LEVEL_PRICE_ETH is restricted to Base Sepolia and local networks."
+    );
+  }
+  const baseSepoliaLevelPrice =
+    process.env.BASE_SEPOLIA_LEVEL_PRICE_ETH ||
+    legacyTestLevelPrice ||
+    (chainId === 84532 ? "0.0001" : "");
+  if (baseSepoliaLevelPrice) {
+    const parsedLevelPrice = hre.ethers.parseEther(baseSepoliaLevelPrice);
+    if (parsedLevelPrice <= 0n) {
+      throw new Error("BASE_SEPOLIA_LEVEL_PRICE_ETH must be greater than zero.");
     }
-    const uniformPrice = hre.ethers.parseEther(uniformTestLevelPriceEth);
-    if (uniformPrice <= 0n) {
-      throw new Error("TEST_UNIFORM_LEVEL_PRICE_ETH must be greater than zero.");
-    }
-    for (let level = 1; level <= 17; level += 1) {
-      await recordTransaction(
-        `EasyGameAdvance.setLevelPrice.${level}`,
-        await easyGame.setLevelPrice(level, uniformPrice)
-      );
-    }
-    console.log(
-      `Configured all 17 ETH level prices to ${uniformTestLevelPriceEth} ETH.`
+    await recordTransaction(
+      "EasyGameAdvance.setAllLevelPrices",
+      await easyGame.setAllLevelPrices(parsedLevelPrice)
     );
   }
 
@@ -242,12 +264,16 @@ async function main() {
     easyGameAddress,
     roundManagerAddress,
     usdcAddress,
-    projectWallet
+    skillTreasury
   );
   await arenaSkills.waitForDeployment();
   const arenaSkillsAddress = await recordDeployment(
     "EasyGameArenaSkills",
     arenaSkills
+  );
+  await recordTransaction(
+    "RoundManager.setArenaSkills",
+    await roundManager.setArenaSkills(arenaSkillsAddress)
   );
 
   const EasyGameRoundSettlement = await hre.ethers.getContractFactory(
@@ -273,6 +299,21 @@ async function main() {
     "RoundManager.setSettlementContract",
     await roundManager.setSettlementContract(settlementAddress)
   );
+
+  if (hre.ethers.getAddress(adminOwner) !== hre.ethers.getAddress(deployer.address)) {
+    await recordTransaction(
+      "EasyGameAdvance.transferOwnership",
+      await easyGame.transferOwnership(adminOwner)
+    );
+    await recordTransaction(
+      "RoundManager.transferOwnership",
+      await roundManager.transferOwnership(adminOwner)
+    );
+    await recordTransaction(
+      "BasePayGateway.transferOwnership",
+      await basePayGateway.transferOwnership(adminOwner)
+    );
+  }
 
   if (mockUsdc) {
     for (const signer of signers.slice(0, 10)) {

@@ -1,12 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/models/notification_models.dart';
-import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 class NotificationsController extends GetxController {
-  final WalletConnectService walletService = Get.find<WalletConnectService>();
-
   final notifications = <NotificationItem>[].obs;
   final unreadCount = 0.obs;
   final isLoading = false.obs;
@@ -19,48 +15,36 @@ class NotificationsController extends GetxController {
 
   void fetch() {
     isLoading.value = true;
-    final currency = walletService.nativeSymbol;
-    notifications.value = [
+    notifications.assignAll(const [
       NotificationItem(
-        title: '+ 0.1036 $currency received!',
-        subtitle: 'Easy Games, level 4 от ID 310375',
-        time: '1 minute',
-        icon: CupertinoIcons.gift,
-        iconColor: Colors.greenAccent,
+        titleKey: 'notifications.welcomeTitle',
+        subtitleKey: 'notifications.welcomeSubtitle',
+        descriptionKey: 'notifications.welcomeDescription',
+        timeKey: 'notifications.now',
+        actionLabelKey: 'notifications.readRules',
+        actionRoute: '/information',
+        icon: CupertinoIcons.info_circle_fill,
+        iconColor: Color(0xFF00B9B1),
       ),
-      NotificationItem(
-        title: '+ 0.0182 Affiliate $currency bonus received!',
-        subtitle: 'Easy Games, level 4 от ID 310112',
-        time: 'about 1 hour',
-        icon: CupertinoIcons.person_2,
-        iconColor: Colors.green,
-      ),
-      NotificationItem(
-        title: 'New partner joins',
-        subtitle: 'ID 310112 has joined your team!',
-        time: 'about 1 hour',
-        icon: CupertinoIcons.person_badge_plus,
-        iconColor: Colors.blueAccent,
-      ),
-    ];
+    ]);
     _updateUnreadCount();
     isLoading.value = false;
   }
+
   void _updateUnreadCount() {
     unreadCount.value = notifications.where((n) => !n.isRead).length;
   }
 
+  void markAsRead(int index) {
+    if (index < 0 || index >= notifications.length) return;
+    notifications[index] = notifications[index].copyWith(isRead: true);
+    _updateUnreadCount();
+  }
+
   void markAllAsRead() {
-    final updated = notifications.map((n) => NotificationItem(
-      title: n.title,
-      subtitle: n.subtitle,
-      description: n.description,
-      time: n.time,
-      icon: n.icon,
-      iconColor: n.iconColor,
-      isRead: true,
-    )).toList();
-    notifications.value = updated;
+    notifications.assignAll(
+      notifications.map((notification) => notification.copyWith(isRead: true)),
+    );
     unreadCount.value = 0;
   }
 }

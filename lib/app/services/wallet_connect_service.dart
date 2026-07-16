@@ -13,8 +13,11 @@ import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/game_round_chain_models.dart';
 import 'package:lottery_advance/app/models/matrix_round_models.dart';
+import 'package:lottery_advance/app/models/player_progression_models.dart';
 import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
+import 'package:lottery_advance/app/models/wallet_session_model.dart';
 import 'app_config_service.dart';
+import 'wallet_session_store.dart';
 
 class AppNetworkConfig {
   final int chainId;
@@ -131,6 +134,8 @@ class WalletConnectService extends GetxService {
   final RxString currentAddress = ''.obs;
   final RxBool isConnected = false.obs;
   final RxBool isBaseAccountSession = false.obs;
+  final RxBool isRestoringSession = true.obs;
+  final RxBool isRefreshingBalance = false.obs;
   final RxnInt chainId = RxnInt();
   final RxBool isConnecting = false.obs;
   final RxBool isPaying = false.obs;
@@ -153,6 +158,7 @@ class WalletConnectService extends GetxService {
   final RxString roundSettlementAddress = ''.obs;
   final RxString referralInviter = ''.obs;
   final Rxn<AppNetworkConfig> activeNetwork = Rxn<AppNetworkConfig>();
+  final WalletSessionStore _sessionStore = Get.find<WalletSessionStore>();
 
   static const AppNetworkConfig baseMainnet = AppNetworkConfig(
     chainId: baseMainnetChainId,
@@ -274,7 +280,7 @@ class WalletConnectService extends GetxService {
       print("[DEBUG] WalletConnectService: onInit started.");
     }
     super.onInit();
-    _restoreConnection();
+    unawaited(_restoreConnection());
     _listenWalletChanges();
     if (kDebugMode) {
       print("[DEBUG] WalletConnectService: onInit completed.");
@@ -291,6 +297,11 @@ class WalletConnectService extends GetxService {
     isConnecting.value = true;
     try {
       final accounts = await _requestAccounts();
+      final previousSession = _sessionStore.read();
+      if (previousSession?.provider == WalletSessionProvider.baseAccount ||
+          isBaseAccountSession.value) {
+        await _disconnectBaseProvider();
+      }
       isBaseAccountSession.value = false;
       authProvider.value = 'injected_wallet';
       baseAccountMessage.value = '';
@@ -298,8 +309,9 @@ class WalletConnectService extends GetxService {
       baseAccountNonce.value = '';
       _setAccounts(accounts);
       await refreshChainId();
+      await _persistSession(WalletSessionProvider.injectedWallet);
     } catch (e) {
-      disconnectWallet();
+      _clearRuntimeWalletState();
       rethrow;
     } finally {
       isConnecting.value = false;
@@ -326,11 +338,14 @@ class WalletConnectService extends GetxService {
       baseAccountMessage.value = result.message;
       baseAccountSignature.value = result.signature;
       baseAccountNonce.value = result.nonce;
+      _prepareBalanceForAddress(result.address);
       currentAddress.value = result.address;
       isConnected.value = true;
       chainId.value = result.chainId;
       activeNetwork.value = _networkForChainId(result.chainId);
-      await refreshNativeBalance();
+      await _persistSession(WalletSessionProvider.baseAccount);
+      _startBalanceRefresh();
+      await refreshNativeBalanceSilently();
     } catch (e) {
       final message = e.toString();
       if (_isBaseAccountCoopError(message)) {
@@ -338,14 +353,14 @@ class WalletConnectService extends GetxService {
           await connectWallet();
           return;
         }
-        disconnectWallet();
+        _clearRuntimeWalletState();
         throw Exception('wallet.baseCoopError'.tr);
       }
       if (fallbackToInjectedWallet && hasInjectedWallet) {
         await connectWallet();
         return;
       }
-      disconnectWallet();
+      _clearRuntimeWalletState();
       rethrow;
     } finally {
       isConnecting.value = false;
@@ -425,6 +440,7 @@ class WalletConnectService extends GetxService {
         }
         paymentStatus.value = PaymentFlowStatus.success;
         paymentStatusMessage.value = 'Payment confirmed onchain.';
+        await refreshNativeBalanceSilently();
       } else {
         paymentStatus.value = PaymentFlowStatus.submitted;
         paymentStatusMessage.value = 'Payment submitted to the network.';
@@ -500,7 +516,7 @@ class WalletConnectService extends GetxService {
         }
         paymentStatus.value = PaymentFlowStatus.success;
         paymentStatusMessage.value = 'Level activation confirmed onchain.';
-        await refreshNativeBalance();
+        await refreshNativeBalanceSilently();
       } else {
         paymentStatus.value = PaymentFlowStatus.submitted;
         paymentStatusMessage.value = 'Transaction submitted to the network.';
@@ -608,7 +624,7 @@ class WalletConnectService extends GetxService {
         }
         paymentStatus.value = PaymentFlowStatus.success;
         paymentStatusMessage.value = 'wallet.usdcConfirmed'.tr;
-        await refreshNativeBalance();
+        await refreshNativeBalanceSilently();
       } else {
         paymentStatus.value = PaymentFlowStatus.submitted;
         paymentStatusMessage.value = 'wallet.usdcSubmitted'.tr;
@@ -652,6 +668,9 @@ class WalletConnectService extends GetxService {
     String? inviter,
     bool waitForReceipt = true,
   }) async {
+    if (isPaying.value) {
+      throw StateError('payment.alreadyProcessing'.tr);
+    }
     if (!isConnected.value) await connectBaseAccount();
     await ensureBaseNetwork();
     final contractAddress = await resolveEasyGameAddress();
@@ -659,42 +678,59 @@ class WalletConnectService extends GetxService {
     final inviterAddress = _normalizeAddress(
       inviter?.isNotEmpty == true ? inviter! : activeInviter,
     );
-    final allowance = await getUsdcAllowance(
-      owner: currentAddress.value,
-      spender: contractAddress,
-    );
-    if (allowance < round.usdcPrice) {
-      final approveTx = {
-        'from': currentAddress.value,
-        'to': tokenAddress,
-        'value': '0x0',
-        'data': _appendBuilderDataSuffix(
-          _erc20ApproveCallData(contractAddress, round.usdcPrice),
-        ),
-      };
-      lastGasEstimate.value = await _estimateGas(approveTx);
-      final approveHash = await _walletRequest<String>(
-        'eth_sendTransaction',
-        [approveTx],
+    isPaying.value = true;
+    lastPaymentReceipt.value = null;
+    try {
+      final allowance = await getUsdcAllowance(
+        owner: currentAddress.value,
+        spender: contractAddress,
       );
-      if (waitForReceipt) {
+      if (allowance < round.usdcPrice) {
+        paymentStatus.value = PaymentFlowStatus.estimatingGas;
+        paymentStatusMessage.value = 'wallet.usdcApprove'.tr;
+        final approveTx = {
+          'from': currentAddress.value,
+          'to': tokenAddress,
+          'value': '0x0',
+          'data': _appendBuilderDataSuffix(
+            _erc20ApproveCallData(contractAddress, round.usdcPrice),
+          ),
+        };
+        lastGasEstimate.value = await _estimateGas(approveTx);
+        paymentStatus.value = PaymentFlowStatus.waitingForWallet;
+        final approveHash = await _walletRequest<String>(
+          'eth_sendTransaction',
+          [approveTx],
+        );
+
+        // Activation depends on this state change, so approval must always be
+        // confirmed even when the caller does not wait for activation receipt.
+        paymentStatus.value = PaymentFlowStatus.confirming;
+        paymentStatusMessage.value = 'wallet.usdcWaitingApproval'.tr;
         final receipt = await waitForTransactionReceipt(approveHash);
         if (!receipt.success) {
           throw Exception('USDC approval reverted onchain: $approveHash');
         }
       }
+      final data = await _roundActivationCallData(
+        functionName: 'activateRoundWithUSDC',
+        round: round,
+        inviterAddress: inviterAddress,
+      );
+      return await _submitEasyGameTransaction(
+        contractAddress: contractAddress,
+        data: data,
+        paymentWei: BigInt.zero,
+        waitForReceipt: waitForReceipt,
+        paymentFlowStarted: true,
+      );
+    } catch (error) {
+      paymentStatus.value = PaymentFlowStatus.failed;
+      paymentStatusMessage.value = error.toString();
+      rethrow;
+    } finally {
+      isPaying.value = false;
     }
-    final data = await _roundActivationCallData(
-      functionName: 'activateRoundWithUSDC',
-      round: round,
-      inviterAddress: inviterAddress,
-    );
-    return _submitEasyGameTransaction(
-      contractAddress: contractAddress,
-      data: data,
-      paymentWei: BigInt.zero,
-      waitForReceipt: waitForReceipt,
-    );
   }
 
   Future<String> _submitEasyGameTransaction({
@@ -702,7 +738,11 @@ class WalletConnectService extends GetxService {
     required String data,
     required BigInt paymentWei,
     required bool waitForReceipt,
+    bool paymentFlowStarted = false,
   }) async {
+    if (isPaying.value && !paymentFlowStarted) {
+      throw StateError('payment.alreadyProcessing'.tr);
+    }
     final txParams = {
       'from': currentAddress.value,
       'to': contractAddress,
@@ -728,7 +768,7 @@ class WalletConnectService extends GetxService {
           throw Exception('Round activation reverted onchain: $txHash');
         }
         paymentStatus.value = PaymentFlowStatus.success;
-        await refreshNativeBalance();
+        await refreshNativeBalanceSilently();
       } else {
         paymentStatus.value = PaymentFlowStatus.submitted;
       }
@@ -938,6 +978,25 @@ class WalletConnectService extends GetxService {
     ]);
     final words = _decodeWords(responses[0] as String);
     final initializedAtSeconds = _wordToBigInt(words[1]);
+    final initialized = _wordToBool(words[4]);
+    var ethPriceWei = BigInt.zero;
+    var usdcPrice = BigInt.zero;
+    if (initialized) {
+      final configValues = await _abiCall(
+        artifactName: 'EasyGameRoundManager',
+        contractAddress: await resolveRoundManagerAddress(),
+        functionName: 'getRoundConfig',
+        parameters: [roundId],
+      );
+      final tuple = configValues.length == 1 && configValues.first is List
+          ? List<dynamic>.from(configValues.first as List)
+          : configValues;
+      if (tuple.length < 12) {
+        throw Exception('Invalid on-chain round config response');
+      }
+      ethPriceWei = tuple[10] as BigInt;
+      usdcPrice = tuple[11] as BigInt;
+    }
     return GameRoundChainState(
       roundId: roundId,
       configHash: '0x${words[0]}',
@@ -949,12 +1008,14 @@ class WalletConnectService extends GetxService {
             ),
       occupiedCells: _wordToBigInt(words[2]),
       winnersRegistered: _wordToBigInt(words[3]),
-      initialized: _wordToBool(words[4]),
+      initialized: initialized,
       settled: _wordToBool(words[5]),
       cancelled: _wordToBool(words[6]),
       paused: _wordToBool(words[7]),
       prizePoolEth: _wordToBigInt(words[8]),
       prizePoolUsdc: _wordToBigInt(words[9]),
+      ethPriceWei: ethPriceWei,
+      usdcPrice: usdcPrice,
       phase: responses[1] as GameRoundPhase,
     );
   }
@@ -999,6 +1060,57 @@ class WalletConnectService extends GetxService {
       cellId: tuple[4] as BigInt,
       cycleCount: tuple[8] as BigInt,
       totalWeight: tuple[9] as BigInt,
+    );
+  }
+
+  Future<PlayerSeasonProgress> getPlayerSeasonProgress(
+    BigInt seasonId, {
+    String? playerAddress,
+  }) async {
+    final values = await _abiCall(
+      artifactName: 'EasyGameRoundManager',
+      contractAddress: await resolveRoundManagerAddress(),
+      functionName: 'getPlayerSeasonProgress',
+      parameters: [
+        seasonId,
+        wallet.EthereumAddress.fromHex(
+          _normalizeAddress(playerAddress ?? currentAddress.value),
+        ),
+      ],
+    );
+    return PlayerSeasonProgress(
+      started: values[0] as bool,
+      startLevel: (values[1] as BigInt).toInt(),
+      highestLevel: (values[2] as BigInt).toInt(),
+      activatedLevels: (values[3] as BigInt).toInt(),
+      directInvites: (values[4] as BigInt).toInt(),
+      inviteCapacity: (values[5] as BigInt).toInt(),
+    );
+  }
+
+  Future<RoundEntryEligibility> getRoundEntryEligibility({
+    required BigInt seasonId,
+    required int level,
+    String? playerAddress,
+  }) async {
+    final values = await _abiCall(
+      artifactName: 'EasyGameRoundManager',
+      contractAddress: await resolveRoundManagerAddress(),
+      functionName: 'getEntryEligibility',
+      parameters: [
+        seasonId,
+        BigInt.from(level),
+        wallet.EthereumAddress.fromHex(
+          _normalizeAddress(playerAddress ?? currentAddress.value),
+        ),
+      ],
+    );
+    return RoundEntryEligibility(
+      reason: roundEntryEligibilityReasonFromContractValue(
+        (values[0] as BigInt).toInt(),
+      ),
+      requiredLevel: (values[1] as BigInt).toInt(),
+      blockingRoundId: values[2] as BigInt,
     );
   }
 
@@ -1131,18 +1243,37 @@ class WalletConnectService extends GetxService {
 
   Future<String> resolveUsdcAddress() async {
     final configured = ReferralLinkService.normalizeAddress(usdcTokenAddress);
-    if (configured.isNotEmpty) {
-      return configured;
-    }
-
     final response = await _easyGameCall('0x11eac855');
-    final address = _wordToAddress(_decodeWords(response).first);
-    if (address == _zeroAddress) {
+    final onChain = _wordToAddress(_decodeWords(response).first);
+    if (onChain == _zeroAddress) {
       throw Exception(
         'USDC token is not configured. Deploy with USDC_ADDRESS=0x... or call setUsdcToken.',
       );
     }
-    return address;
+    if (configured.isNotEmpty && configured.toLowerCase() != onChain) {
+      throw StateError('payment.usdcConfigurationMismatch'.tr);
+    }
+    return onChain;
+  }
+
+  Future<String> resolveBasePayGatewayAddress() async {
+    final values = await _abiCall(
+      artifactName: 'EasyGameAdvance',
+      contractAddress: await resolveEasyGameAddress(),
+      functionName: 'basePayGateway',
+      parameters: const [],
+    );
+    final onChain = _addressText(values.first).toLowerCase();
+    if (onChain == _zeroAddress) {
+      throw StateError('payment.basePayUnavailable'.tr);
+    }
+    final configured = ReferralLinkService.normalizeAddress(
+      Get.find<AppConfigService>().get('basePayGatewayAddress'),
+    );
+    if (configured.isNotEmpty && configured.toLowerCase() != onChain) {
+      throw StateError('payment.basePayConfigurationMismatch'.tr);
+    }
+    return onChain;
   }
 
   Future<BigInt> getUsdcBalance({String? owner}) async {
@@ -1533,6 +1664,17 @@ class WalletConnectService extends GetxService {
   }
 
   void disconnectWallet() {
+    final shouldDisconnectBase = isBaseAccountSession.value ||
+        _sessionStore.read()?.provider == WalletSessionProvider.baseAccount;
+    _clearRuntimeWalletState();
+    unawaited(_sessionStore.clear());
+    if (shouldDisconnectBase) {
+      unawaited(_disconnectBaseProvider());
+    }
+  }
+
+  void _clearRuntimeWalletState() {
+    _invalidateBalanceRefresh();
     currentAddress.value = '';
     isConnected.value = false;
     isBaseAccountSession.value = false;
@@ -1540,7 +1682,6 @@ class WalletConnectService extends GetxService {
     baseAccountMessage.value = '';
     baseAccountSignature.value = '';
     baseAccountNonce.value = '';
-    nativeBalanceWei.value = null;
     resetPaymentState();
   }
 
@@ -1560,7 +1701,7 @@ class WalletConnectService extends GetxService {
       chainId.value = walletChainId;
       activeNetwork.value = _networkForChainId(chainId.value);
       if (isConnected.value) {
-        await refreshNativeBalance();
+        await refreshNativeBalanceSilently();
       }
     } catch (e) {
       if (kDebugMode && isConnected.value) {
@@ -1571,22 +1712,79 @@ class WalletConnectService extends GetxService {
     }
   }
 
-  Future<BigInt> refreshNativeBalance() async {
+  Future<BigInt> refreshNativeBalance() {
     if (!isWalletAvailable || currentAddress.value.isEmpty) {
       nativeBalanceWei.value = null;
-      return BigInt.zero;
+      return Future<BigInt>.value(BigInt.zero);
     }
 
-    final result = await _walletRequest<String>('eth_getBalance', [
-      currentAddress.value,
+    final activeRefresh = _balanceRefreshFuture;
+    if (activeRefresh != null) return activeRefresh;
+
+    isRefreshingBalance.value = true;
+    late final Future<BigInt> operation;
+    operation = _readNativeBalance().whenComplete(() {
+      if (identical(_balanceRefreshFuture, operation)) {
+        _balanceRefreshFuture = null;
+        isRefreshingBalance.value = false;
+      }
+    });
+    _balanceRefreshFuture = operation;
+    return operation;
+  }
+
+  Future<BigInt> _readNativeBalance() async {
+    final address = currentAddress.value;
+    final balanceEpoch = _balanceEpoch;
+    final result = await _readOnlyRequest<String>('eth_getBalance', [
+      address,
       'latest',
     ]);
     final balance = _hexToBigInt(result);
-    nativeBalanceWei.value = balance;
+    if (balanceEpoch == _balanceEpoch && currentAddress.value == address) {
+      nativeBalanceWei.value = balance;
+    }
     return balance;
   }
 
+  Future<void> refreshNativeBalanceSilently() async {
+    try {
+      await refreshNativeBalance();
+    } catch (error) {
+      if (kDebugMode) {
+        print('Unable to refresh native balance: $error');
+      }
+    }
+  }
+
+  void _startBalanceRefresh() {
+    _balanceRefreshTimer?.cancel();
+    if (!isConnected.value || currentAddress.value.isEmpty) return;
+    _balanceRefreshTimer = Timer.periodic(const Duration(seconds: 45), (_) {
+      if (isConnected.value) {
+        unawaited(refreshNativeBalanceSilently());
+      }
+    });
+  }
+
   Timer? _receiptPollTimer;
+  Timer? _balanceRefreshTimer;
+  Future<BigInt>? _balanceRefreshFuture;
+  int _balanceEpoch = 0;
+
+  void _prepareBalanceForAddress(String address) {
+    if (currentAddress.value.toLowerCase() == address.toLowerCase()) return;
+    _invalidateBalanceRefresh();
+  }
+
+  void _invalidateBalanceRefresh() {
+    _balanceEpoch++;
+    _balanceRefreshTimer?.cancel();
+    _balanceRefreshTimer = null;
+    _balanceRefreshFuture = null;
+    isRefreshingBalance.value = false;
+    nativeBalanceWei.value = null;
+  }
 
   Future<EasyGameTransactionReceipt> waitForTransactionReceipt(
     String txHash, {
@@ -1652,29 +1850,24 @@ class WalletConnectService extends GetxService {
     if (kDebugMode) {
       print("[DEBUG] WalletConnectService: _restoreConnection started.");
     }
-    if (!hasInjectedWallet) {
-      if (kDebugMode) {
-        print(
-          "[DEBUG] WalletConnectService: _restoreConnection - wallet not available.");
-      }
-      return;
-    }
-
+    isRestoringSession.value = true;
     try {
-      if (kDebugMode) {
-        print(
-          "[DEBUG] WalletConnectService: _restoreConnection - fetching accounts...");
+      final saved = _sessionStore.read();
+      var restored = false;
+
+      if (saved?.provider == WalletSessionProvider.baseAccount) {
+        restored = await _restoreBaseAccountConnection();
+      } else if (saved?.provider == WalletSessionProvider.injectedWallet) {
+        restored = await _restoreInjectedConnection();
+      } else {
+        // Backward compatibility for users who signed in before the app began
+        // storing the preferred provider. Base Account keeps authorization in
+        // its own SDK store, so this call does not open a popup.
+        restored = await _restoreBaseAccountConnection();
+        if (!restored) restored = await _restoreInjectedConnection();
       }
-      _setAccounts(await ethereum!.getAccounts());
-      if (kDebugMode) {
-        print(
-          "[DEBUG] WalletConnectService: _restoreConnection - accounts fetched.");
-      }
-      await refreshChainId();
-      if (kDebugMode) {
-        print(
-          "[DEBUG] WalletConnectService: _restoreConnection - chainId refreshed.");
-      }
+
+      if (!restored) _clearRuntimeWalletState();
     } catch (e) {
       if (kDebugMode) {
         print("[DEBUG] WalletConnectService: _restoreConnection - error: $e");
@@ -1682,9 +1875,91 @@ class WalletConnectService extends GetxService {
       if (kDebugMode) {
         print('Unable to restore wallet connection: $e');
       }
+    } finally {
+      isRestoringSession.value = false;
+      if (kDebugMode) {
+        print("[DEBUG] WalletConnectService: _restoreConnection completed.");
+      }
     }
-    if (kDebugMode) {
-      print("[DEBUG] WalletConnectService: _restoreConnection completed.");
+  }
+
+  Future<bool> _restoreBaseAccountConnection() async {
+    if (!isBaseAccountBridgeAvailable) return false;
+    try {
+      final result = await restoreBaseAccountSession(
+        chainId: targetNetwork.chainId,
+        appName: baseAccountAppName,
+        appLogoUrl: baseAccountAppLogoUrl,
+      );
+      if (result.address.isEmpty) return false;
+
+      isBaseAccountSession.value = true;
+      authProvider.value = 'base_account';
+      baseAccountMessage.value = '';
+      baseAccountSignature.value = '';
+      baseAccountNonce.value = '';
+      _prepareBalanceForAddress(result.address);
+      currentAddress.value = result.address;
+      isConnected.value = true;
+      chainId.value = result.chainId;
+      activeNetwork.value = _networkForChainId(result.chainId);
+      await _persistSession(WalletSessionProvider.baseAccount);
+      _startBalanceRefresh();
+      await refreshNativeBalanceSilently();
+      return true;
+    } catch (error) {
+      if (kDebugMode) {
+        print('Unable to restore Base Account session: $error');
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _restoreInjectedConnection() async {
+    if (!hasInjectedWallet) return false;
+    try {
+      final accounts = await ethereum!.getAccounts();
+      if (accounts.isEmpty) return false;
+      isBaseAccountSession.value = false;
+      authProvider.value = 'injected_wallet';
+      baseAccountMessage.value = '';
+      baseAccountSignature.value = '';
+      baseAccountNonce.value = '';
+      _setAccounts(accounts);
+      await refreshChainId();
+      await _persistSession(WalletSessionProvider.injectedWallet);
+      return true;
+    } catch (error) {
+      if (kDebugMode) {
+        print('Unable to restore injected wallet session: $error');
+      }
+      return false;
+    }
+  }
+
+  Future<void> _persistSession(WalletSessionProvider provider) async {
+    final address = currentAddress.value;
+    final currentChainId = chainId.value;
+    if (address.isEmpty || currentChainId == null) return;
+    await _sessionStore.save(WalletSessionSnapshot(
+      provider: provider,
+      address: address,
+      chainId: currentChainId,
+    ));
+  }
+
+  Future<void> _disconnectBaseProvider() async {
+    if (!isBaseAccountBridgeAvailable) return;
+    try {
+      await disconnectBaseAccount(
+        chainId: targetNetwork.chainId,
+        appName: baseAccountAppName,
+        appLogoUrl: baseAccountAppLogoUrl,
+      );
+    } catch (error) {
+      if (kDebugMode) {
+        print('Unable to disconnect Base Account provider: $error');
+      }
     }
   }
 
@@ -1701,6 +1976,10 @@ class WalletConnectService extends GetxService {
       activeNetwork.value = _networkForChainId(newChainId);
       isBaseAccountSession.value = false;
       authProvider.value = isConnected.value ? 'injected_wallet' : '';
+      if (isConnected.value) {
+        unawaited(_persistSession(WalletSessionProvider.injectedWallet));
+        unawaited(refreshNativeBalanceSilently());
+      }
     });
   }
 
@@ -1710,9 +1989,11 @@ class WalletConnectService extends GetxService {
       return;
     }
 
+    _prepareBalanceForAddress(accounts.first);
     currentAddress.value = accounts.first;
     isConnected.value = true;
-    unawaited(refreshNativeBalance());
+    _startBalanceRefresh();
+    unawaited(refreshNativeBalanceSilently());
   }
 
   Future<T> _walletRequest<T>(String method, List<dynamic> params) async {
@@ -1727,6 +2008,26 @@ class WalletConnectService extends GetxService {
     }
 
     return ethereum!.request<T>(method, params);
+  }
+
+  Future<T> _readOnlyRequest<T>(
+    String method,
+    List<dynamic> params,
+  ) async {
+    final currentChainId = chainId.value;
+    final useBaseRpc =
+        currentChainId == null || currentChainId == targetNetwork.chainId;
+    if (useBaseRpc) {
+      try {
+        return await _publicRpcRequest<T>(method, params);
+      } catch (error) {
+        if (kDebugMode) {
+          print(
+              'Base RPC read failed for $method, using wallet provider: $error');
+        }
+      }
+    }
+    return _walletRequest<T>(method, params);
   }
 
   Future<String> signMessage(String message) async {
@@ -1911,7 +2212,7 @@ class WalletConnectService extends GetxService {
         }
         paymentStatus.value = PaymentFlowStatus.success;
         paymentStatusMessage.value = successMessage;
-        await refreshNativeBalance();
+        await refreshNativeBalanceSilently();
       } else {
         paymentStatus.value = PaymentFlowStatus.submitted;
         paymentStatusMessage.value = submittedMessage;
@@ -2015,7 +2316,7 @@ class WalletConnectService extends GetxService {
       'latest',
     ];
     final result = isWalletAvailable
-        ? await _walletRequest<String>('eth_call', params)
+        ? await _readOnlyRequest<String>('eth_call', params)
         : await _publicRpcRequest<String>('eth_call', params);
 
     return result;
@@ -2115,6 +2416,7 @@ class WalletConnectService extends GetxService {
   @override
   void onClose() {
     _receiptPollTimer?.cancel();
+    _balanceRefreshTimer?.cancel();
     super.onClose();
   }
 }

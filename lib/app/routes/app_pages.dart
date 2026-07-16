@@ -3,6 +3,7 @@
 import 'package:get/get.dart';
 
 import '../modules/home/models/levels_models.dart';
+import '../modules/home/controllers/profile_controller.dart';
 import '../modules/home/views/invite_screen.dart';
 import '../modules/home/views/partner_bonus_screen.dart';
 import '../modules/home/views/start_page.dart';
@@ -23,10 +24,6 @@ class AppPages {
     return int.tryParse(Get.parameters[name] ?? '') ?? fallback;
   }
 
-  static double _doubleParam(String name, double fallback) {
-    return double.tryParse(Get.parameters[name] ?? '') ?? fallback;
-  }
-
   static String _inviterParam() {
     return ReferralLinkService.inviterFromParams(Get.parameters).isNotEmpty
         ? ReferralLinkService.inviterFromParams(Get.parameters)
@@ -41,10 +38,17 @@ class AppPages {
     GetPage(
       name: _Paths.PROFILE,
       page: () => ProfileScreen(),
+      binding: BindingsBuilder(() {
+        Get.lazyPut<ProfileController>(() => ProfileController());
+      }),
     ),
     GetPage(
       name: _Paths.LEVELS,
-      page: () => LevelsScreen(),
+      page: () => LevelsScreen(
+        walletAddress: Get.parameters['wallet']?.trim().isNotEmpty == true
+            ? Get.parameters['wallet']!.trim()
+            : null,
+      ),
     ),
     GetPage(
       name: _Paths.PARTNER_BONUS,
@@ -83,7 +87,6 @@ class AppPages {
       page: () => RegistrationScreen(
         LevelStatus.waiting,
         level: _intParam('level', 1),
-        amount: _doubleParam('amount', levelPrice(_intParam('level', 1))),
         inviter: _inviterParam(),
       ),
     ),
@@ -92,7 +95,6 @@ class AppPages {
       page: () => RegistrationScreen(
         LevelStatus.waiting,
         level: _intParam('level', 1),
-        amount: _doubleParam('amount', levelPrice(_intParam('level', 1))),
         inviter: _inviterParam(),
       ),
     ),

@@ -1,4 +1,5 @@
 import 'package:get/get.dart';
+import 'package:flutter/foundation.dart';
 import 'app_config_service.dart';
 
 class ReferralLinkService {
@@ -8,7 +9,10 @@ class ReferralLinkService {
       final fromConfig = Get.find<AppConfigService>().get('appPublicUrl');
       if (fromConfig.isNotEmpty) return fromConfig;
     } catch (_) {}
-    return 'https://express.game';
+    if (kIsWeb && Uri.base.host.isNotEmpty) {
+      return Uri.base.origin;
+    }
+    return 'https://lottery-advance.web.app';
   }
 
   static final RegExp _addressPattern = RegExp(r'^0x[a-fA-F0-9]{40}$');

@@ -25,6 +25,11 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface, R
     event PrizeClaimed(address indexed player, uint8 indexed level, uint256 amount);
     event TokenReferralBonusClaimed(address indexed player, address indexed token, uint256 amount);
     event TokenPrizeClaimed(address indexed player, address indexed token, uint8 indexed level, uint256 amount);
+    event RoundRecycleBatchProcessed(
+        uint256 indexed roundId,
+        uint256 processed,
+        uint256 remaining
+    );
     constructor(
         address projectWallet_,
         address treasuryWallet_,
@@ -82,7 +87,9 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface, R
         levelPricesUsdc[16] = 8000000;
         levelPricesUsdc[17] = 12000000;
 
-        for (uint8 level = 3; level <= LEVEL_COUNT; level++) {
+        // Round timestamps control normal availability. This switch is only an
+        // emergency pause, so every configured level starts enabled.
+        for (uint8 level = 1; level <= LEVEL_COUNT; level++) {
             levelAvailable[level] = true;
         }
     }
@@ -175,6 +182,45 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface, R
         return roundMatrixNodes[roundId][cellId];
     }
 
+    function getRoundRecycleQueueState(uint256 roundId)
+        public
+        view
+        returns (uint256 head, uint256 tail, uint256 pending)
+    {
+        head = _roundRecycleHead[roundId];
+        tail = _roundRecycleTail[roundId];
+        pending = tail - head;
+    }
+
+    function hasPendingRoundRecycles(uint256 roundId) public view returns (bool) {
+        return _roundRecycleHead[roundId] < _roundRecycleTail[roundId];
+    }
+
+    /// @notice Completes deterministic FIFO recycle work in bounded batches.
+    /// Anyone may call this after entries close so settlement cannot depend on
+    /// another paid activation arriving.
+    function processRoundRecycles(uint256 roundId, uint256 maxSteps)
+        external
+        nonReentrant
+        returns (uint256 processed, uint256 remaining)
+    {
+        if (maxSteps == 0 || maxSteps > 64) {
+            revert InvalidRecycleBatch(maxSteps, 64);
+        }
+        IEasyGameRoundManager manager = IEasyGameRoundManager(roundManager);
+        RoundPhase phase = manager.getRoundPhase(roundId);
+        require(
+            phase == RoundPhase.Open ||
+                phase == RoundPhase.Locked ||
+                phase == RoundPhase.SettlementReady,
+            "Round recycle unavailable"
+        );
+        RoundConfig memory config = manager.getRoundConfig(roundId);
+        processed = _processRoundRecycles(roundId, config.level, maxSteps);
+        remaining = _roundRecycleTail[roundId] - _roundRecycleHead[roundId];
+        emit RoundRecycleBatchProcessed(roundId, processed, remaining);
+    }
+
     function claimReferralBonus() external nonReentrant {
         uint256 amount = players[msg.sender].claimableReferralBonus;
         require(amount > 0, "No referral bonus");
@@ -259,6 +305,8 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, GameLogic, AdminInterface, R
                 RoundPhase.SettlementReady,
             "Round is not ready"
         );
+        uint256 pending = _roundRecycleTail[roundId] - _roundRecycleHead[roundId];
+        if (pending != 0) revert PendingRoundRecycles(roundId, pending);
         ethAmount = roundPrizePools[roundId];
         usdcAmount = roundPrizePoolsUsdc[roundId];
         roundPrizePools[roundId] = 0;

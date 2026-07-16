@@ -6,6 +6,13 @@ import "./Errors.sol";
 import "./Validation.sol";
 import "../rounds/RoundManagerStorage.sol";
 
+interface IEasyGameArenaProgression {
+    function isFrozen(uint256 roundId, address player)
+        external
+        view
+        returns (bool);
+}
+
 abstract contract RoundScheduleLogic is RoundManagerStorage {
     bytes32 public constant ROUND_CONFIG_TYPEHASH = keccak256(
         "RoundConfig(uint256 seasonId,uint256 roundId,uint8 level,uint64 startsAt,uint64 entriesCloseAt,uint64 endsAt,uint64 freezeClosesAt,uint32 maxPlayers,uint16 maxWinners,bytes32 winningCellsRoot,uint256 ethPrice,uint256 usdcPrice,uint16 freezeLimit,uint16 paymentSplitVersion)"
@@ -17,6 +24,12 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
     bytes32 private constant _VERSION_HASH = keccak256("2");
     uint16 public constant CURRENT_PAYMENT_SPLIT_VERSION = 1;
     uint16 public constant MAX_WINNERS_PER_ROUND = 8;
+    uint32 public constant MAX_PLAYERS_PER_ROUND = 1_000_000;
+    uint64 public constant MIN_LEVEL_OPEN_INTERVAL = 5 hours;
+    uint64 public constant MIN_ROUND_DURATION = 1 hours;
+    uint32 public constant DIRECT_INVITES_PER_LEVEL = 4;
+    uint256 public constant MAX_ETH_PRICE = 1_000 ether;
+    uint256 public constant MAX_USDC_PRICE = 1_000_000_000 * 1e6;
     uint256 private constant _SECP256K1_HALF_ORDER =
         0x7fffffffffffffffffffffffffffffff5d576e7357a4501ddfe92f46681b20a0;
 
@@ -33,6 +46,24 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         uint256 indexed roundId,
         address indexed player,
         uint32 occupiedCells
+    );
+    event PlayerSeasonStarted(
+        uint256 indexed seasonId,
+        address indexed player,
+        uint8 startLevel
+    );
+    event PlayerSeasonAdvanced(
+        uint256 indexed seasonId,
+        address indexed player,
+        uint8 level,
+        uint16 activatedLevels
+    );
+    event DirectInviteRegistered(
+        uint256 indexed seasonId,
+        address indexed inviter,
+        address indexed invitee,
+        uint32 used,
+        uint32 capacity
     );
 
     function domainSeparator() public view returns (bytes32) {
@@ -104,7 +135,8 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
     function initializeAndRegisterEntry(
         RoundConfig calldata config,
         bytes calldata signature,
-        address player
+        address player,
+        address inviter
     ) external returns (bytes32 configHash) {
         require(msg.sender == gameCore, "Only game core");
         configHash = _initializeRound(config, signature);
@@ -115,8 +147,67 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         if (state.occupiedCells >= config.maxPlayers) {
             revert InvalidRoundCapacity();
         }
+        if (roundEntryRegistered[config.roundId][player]) {
+            revert RoundEntryAlreadyRegistered(config.roundId, player);
+        }
+        _registerPlayerProgression(config, player, inviter);
+        roundEntryRegistered[config.roundId][player] = true;
         state.occupiedCells += 1;
         emit RoundEntryRegistered(config.roundId, player, state.occupiedCells);
+    }
+
+    function getPlayerSeasonProgress(uint256 seasonId, address player)
+        external
+        view
+        returns (
+            bool started,
+            uint8 startLevel,
+            uint8 highestLevel,
+            uint16 activatedLevels,
+            uint32 directInvites,
+            uint32 inviteCapacity
+        )
+    {
+        PlayerSeasonProgress memory progress =
+            _playerSeasonProgress[seasonId][player];
+        return (
+            progress.started,
+            progress.startLevel,
+            progress.highestLevel,
+            progress.activatedLevels,
+            progress.directInvites,
+            uint32(progress.activatedLevels) * DIRECT_INVITES_PER_LEVEL
+        );
+    }
+
+    function getEntryEligibility(
+        uint256 seasonId,
+        uint8 level,
+        address player
+    ) external view returns (
+        uint8 reason,
+        uint8 requiredLevel,
+        uint256 blockingRoundId
+    ) {
+        PlayerSeasonProgress memory progress =
+            _playerSeasonProgress[seasonId][player];
+        if (!progress.started) return (0, 0, 0);
+        if (level <= progress.highestLevel) return (1, progress.highestLevel, 0);
+
+        requiredLevel = progress.highestLevel + 1;
+        if (level != requiredLevel) return (2, requiredLevel, 0);
+
+        blockingRoundId = roundBySeasonLevel[seasonId][progress.highestLevel];
+        if (
+            arenaSkills != address(0) &&
+            IEasyGameArenaProgression(arenaSkills).isFrozen(
+                blockingRoundId,
+                player
+            )
+        ) {
+            return (3, requiredLevel, blockingRoundId);
+        }
+        return (0, requiredLevel, 0);
     }
 
     function getRoundConfig(uint256 roundId)
@@ -155,6 +246,11 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         returns (bytes32 configHash)
     {
         _validateRoundConfig(config);
+        // Manifests may be published in advance, but a third party must not be
+        // able to make a future round the active round for its level early.
+        if (block.timestamp < config.startsAt) {
+            revert RoundNotStarted(config.roundId);
+        }
         if (!allowedScheduleSigners[_recoverSigner(roundConfigDigest(config), signature)]) {
             revert InvalidScheduleSignature();
         }
@@ -168,16 +264,17 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
             return configHash;
         }
 
+        _validateSeasonLevelSchedule(config);
+
 
         uint256 existingRoundId = activeRoundByLevel[config.level];
         if (existingRoundId != 0 && existingRoundId != config.roundId) {
             RoundState storage existingState = _roundStates[existingRoundId];
             RoundConfig storage existingConfig = _roundConfigs[existingRoundId];
-            if (
-                !existingState.cancelled &&
-                !existingState.settled &&
-                existingConfig.endsAt > config.startsAt
-            ) {
+            bool overlaps =
+                config.startsAt < existingConfig.endsAt &&
+                existingConfig.startsAt < config.endsAt;
+            if (!existingState.cancelled && !existingState.settled && overlaps) {
                 revert RoundConfigMismatch(config.roundId);
             }
         }
@@ -187,6 +284,7 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         state.initializedAt = uint64(block.timestamp);
         state.initialized = true;
         activeRoundByLevel[config.level] = config.roundId;
+        roundBySeasonLevel[config.seasonId][config.level] = config.roundId;
 
         emit RoundInitialized(
             config.seasonId,
@@ -207,13 +305,14 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         if (
             config.startsAt >= config.entriesCloseAt ||
             config.entriesCloseAt >= config.endsAt ||
-            config.freezeClosesAt < config.startsAt ||
-            config.freezeClosesAt > config.endsAt
+            config.freezeClosesAt != config.endsAt ||
+            config.endsAt - config.startsAt < MIN_ROUND_DURATION
         ) {
             revert InvalidRoundTimeRange();
         }
         if (
             config.maxPlayers == 0 ||
+            config.maxPlayers > MAX_PLAYERS_PER_ROUND ||
             config.maxWinners == 0 ||
             config.maxWinners > MAX_WINNERS_PER_ROUND ||
             config.freezeLimit == 0 ||
@@ -224,8 +323,137 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         if (config.ethPrice == 0 && config.usdcPrice == 0) {
             revert InvalidRoundPrice();
         }
+        if (
+            config.ethPrice > MAX_ETH_PRICE ||
+            config.usdcPrice > MAX_USDC_PRICE
+        ) {
+            revert InvalidRoundPrice();
+        }
         if (config.paymentSplitVersion != CURRENT_PAYMENT_SPLIT_VERSION) {
             revert InvalidPaymentSplitVersion(config.paymentSplitVersion);
+        }
+    }
+
+    function _validateSeasonLevelSchedule(RoundConfig calldata config)
+        private
+        view
+    {
+        uint256 configured = roundBySeasonLevel[config.seasonId][config.level];
+        if (configured != 0 && configured != config.roundId) {
+            RoundState storage configuredState = _roundStates[configured];
+            if (!configuredState.cancelled || configuredState.occupiedCells != 0) {
+                revert SeasonLevelAlreadyConfigured(config.seasonId, config.level);
+            }
+        }
+
+        if (config.level > 1) {
+            uint256 lowerRoundId =
+                roundBySeasonLevel[config.seasonId][config.level - 1];
+            if (
+                lowerRoundId != 0 &&
+                config.startsAt <
+                    _roundConfigs[lowerRoundId].startsAt + MIN_LEVEL_OPEN_INTERVAL
+            ) {
+                revert LevelOpeningIntervalTooShort(
+                    config.seasonId,
+                    config.level - 1,
+                    config.level
+                );
+            }
+        }
+        if (config.level < 17) {
+            uint256 upperRoundId =
+                roundBySeasonLevel[config.seasonId][config.level + 1];
+            if (
+                upperRoundId != 0 &&
+                _roundConfigs[upperRoundId].startsAt <
+                    config.startsAt + MIN_LEVEL_OPEN_INTERVAL
+            ) {
+                revert LevelOpeningIntervalTooShort(
+                    config.seasonId,
+                    config.level,
+                    config.level + 1
+                );
+            }
+        }
+    }
+
+    function _registerPlayerProgression(
+        RoundConfig calldata config,
+        address player,
+        address inviter
+    ) private {
+        PlayerSeasonProgress storage progress =
+            _playerSeasonProgress[config.seasonId][player];
+        bool startsSeason = !progress.started;
+
+        if (startsSeason) {
+            progress.started = true;
+            progress.startLevel = config.level;
+            progress.highestLevel = config.level;
+            progress.activatedLevels = 1;
+            emit PlayerSeasonStarted(config.seasonId, player, config.level);
+        } else {
+            if (progress.highestLevel == 17) {
+                revert InvalidPlayerLevelProgression(17, config.level);
+            }
+            uint8 requiredLevel = progress.highestLevel + 1;
+            if (config.level != requiredLevel) {
+                revert InvalidPlayerLevelProgression(
+                    requiredLevel,
+                    config.level
+                );
+            }
+            if (arenaSkills == address(0)) revert ArenaSkillsNotConfigured();
+            uint256 previousRoundId =
+                roundBySeasonLevel[config.seasonId][progress.highestLevel];
+            if (
+                IEasyGameArenaProgression(arenaSkills).isFrozen(
+                    previousRoundId,
+                    player
+                )
+            ) {
+                revert PlayerProgressionFrozen(previousRoundId, player);
+            }
+            progress.highestLevel = config.level;
+            progress.activatedLevels += 1;
+            emit PlayerSeasonAdvanced(
+                config.seasonId,
+                player,
+                config.level,
+                progress.activatedLevels
+            );
+        }
+
+        if (
+            startsSeason &&
+            inviter != address(0) &&
+            !directInviteRegistered[config.seasonId][inviter][player]
+        ) {
+            PlayerSeasonProgress storage inviterProgress =
+                _playerSeasonProgress[config.seasonId][inviter];
+            if (!inviterProgress.started) {
+                revert ReferralInviterNotActive(inviter, config.seasonId);
+            }
+            uint32 capacity =
+                uint32(inviterProgress.activatedLevels) *
+                DIRECT_INVITES_PER_LEVEL;
+            if (inviterProgress.directInvites >= capacity) {
+                revert ReferralCapacityReached(
+                    inviter,
+                    inviterProgress.directInvites,
+                    capacity
+                );
+            }
+            directInviteRegistered[config.seasonId][inviter][player] = true;
+            inviterProgress.directInvites += 1;
+            emit DirectInviteRegistered(
+                config.seasonId,
+                inviter,
+                player,
+                inviterProgress.directInvites,
+                capacity
+            );
         }
     }
 
