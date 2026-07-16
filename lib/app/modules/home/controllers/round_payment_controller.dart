@@ -2,6 +2,8 @@ import 'package:get/get.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
+import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
+import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
 import 'package:lottery_advance/app/services/base_pay_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
@@ -21,8 +23,10 @@ class RoundPaymentController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
   final BasePayService basePayService = Get.find<BasePayService>();
   final GameRoundsController _rounds = Get.find<GameRoundsController>();
+  final RoundLevelsRepository _levelPrices = Get.find<RoundLevelsRepository>();
 
   final Rxn<BigInt> availableBalanceUnits = Rxn<BigInt>();
+  final Rxn<ContractLevelPrice> contractPrice = Rxn<ContractLevelPrice>();
   final RxnBool contractLevelAvailable = RxnBool();
   final isBalanceLoading = false.obs;
   final isPreflightLoading = false.obs;
@@ -35,8 +39,14 @@ class RoundPaymentController extends GetxController {
   bool get paysWithUsdc => paymentAsset != EasyGamePaymentAsset.native;
   bool get usesBasePay => paymentAsset == EasyGamePaymentAsset.basePay;
   String get currency => paysWithUsdc ? 'USDC' : walletService.nativeSymbol;
-  BigInt get amountUnits =>
-      paysWithUsdc ? round.value.usdcPrice : round.value.ethPriceWei;
+  BigInt get amountUnits {
+    final onchain = contractPrice.value;
+    if (onchain != null) {
+      return paysWithUsdc ? onchain.usdcPrice : onchain.ethPriceWei;
+    }
+    return paysWithUsdc ? round.value.usdcPrice : round.value.ethPriceWei;
+  }
+
   String get amountLabel => paysWithUsdc
       ? formatUsdc(amountUnits, decimals: 6)
       : formatWeiToEth(amountUnits, decimals: 8);
@@ -59,6 +69,7 @@ class RoundPaymentController extends GetxController {
   bool get canSubmit =>
       !isProcessing &&
       !isPreflightLoading.value &&
+      contractPrice.value != null &&
       contractLevelAvailable.value == true &&
       preflightError.value.isEmpty &&
       (usesBasePay || hasEnoughBalance != false);
@@ -178,6 +189,13 @@ class RoundPaymentController extends GetxController {
       contractLevelAvailable.value = available;
       if (!available) {
         throw StateError('payment.levelEmergencyPausedHint'.tr);
+      }
+
+      final onchainPrice = await _levelPrices.loadContractPrice(level);
+      contractPrice.value = onchainPrice;
+      if (onchainPrice.ethPriceWei != round.value.ethPriceWei ||
+          onchainPrice.usdcPrice != round.value.usdcPrice) {
+        throw StateError('payment.contractPriceMismatch'.tr);
       }
 
       if (!usesBasePay && walletService.isConnected.value) {

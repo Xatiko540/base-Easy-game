@@ -51,17 +51,25 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, MatrixLogic {
         address inviter,
         bool paidWithUsdc
     ) internal returns (uint256 cellId) {
+        Player storage player = players[playerAddress];
+        address effectiveInviter = player.exists ? player.inviter : inviter;
+        if (
+            effectiveInviter == playerAddress ||
+            (effectiveInviter != address(0) && !players[effectiveInviter].exists)
+        ) {
+            effectiveInviter = address(0);
+        }
         IEasyGameRoundManager(roundManager).initializeAndRegisterEntry(
             config,
             signature,
-            playerAddress
+            playerAddress,
+            effectiveInviter
         );
         if (!levelAvailable[config.level]) {
             revert LevelEmergencyPaused(config.level);
         }
 
-        Player storage player = players[playerAddress];
-        _registerPlayer(player, playerAddress, inviter);
+        _registerPlayer(player, playerAddress, effectiveInviter);
         PlayerRound storage state = playerRounds[playerAddress][config.roundId];
         if (state.active) {
             revert RoundTicketAlreadyActive(config.roundId, playerAddress);

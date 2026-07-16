@@ -60,7 +60,6 @@ class LevelsScreen extends StatelessWidget {
         return ExpressAppShell(
           title: 'levels.title'.tr,
           breadcrumb: '$identity / Easy Games',
-          onRefresh: levelsProvider.refreshAll,
           child: LayoutBuilder(
             builder: (context, constraints) {
               double width = constraints.maxWidth;
@@ -133,13 +132,20 @@ class LevelsScreen extends StatelessWidget {
                         if (errorMessage.isNotEmpty)
                           _LevelStateBanner(
                             message: errorMessage,
-                            onRefresh: levelsProvider.fetchLevels,
                           ),
-                        if (loading)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 12),
-                            child: LinearProgressIndicator(),
+                        SizedBox(
+                          height: 2,
+                          child: AnimatedOpacity(
+                            duration: const Duration(milliseconds: 220),
+                            opacity: loading ? 1 : 0,
+                            child: const LinearProgressIndicator(
+                              minHeight: 2,
+                              color: EasyGameTheme.teal,
+                              backgroundColor: Colors.transparent,
+                            ),
                           ),
+                        ),
+                        const SizedBox(height: 10),
                         GridView.builder(
                           shrinkWrap: true,
                           physics: const NeverScrollableScrollPhysics(),
@@ -206,7 +212,6 @@ class LevelsScreen extends StatelessWidget {
                       transactions: levelsProvider.transactions.toList(),
                       isLoading: levelsProvider.isTransactionsLoading.value,
                       errorMessage: levelsProvider.transactionsError.value,
-                      onRefresh: levelsProvider.refreshAll,
                     ),
                   ],
                 ),
@@ -326,7 +331,6 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                       _LevelStateBanner(
                         message: 'levels.unableLoadDetails'.trParams(
                             {'error': detailController.errorMessage.value}),
-                        onRefresh: detailController.refreshDetail,
                       ),
                     if (data != null) ...[
                       _LevelHeroPanel(

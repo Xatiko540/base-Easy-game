@@ -4,11 +4,13 @@ class _PaymentSummary extends StatelessWidget {
   final BigInt amount;
   final bool paysWithUsdc;
   final String currencySymbol;
+  final EasyGamePaymentAsset paymentAsset;
 
   const _PaymentSummary({
     required this.amount,
     required this.paysWithUsdc,
     required this.currencySymbol,
+    required this.paymentAsset,
   });
 
   @override
@@ -36,9 +38,18 @@ class _PaymentSummary extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _SummaryRow(
-            title: 'registration.paymentContract'.tr,
+            title: 'registration.totalContractCharge'.tr,
             value: '${_format(amount)} $currencySymbol',
             strong: true,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            'registration.gameFeesIncluded'.tr,
+            style: const TextStyle(
+              color: EasyGameTheme.teal,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
           ),
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
@@ -57,7 +68,9 @@ class _PaymentSummary extends StatelessWidget {
           ),
           _SummaryRow(
             title: 'registration.networkFee'.tr,
-            value: 'registration.estimatedSigning'.tr,
+            value: paymentAsset == EasyGamePaymentAsset.basePay
+                ? 'registration.networkFeeSponsored'.tr
+                : 'registration.networkGasExtra'.tr,
           ),
         ],
       ),

@@ -259,6 +259,10 @@ async function main() {
     "EasyGameArenaSkills",
     arenaSkills
   );
+  await recordTransaction(
+    "RoundManager.setArenaSkills",
+    await roundManager.setArenaSkills(arenaSkillsAddress)
+  );
 
   const EasyGameRoundSettlement = await hre.ethers.getContractFactory(
     "EasyGameRoundSettlement"

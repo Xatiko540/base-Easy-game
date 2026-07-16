@@ -1,11 +1,14 @@
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/matrix_round_models.dart';
+import 'package:lottery_advance/app/models/player_progression_models.dart';
 
 enum RoundLevelPlayerStatus {
   unavailable,
   available,
   active,
   frozen,
+  missed,
+  progressionBlocked,
   completed
 }
 
@@ -24,9 +27,13 @@ class RoundLevelCardState {
   final GameRoundViewState? round;
   final RoundMatrixStats? matrix;
   final RoundPlayerState? player;
+  final ArenaSkillStatus? arenaStatus;
+  final PlayerSeasonProgress? seasonProgress;
+  final RoundEntryEligibility? entryEligibility;
   final BigInt? contractEthPriceWei;
   final BigInt? contractUsdcPrice;
   final bool? contractLevelAvailable;
+  final bool playerStateResolved;
   final String? errorMessage;
 
   const RoundLevelCardState({
@@ -34,9 +41,13 @@ class RoundLevelCardState {
     this.round,
     this.matrix,
     this.player,
+    this.arenaStatus,
+    this.seasonProgress,
+    this.entryEligibility,
     this.contractEthPriceWei,
     this.contractUsdcPrice,
     this.contractLevelAvailable,
+    this.playerStateResolved = true,
     this.errorMessage,
   });
 
@@ -53,17 +64,39 @@ class RoundLevelCardState {
   BigInt get playerWeight => player?.totalWeight ?? BigInt.zero;
 
   bool get isPlayerActive => player?.active == true;
-  bool get isFrozen => player?.frozen == true;
+  bool get isFrozen => arenaStatus?.frozen == true;
+  bool get isImmune => arenaStatus?.immune == true;
   bool get hasRound => round != null;
   bool get hasError => errorMessage?.isNotEmpty == true;
+  bool get isPlayerStatePending => !playerStateResolved;
   bool get isEmergencyPaused => contractLevelAvailable == false;
   bool get canEnter =>
-      round?.canEnter == true && contractLevelAvailable == true;
+      round?.canEnter == true &&
+      contractLevelAvailable == true &&
+      entryEligibility?.canEnter != false;
+  bool get isMissed =>
+      !isPlayerActive &&
+      entryEligibility?.reason ==
+          RoundEntryEligibilityReason.alreadyPurchasedOrLower;
+  bool get isProgressionBlocked =>
+      !isPlayerActive &&
+      entryEligibility?.reason == RoundEntryEligibilityReason.nextLevelRequired;
+  bool get isFrozenProgressionBlocked =>
+      !isPlayerActive &&
+      entryEligibility?.reason == RoundEntryEligibilityReason.frozen;
+  int get requiredLevel => entryEligibility?.requiredLevel ?? 0;
+  int get directInvites => seasonProgress?.directInvites ?? 0;
+  int get inviteCapacity => seasonProgress?.inviteCapacity ?? 0;
+  int get remainingInviteSlots => seasonProgress?.remainingInviteSlots ?? 0;
 
   RoundLevelPlayerStatus get playerStatus {
     if (!hasRound) return RoundLevelPlayerStatus.unavailable;
     if (isEmergencyPaused) return RoundLevelPlayerStatus.unavailable;
     if (isFrozen) return RoundLevelPlayerStatus.frozen;
+    if (isMissed) return RoundLevelPlayerStatus.missed;
+    if (isProgressionBlocked || isFrozenProgressionBlocked) {
+      return RoundLevelPlayerStatus.progressionBlocked;
+    }
     if (isPlayerActive && round!.phase == GameRoundPhase.settled) {
       return RoundLevelPlayerStatus.completed;
     }

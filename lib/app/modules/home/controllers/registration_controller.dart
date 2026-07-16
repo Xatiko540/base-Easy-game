@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
+import 'package:lottery_advance/app/models/player_progression_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
 import 'package:lottery_advance/app/modules/home/views/activate_express_game_screen.dart';
@@ -80,14 +81,14 @@ class RegistrationController extends GetxController {
   String get selectedPriceLabel => formatAssetAmount(selectedPriceUnits.value);
 
   BigInt priceForLevel(int level) {
-    final round = _roundForLevel(level);
-    if (round != null) {
-      return paysWithUsdc ? round.usdcPrice : round.ethPriceWei;
+    final contractPrice = contractPrices[level];
+    if (contractPrice != null) {
+      return paysWithUsdc ? contractPrice.usdcPrice : contractPrice.ethPriceWei;
     }
-    final fallback = contractPrices[level];
+    final round = _roundForLevel(level);
     return paysWithUsdc
-        ? fallback?.usdcPrice ?? BigInt.zero
-        : fallback?.ethPriceWei ?? BigInt.zero;
+        ? round?.usdcPrice ?? BigInt.zero
+        : round?.ethPriceWei ?? BigInt.zero;
   }
 
   bool canEnterLevel(int level) =>
@@ -141,8 +142,8 @@ class RegistrationController extends GetxController {
 
     try {
       await walletService.ensureBaseNetwork();
-      final round = await _requireOpenRound();
-      final price = paysWithUsdc ? round.usdcPrice : round.ethPriceWei;
+      await _requireOpenRound();
+      final price = priceForLevel(selectedLevel.value);
       if (paymentAsset.value == EasyGamePaymentAsset.basePay) {
         final basePay = Get.find<BasePayService>();
         if (!basePay.isAvailable) {
@@ -241,7 +242,7 @@ class RegistrationController extends GetxController {
       }
 
       final round = await _requireOpenRound();
-      final price = paysWithUsdc ? round.usdcPrice : round.ethPriceWei;
+      final price = priceForLevel(selectedLevel.value);
       selectedPriceUnits.value = price;
       networkChecked.value = true;
 
@@ -277,7 +278,55 @@ class RegistrationController extends GetxController {
     if (!available) {
       throw Exception('payment.levelEmergencyPausedHint'.tr);
     }
+    await _requireProgressionEligibility(round);
+    final contractPrice = await _ensureContractPrice(selectedLevel.value);
+    if (contractPrice.ethPriceWei != round.ethPriceWei ||
+        contractPrice.usdcPrice != round.usdcPrice) {
+      throw StateError('payment.contractPriceMismatch'.tr);
+    }
     return round;
+  }
+
+  Future<void> _requireProgressionEligibility(
+    GameRoundViewState round,
+  ) async {
+    RoundEntryEligibility eligibility;
+    try {
+      eligibility = await walletService.getRoundEntryEligibility(
+        seasonId: BigInt.from(round.schedule.seasonId),
+        level: selectedLevel.value,
+      );
+    } catch (_) {
+      // Older test deployments do not expose progression introspection. The
+      // transaction remains protected by RoundManager after the next deploy.
+      return;
+    }
+    switch (eligibility.reason) {
+      case RoundEntryEligibilityReason.eligible:
+        return;
+      case RoundEntryEligibilityReason.alreadyPurchasedOrLower:
+        throw Exception('levels.missedHint'.tr);
+      case RoundEntryEligibilityReason.nextLevelRequired:
+        throw Exception('levels.activateRequiredLevel'.trParams({
+          'level': '${eligibility.requiredLevel}',
+        }));
+      case RoundEntryEligibilityReason.frozen:
+        throw Exception('levels.unfreezeCurrentLevel'.tr);
+      case RoundEntryEligibilityReason.unknown:
+        throw Exception('levels.entryUnavailable'.tr);
+    }
+  }
+
+  Future<ContractLevelPrice> _ensureContractPrice(int level) async {
+    final cached = contractPrices[level];
+    if (cached != null) return cached;
+
+    final loaded = await _levelPrices.loadContractPrice(level);
+    if (!isClosed) {
+      contractPrices[level] = loaded;
+      _applyRoundPrice();
+    }
+    return loaded;
   }
 
   void _applyRoundPrice() {

@@ -131,12 +131,29 @@ class AppTranslations extends Translations {
           'levels.fourDays': '4 days',
           'levels.hours41': '41 hours',
           'levels.scheduleUnavailable': 'Schedule not published',
+          'levels.loadingSchedule': 'Loading the game schedule',
+          'levels.scheduleLoadFailed':
+              'The game schedule could not be loaded. Please try again.',
+          'levels.gameNotStarted': "The game hasn't started yet",
+          'levels.gameStartsSoon': 'A new lottery round will start soon',
           'levels.partialRoundLoad':
               '@count round cards could not be loaded. Refresh to retry.',
           'levels.roundDataUnavailable': 'Round data is unavailable',
           'levels.roundDataRefreshing': 'Loading the selected round state',
           'levels.openMatrixToUnfreeze': 'Open matrix arena to unfreeze',
           'levels.owned': 'Owned',
+          'levels.ownedPartners': 'Owned · @used/@capacity partners',
+          'levels.missed': 'Level missed',
+          'levels.missedHint':
+              'Entry has closed and this level can no longer be activated.',
+          'levels.viewDetails': 'View details',
+          'levels.nextLevelRequired': 'Higher level locked',
+          'levels.activateRequiredLevel': 'Activate level @level next',
+          'levels.progressionFrozen': 'Progression frozen',
+          'levels.unfreezeCurrentLevel':
+              'Unfreeze your current level in the matrix arena',
+          'levels.entryUnavailable':
+              'This level is unavailable for your current progression',
           'levels.activateNext': 'Activate next level to unfreeze',
           'levels.availableActivation': 'Available for activation',
           'levels.activate': 'Activate',
@@ -321,6 +338,12 @@ class AppTranslations extends Translations {
           'registration.balanceCheck': 'Balance check',
           'registration.balanceLow': 'Balance low',
           'registration.paymentContract': 'Contract payment',
+          'registration.totalContractCharge':
+              'Total contract charge (fees included)',
+          'registration.gameFeesIncluded':
+              'The 75.5% / 9.5% / 6% / 4% / 5% split is included in this total.',
+          'registration.networkGasExtra': 'network gas calculated at signing',
+          'registration.networkFeeSponsored': 'Sponsored by Base Pay',
           'registration.networkFee': 'Network fee',
           'registration.matrixPrizePool': 'Matrix prize pool',
           'registration.directReferral': 'Direct referral',
@@ -377,6 +400,8 @@ class AppTranslations extends Translations {
               'The configured USDC address does not match the EasyGame contract.',
           'payment.basePayConfigurationMismatch':
               'The configured Base Pay gateway does not match the EasyGame contract.',
+          'payment.contractPriceMismatch':
+              'The signed round price does not match the on-chain level price. Refresh the round before paying.',
           'payment.gasEstimate': 'Gas estimate',
           'payment.transaction': 'Transaction',
           'payment.pay': 'Pay @amount @currency',
@@ -752,6 +777,11 @@ class AppTranslations extends Translations {
           'levels.fourDays': '4 дня',
           'levels.hours41': '41 час',
           'levels.scheduleUnavailable': 'Расписание не опубликовано',
+          'levels.loadingSchedule': 'Загрузка расписания игры',
+          'levels.scheduleLoadFailed':
+              'Не удалось загрузить расписание игры. Попробуйте снова.',
+          'levels.gameNotStarted': 'Игра ещё не началась',
+          'levels.gameStartsSoon': 'Новый раунд лотереи скоро начнётся',
           'levels.partialRoundLoad':
               'Не удалось загрузить карточки раундов: @count. Обновите страницу.',
           'levels.roundDataUnavailable': 'Данные раунда недоступны',
@@ -759,6 +789,19 @@ class AppTranslations extends Translations {
           'levels.openMatrixToUnfreeze':
               'Откройте арену матрицы для разморозки',
           'levels.owned': 'Куплено',
+          'levels.ownedPartners': 'Куплено · партнёры @used/@capacity',
+          'levels.missed': 'Уровень пропущен',
+          'levels.missedHint':
+              'Вход уже закрыт, активировать этот уровень больше нельзя.',
+          'levels.viewDetails': 'Посмотреть детали',
+          'levels.nextLevelRequired': 'Высокий уровень заблокирован',
+          'levels.activateRequiredLevel':
+              'Следующим активируйте уровень @level',
+          'levels.progressionFrozen': 'Переход заморожен',
+          'levels.unfreezeCurrentLevel':
+              'Разморозьте текущий уровень на арене матрицы',
+          'levels.entryUnavailable':
+              'Уровень недоступен для вашей текущей прогрессии',
           'levels.activateNext': 'Активируйте следующий уровень',
           'levels.availableActivation': 'Доступен для активации',
           'levels.activate': 'Активировать',
@@ -945,6 +988,13 @@ class AppTranslations extends Translations {
           'registration.balanceCheck': 'Проверка баланса',
           'registration.balanceLow': 'Недостаточно',
           'registration.paymentContract': 'Оплата в контракт',
+          'registration.totalContractCharge':
+              'Итого в контракт (все сборы включены)',
+          'registration.gameFeesIncluded':
+              'Распределение 75,5% / 9,5% / 6% / 4% / 5% уже включено в эту сумму.',
+          'registration.networkGasExtra':
+              'gas сети, рассчитанный при подписании',
+          'registration.networkFeeSponsored': 'Оплачивается Base Pay',
           'registration.networkFee': 'Комиссия сети',
           'registration.matrixPrizePool': 'Призовой пул матрицы',
           'registration.directReferral': 'Прямой реферальный бонус',
@@ -1002,6 +1052,8 @@ class AppTranslations extends Translations {
               'Настроенный адрес USDC не совпадает с адресом в контракте EasyGame.',
           'payment.basePayConfigurationMismatch':
               'Настроенный Base Pay gateway не совпадает с адресом в контракте EasyGame.',
+          'payment.contractPriceMismatch':
+              'Цена подписанного раунда не совпадает с ценой уровня в контракте. Обновите раунд перед оплатой.',
           'payment.gasEstimate': 'Оценка газа',
           'payment.transaction': 'Транзакция',
           'payment.pay': 'Оплатить @amount @currency',

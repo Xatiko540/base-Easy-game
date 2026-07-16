@@ -14,21 +14,68 @@ class _LevelCardPresenter extends StatelessWidget {
     final roundsController = Get.find<GameRoundsController>();
     return Obx(() {
       final liveRound = roundsController.roundForLevel(level.level);
-      return _buildCard(liveRound);
+      final card = _buildCard(
+        liveRound,
+        isScheduleReady: roundsController.isScheduleReady.value,
+        scheduleError: roundsController.scheduleError.value,
+      );
+      final stateKey = [
+        liveRound?.schedule.roundId ?? 0,
+        liveRound?.phase.name ?? 'none',
+        level.playerStatus.name,
+        level.isPlayerStatePending,
+        level.hasError,
+      ].join('-');
+      return AnimatedSwitcher(
+        duration: const Duration(milliseconds: 320),
+        reverseDuration: const Duration(milliseconds: 180),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        child: KeyedSubtree(
+          key: ValueKey(stateKey),
+          child: card,
+        ),
+      );
     });
   }
 
-  Widget _buildCard(GameRoundViewState? round) {
+  Widget _buildCard(
+    GameRoundViewState? round, {
+    required bool isScheduleReady,
+    required String scheduleError,
+  }) {
     final priceWei = round?.ethPriceWei ?? level.ethPriceWei;
     if (round == null) {
+      if (!isScheduleReady) {
+        return StatusCard(
+          level: level.level,
+          priceWei: priceWei,
+          currencySymbol: currencySymbol,
+          title: 'common.loading'.tr,
+          subtitle: 'levels.loadingSchedule'.tr,
+          icon: CupertinoIcons.arrow_2_circlepath,
+          color: EasyGameTheme.tealSoft,
+        );
+      }
+      if (scheduleError.isNotEmpty) {
+        return StatusCard(
+          level: level.level,
+          priceWei: priceWei,
+          currencySymbol: currencySymbol,
+          title: 'common.error'.tr,
+          subtitle: 'levels.scheduleLoadFailed'.tr,
+          icon: CupertinoIcons.exclamationmark_triangle,
+          color: Colors.orangeAccent,
+        );
+      }
       return StatusCard(
         level: level.level,
         priceWei: priceWei,
         currencySymbol: currencySymbol,
-        title: 'round.unavailable'.tr,
-        subtitle: 'levels.scheduleUnavailable'.tr,
-        icon: CupertinoIcons.calendar_badge_minus,
-        color: Colors.orangeAccent,
+        title: 'levels.gameNotStarted'.tr,
+        subtitle: 'levels.gameStartsSoon'.tr,
+        icon: CupertinoIcons.timer,
+        color: EasyGameTheme.tealSoft,
       );
     }
     if (level.hasRound &&
@@ -55,15 +102,15 @@ class _LevelCardPresenter extends StatelessWidget {
         round: round,
       );
     }
-    if (level.isEmergencyPaused) {
+    if (level.isPlayerStatePending) {
       return StatusCard(
         level: level.level,
         priceWei: priceWei,
         currencySymbol: currencySymbol,
-        title: 'payment.levelEmergencyPaused'.tr,
-        subtitle: 'payment.levelEmergencyPausedHint'.tr,
-        icon: CupertinoIcons.pause_circle,
-        color: Colors.redAccent,
+        title: 'common.loading'.tr,
+        subtitle: 'levels.roundDataRefreshing'.tr,
+        icon: CupertinoIcons.arrow_2_circlepath,
+        color: EasyGameTheme.tealSoft,
         round: round,
       );
     }
@@ -80,14 +127,12 @@ class _LevelCardPresenter extends StatelessWidget {
       );
     }
 
-    final detailTap = level.isPlayerActive
-        ? () => Get.to(
-              () => EasyGameLevelDetailScreen(
-                level: level.level,
-                roundId: BigInt.from(round.schedule.roundId),
-              ),
-            )
-        : null;
+    void detailTap() => Get.to(
+          () => EasyGameLevelDetailScreen(
+            level: level.level,
+            roundId: BigInt.from(round.schedule.roundId),
+          ),
+        );
 
     if (level.isFrozen) {
       return StatusCard(
@@ -98,7 +143,41 @@ class _LevelCardPresenter extends StatelessWidget {
         subtitle: 'levels.openMatrixToUnfreeze'.tr,
         icon: CupertinoIcons.snow,
         color: Colors.lightBlueAccent,
+        onTap: () => Get.toNamed('/matrix'),
+        round: round,
+      );
+    }
+    if (level.isMissed) {
+      return MissedLevelCard(
+        level: level.level,
+        priceWei: priceWei,
         onTap: detailTap,
+      );
+    }
+    if (level.isFrozenProgressionBlocked) {
+      return StatusCard(
+        level: level.level,
+        priceWei: priceWei,
+        currencySymbol: currencySymbol,
+        title: 'levels.progressionFrozen'.tr,
+        subtitle: 'levels.unfreezeCurrentLevel'.tr,
+        icon: CupertinoIcons.snow,
+        color: Colors.lightBlueAccent,
+        onTap: () => Get.toNamed('/matrix'),
+        round: round,
+      );
+    }
+    if (level.isProgressionBlocked) {
+      return StatusCard(
+        level: level.level,
+        priceWei: priceWei,
+        currencySymbol: currencySymbol,
+        title: 'levels.nextLevelRequired'.tr,
+        subtitle: 'levels.activateRequiredLevel'.trParams({
+          'level': '${level.requiredLevel}',
+        }),
+        icon: CupertinoIcons.lock,
+        color: Colors.orangeAccent,
         round: round,
       );
     }
@@ -125,6 +204,30 @@ class _LevelCardPresenter extends StatelessWidget {
             round: round,
           );
         }
+        if (level.isEmergencyPaused) {
+          return StatusCard(
+            level: level.level,
+            priceWei: priceWei,
+            currencySymbol: currencySymbol,
+            title: 'payment.levelEmergencyPaused'.tr,
+            subtitle: 'payment.levelEmergencyPausedHint'.tr,
+            icon: CupertinoIcons.pause_circle,
+            color: Colors.redAccent,
+            round: round,
+          );
+        }
+        if (!level.canEnter) {
+          return StatusCard(
+            level: level.level,
+            priceWei: priceWei,
+            currencySymbol: currencySymbol,
+            title: 'round.actionsUnavailable'.tr,
+            subtitle: 'levels.entryUnavailable'.tr,
+            icon: CupertinoIcons.lock,
+            color: Colors.orangeAccent,
+            round: round,
+          );
+        }
         return ActivateCard(
           level: level.level,
           priceWei: priceWei,
@@ -132,6 +235,18 @@ class _LevelCardPresenter extends StatelessWidget {
           round: round,
         );
       case GameRoundPhase.locked:
+        if (!level.isPlayerActive) {
+          return StatusCard(
+            level: level.level,
+            priceWei: priceWei,
+            currencySymbol: currencySymbol,
+            title: 'levels.gameNotStarted'.tr,
+            subtitle: 'levels.gameStartsSoon'.tr,
+            icon: CupertinoIcons.timer,
+            color: EasyGameTheme.tealSoft,
+            round: round,
+          );
+        }
         return StatusCard(
           level: level.level,
           priceWei: priceWei,
@@ -145,6 +260,18 @@ class _LevelCardPresenter extends StatelessWidget {
           showTimer: true,
         );
       case GameRoundPhase.settlementReady:
+        if (!level.isPlayerActive) {
+          return StatusCard(
+            level: level.level,
+            priceWei: priceWei,
+            currencySymbol: currencySymbol,
+            title: 'round.finished'.tr,
+            subtitle: 'levels.gameStartsSoon'.tr,
+            icon: CupertinoIcons.timer,
+            color: EasyGameTheme.tealSoft,
+            round: round,
+          );
+        }
         return StatusCard(
           level: level.level,
           priceWei: priceWei,
@@ -157,6 +284,18 @@ class _LevelCardPresenter extends StatelessWidget {
           round: round,
         );
       case GameRoundPhase.settled:
+        if (!level.isPlayerActive) {
+          return StatusCard(
+            level: level.level,
+            priceWei: priceWei,
+            currencySymbol: currencySymbol,
+            title: 'levels.gameNotStarted'.tr,
+            subtitle: 'levels.gameStartsSoon'.tr,
+            icon: CupertinoIcons.timer,
+            color: EasyGameTheme.tealSoft,
+            round: round,
+          );
+        }
         return StatusCard(
           level: level.level,
           priceWei: priceWei,

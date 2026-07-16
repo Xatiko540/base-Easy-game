@@ -29,9 +29,9 @@ Activate level
 → closed parent triggers recycle
 → recycle gives a new matrix position and more weight
 → prize cells can create claimable or pending rewards
-→ repeated recycle without next level can freeze the level
-→ activating the next higher level unfreezes lower frozen levels
-→ pending rewards become claimable
+→ an opponent may freeze the current round through Arena Skills
+→ a real freeze blocks only the next level purchase until unfreeze
+→ each purchased level adds four unique direct-partner slots
 ```
 
 The system is built around player position, probability weight, prize pool accounting, referral distribution, recycle movement, boxes, freeze/unfreeze state, and transparent project fees.
@@ -48,18 +48,26 @@ contracts/EasyGameAdvance.sol
 
 The current system has:
 
-- 17 independent levels.
+- 17 scheduled lottery levels per season.
 - A predefined native-token price for each level.
 - A separate binary matrix for each level.
 - A separate prize pool for each level.
 - Separate player positions per level.
 - Separate player weight per level.
 - Separate recycle state per level.
-- Separate frozen, pending, and claimable reward state per level.
+- Separate Arena freeze and settlement state per round.
 
-Players can activate any available level directly. They do not need to activate previous levels first.
+The first purchased level may be any currently open level. After that first
+purchase, the player can advance only to the next higher level. Existing
+purchases are never rewritten or removed.
 
-The owner can open or close levels for staged launch. The default launch state opens levels 3 through 17 and keeps levels 1 and 2 closed until they are enabled.
+Each purchased level grants capacity for four unique direct partners. A player
+who has filled all direct-partner slots must buy the next level before another
+new direct partner can register through their referral link.
+
+Levels open from signed season manifests at least five hours apart and may have
+different durations. The owner availability switch is an emergency pause, not
+the normal scheduling mechanism.
 
 ---
 
@@ -70,8 +78,8 @@ The owner can open or close levels for staged launch. The default launch state o
 3. Choose any currently available level.
 4. Enter or approve the inviter/upline address.
 5. Continue to payment.
-6. The app reads the exact level price from the contract through `levelPrices(level)`.
-7. The app calls `EasyGameAdvance.activateLevel(level, inviter)` through the connected wallet.
+6. The app verifies the signed round price against the RoundManager and core contract.
+7. The app calls `EasyGameAdvance.activateRound(...)` through the connected wallet.
 8. The contract validates the payment, places the player into the selected level matrix, splits the payment, updates weights, and records claimable balances.
 9. After transaction confirmation, the app returns to the levels screen and refreshes on-chain state.
 
@@ -162,18 +170,20 @@ When a player reaches a prize cell:
 
 ## Freeze and unfreeze logic
 
-Freeze controls progression between levels.
+Freeze is an Arena action performed by another participant in the current
+round. It is not triggered automatically by recycle or referral activity.
 
 Rules:
 
-- After two recycle cycles, if the next higher level is not active, the current level can become frozen.
-- A frozen player keeps their matrix position and weight.
-- Rewards generated during freeze are not lost.
-- Rewards generated during freeze are stored as pending prizes.
-- Activating the next higher level can unfreeze lower frozen levels.
-- After unfreeze, pending prizes move into claimable prizes.
+- A participant buys a freeze token and targets another active participant.
+- A frozen current level blocks only the purchase of the next level.
+- Levels already purchased remain active and unchanged.
+- A frozen player keeps their matrix position, weight, ticket, and rewards.
+- The player can pay the round unfreeze price in the Arena.
+- Immunity and freeze limits are scoped to the current round.
 
-This creates a level progression mechanic and prevents unlimited lower-level reward extraction without moving upward.
+This turns progression into an explicit player-versus-player mechanic while
+keeping ownership and accounting immutable.
 
 ---
 
@@ -364,17 +374,15 @@ Current Flutter/Web3 behavior:
 - Default chain is Base Sepolia `84532`.
 - For local Ganache/Hardhat testing, use `EASY_GAME_CHAIN_ID=5777` or `EASY_GAME_ALLOW_LOCAL_CHAINS=true`.
 - `LevelsScreen` can read on-chain level state from `EasyGameAdvance`.
-- `ActivateExpressGameScreen` sends `activateLevel` transactions.
+- `ActivateExpressGameScreen` sends round-scoped activation transactions.
 - The app estimates gas with `eth_estimateGas`.
 - The app waits for `eth_getTransactionReceipt`.
 - After confirmed activation, the app returns to the levels screen and refreshes state.
-- Payment value is read from `levelPrices(level)` in wei.
+- Payment value is read from and verified against the signed round manifest.
 - Native-token payment is used instead of floating-point ETH conversion.
-- Level activation supports native ETH through `activateLevel` and optional
-  USDC through `activateLevelWithUSDC` after ERC-20 approval.
-- Base Pay can be evaluated later for a dedicated one-tap USDC payment UX, but
-  the current game flow uses direct contract calls so matrix state is updated
-  atomically by `EasyGameAdvance`.
+- Level activation supports native ETH through `activateRound`, USDC through
+  `activateRoundWithUSDC` after ERC-20 approval, and verified Base Pay through
+  `EasyGameBasePayGateway`.
 - Optional Base Builder Code attribution can be appended to calldata through `BASE_BUILDER_DATA_SUFFIX`.
 
 ---
@@ -473,10 +481,11 @@ Current tests cover:
 - [x] Wallet login through an injected Web3 wallet such as MetaMask.
 - [x] Shared wallet state across login, levels, profile, registration, and payment screens.
 - [x] 17-level Easy Game Advance contract with predefined level prices.
-- [x] Base native-token level activation through `EasyGameAdvance.activateLevel(level, inviter)`.
-- [x] Exact payment amount is read from `levelPrices(level)` in wei before sending the transaction.
-- [x] Independent activation: any available level can be activated.
-- [x] Owner-controlled level availability for staged launch.
+- [x] Base native-token round activation through `EasyGameAdvance.activateRound(...)`.
+- [x] Exact payment amount is committed by the signed round manifest and checked on-chain.
+- [x] The first activation may be any open level; later activations require the next higher level.
+- [x] Every activated level grants four unique direct-partner slots.
+- [x] Owner-controlled level availability is an emergency pause.
 - [x] Duplicate level activation is rejected.
 - [x] Binary matrix placement for each level.
 - [x] Matrix slots are filled left-to-right through the first available parent node.
@@ -486,9 +495,9 @@ Current tests cover:
 - [x] Recycled players receive additional matrix weight.
 - [x] Box token grant is supported during recycle.
 - [x] Prize position detection is implemented.
-- [x] Freeze is triggered after two recycle cycles if the next higher level is not active.
-- [x] Frozen players keep their position and weight, while new prizes become pending.
-- [x] Activating the next level unfreezes lower frozen levels and releases pending prizes.
+- [x] Freeze is triggered only by a valid opponent action in `EasyGameArenaSkills`.
+- [x] A frozen highest level blocks the next purchase without rewriting owned levels.
+- [x] Frozen players keep their position, weight, ticket, and rewards.
 - [x] Payment distribution: 75.5% matrix prize pool, 9.5% direct referral, 6% second line, 4% third line, 5% project fee.
 - [x] Missing referral lines are routed into the level prize pool.
 - [x] `PROJECT_WALLET`, `TREASURY_ADDRESS`, and `OPERATOR_WALLET` are supported by the deploy script.

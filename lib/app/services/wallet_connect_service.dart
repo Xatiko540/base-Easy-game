@@ -13,6 +13,7 @@ import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/game_round_chain_models.dart';
 import 'package:lottery_advance/app/models/matrix_round_models.dart';
+import 'package:lottery_advance/app/models/player_progression_models.dart';
 import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
 import 'package:lottery_advance/app/models/wallet_session_model.dart';
 import 'app_config_service.dart';
@@ -1059,6 +1060,57 @@ class WalletConnectService extends GetxService {
       cellId: tuple[4] as BigInt,
       cycleCount: tuple[8] as BigInt,
       totalWeight: tuple[9] as BigInt,
+    );
+  }
+
+  Future<PlayerSeasonProgress> getPlayerSeasonProgress(
+    BigInt seasonId, {
+    String? playerAddress,
+  }) async {
+    final values = await _abiCall(
+      artifactName: 'EasyGameRoundManager',
+      contractAddress: await resolveRoundManagerAddress(),
+      functionName: 'getPlayerSeasonProgress',
+      parameters: [
+        seasonId,
+        wallet.EthereumAddress.fromHex(
+          _normalizeAddress(playerAddress ?? currentAddress.value),
+        ),
+      ],
+    );
+    return PlayerSeasonProgress(
+      started: values[0] as bool,
+      startLevel: (values[1] as BigInt).toInt(),
+      highestLevel: (values[2] as BigInt).toInt(),
+      activatedLevels: (values[3] as BigInt).toInt(),
+      directInvites: (values[4] as BigInt).toInt(),
+      inviteCapacity: (values[5] as BigInt).toInt(),
+    );
+  }
+
+  Future<RoundEntryEligibility> getRoundEntryEligibility({
+    required BigInt seasonId,
+    required int level,
+    String? playerAddress,
+  }) async {
+    final values = await _abiCall(
+      artifactName: 'EasyGameRoundManager',
+      contractAddress: await resolveRoundManagerAddress(),
+      functionName: 'getEntryEligibility',
+      parameters: [
+        seasonId,
+        BigInt.from(level),
+        wallet.EthereumAddress.fromHex(
+          _normalizeAddress(playerAddress ?? currentAddress.value),
+        ),
+      ],
+    );
+    return RoundEntryEligibility(
+      reason: roundEntryEligibilityReasonFromContractValue(
+        (values[0] as BigInt).toInt(),
+      ),
+      requiredLevel: (values[1] as BigInt).toInt(),
+      blockingRoundId: values[2] as BigInt,
     );
   }
 

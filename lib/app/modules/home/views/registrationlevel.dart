@@ -13,7 +13,6 @@ import '../models/levels_models.dart';
 
 part '../widgets/registration_widgets.dart';
 part '../widgets/registration_asset_widgets.dart';
-part '../widgets/registration_levels_widgets.dart';
 part '../widgets/registration_common_widgets.dart';
 part '../widgets/registration_summary_widgets.dart';
 
@@ -252,54 +251,16 @@ class RegistrationScreen extends StatelessWidget {
                             amount: selectedPriceUnits,
                             paysWithUsdc: registrationController.paysWithUsdc,
                             currencySymbol: currency,
+                            paymentAsset: paymentAsset,
                           ),
                           const SizedBox(height: 24),
-                          ElevatedButton(
+                          _ProjectActionButton(
                             onPressed: registrationController.continueToPayment,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.transparent,
-                              shadowColor: Colors.transparent,
-                              padding: const EdgeInsets.symmetric(vertical: 15),
-                              minimumSize: const Size(double.infinity, 54),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                            ),
-                            child: Ink(
-                              decoration: BoxDecoration(
-                                gradient: EasyGameTheme.actionGradient,
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Container(
-                                alignment: Alignment.center,
-                                child: Text(
-                                  '${'registration.activate'.tr} ($selectedPriceLabel $currency)',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                              ),
-                            ),
+                            label:
+                                '${'registration.activate'.tr} ($selectedPriceLabel $currency)',
                           ),
                         ],
                       ),
-                    ),
-                    const SizedBox(height: 26),
-                    _ActiveGamesStrip(
-                      selectedLevel: selectedLevel,
-                      currencySymbol: currency,
-                      paysWithUsdc: registrationController.paysWithUsdc,
-                      prices: {
-                        for (var item = 1; item <= easyGameLevelCount; item++)
-                          item: registrationController.priceForLevel(item),
-                      },
-                      canEnter: {
-                        for (var item = 1; item <= easyGameLevelCount; item++)
-                          item: registrationController.canEnterLevel(item),
-                      },
-                      onPickLevel: registrationController.selectLevel,
                     ),
                   ],
                 ),

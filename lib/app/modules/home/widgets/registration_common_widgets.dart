@@ -90,15 +90,77 @@ class _SummaryRow extends StatelessWidget {
             ),
           ),
         ),
-        Text(
-          value,
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: strong ? 18 : 15,
-            fontWeight: FontWeight.w900,
+        const SizedBox(width: 12),
+        Flexible(
+          child: Text(
+            value,
+            textAlign: TextAlign.right,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: strong ? 18 : 15,
+              fontWeight: FontWeight.w900,
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _ProjectActionButton extends StatelessWidget {
+  final String label;
+  final Future<void> Function() onPressed;
+
+  const _ProjectActionButton({
+    required this.label,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: Ink(
+          height: 56,
+          width: double.infinity,
+          decoration: BoxDecoration(
+            gradient: EasyGameTheme.actionGradient,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: [
+              BoxShadow(
+                color: EasyGameTheme.teal.withValues(alpha: 0.22),
+                blurRadius: 18,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              const Icon(
+                CupertinoIcons.arrow_right_circle_fill,
+                color: Colors.white,
+                size: 20,
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

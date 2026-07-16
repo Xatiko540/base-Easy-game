@@ -159,6 +159,15 @@ class ActivateExpressGameScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         _PaymentStateLine(
+                          icon: CupertinoIcons.doc_text_fill,
+                          color: Colors.tealAccent,
+                          label: 'registration.totalContractCharge'.tr,
+                          value: usesBasePay
+                              ? '$amountLabel $currency'
+                              : '$amountLabel $currency + ${'registration.networkGasExtra'.tr}',
+                        ),
+                        const SizedBox(height: 8),
+                        _PaymentStateLine(
                           icon: CupertinoIcons.money_dollar_circle,
                           color: paymentController.hasEnoughBalance == false
                               ? Colors.orangeAccent

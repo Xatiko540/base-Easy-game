@@ -28,3 +28,15 @@ error LevelEmergencyPaused(uint8 level);
 error RoundTicketAlreadyActive(uint256 roundId, address player);
 error RoundParentAlreadyClosed(uint256 roundId, uint256 parentCellId);
 error InvalidRoundCell(uint256 roundId, uint256 cellId);
+error SeasonLevelAlreadyConfigured(uint256 seasonId, uint8 level);
+error LevelOpeningIntervalTooShort(
+    uint256 seasonId,
+    uint8 lowerLevel,
+    uint8 upperLevel
+);
+error InvalidPlayerLevelProgression(uint8 requiredLevel, uint8 requestedLevel);
+error PlayerProgressionFrozen(uint256 roundId, address player);
+error ArenaSkillsNotConfigured();
+error ReferralCapacityReached(address inviter, uint32 used, uint32 capacity);
+error ReferralInviterNotActive(address inviter, uint256 seasonId);
+error RoundEntryAlreadyRegistered(uint256 roundId, address player);

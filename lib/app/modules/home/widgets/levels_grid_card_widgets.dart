@@ -128,13 +128,83 @@ class LevelCard extends StatelessWidget {
             top: -18,
             right: 18,
             child: Text(
-              'levels.owned'.tr,
+              data.seasonProgress?.highestLevel == data.level &&
+                      data.inviteCapacity > 0
+                  ? 'levels.ownedPartners'.trParams({
+                      'used': '${data.directInvites}',
+                      'capacity': '${data.inviteCapacity}',
+                    })
+                  : 'levels.owned'.tr,
               style: TextStyle(
                 color: const Color(0xFF7CFF85).withValues(alpha: 0.95),
                 fontSize: 12,
                 fontWeight: FontWeight.w900,
               ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class MissedLevelCard extends StatelessWidget {
+  final int level;
+  final BigInt priceWei;
+  final VoidCallback onTap;
+
+  const MissedLevelCard({
+    Key? key,
+    required this.level,
+    required this.priceWei,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: const Color(0xFFB93645),
+        border: Border.all(
+          color: const Color(0xFFFF6673).withValues(alpha: 0.72),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _CardHeader(level: level, priceWei: priceWei),
+          const Spacer(),
+          Center(
+            child: Text(
+              'levels.missed'.tr,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 19,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'levels.missedHint'.tr,
+              textAlign: TextAlign.center,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const Spacer(),
+          _GradientActionButton(
+            label: 'levels.viewDetails'.tr,
+            onTap: onTap,
           ),
         ],
       ),

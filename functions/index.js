@@ -853,8 +853,8 @@ exports.publishRoundManifest = onCall({
     config.level < 1n || config.level > 17n ||
     config.startsAt >= config.entriesCloseAt ||
     config.entriesCloseAt >= config.endsAt ||
-    config.freezeClosesAt < config.startsAt ||
-    config.freezeClosesAt > config.endsAt ||
+    config.freezeClosesAt !== config.endsAt ||
+    config.endsAt - config.startsAt < 3600n ||
     config.maxPlayers === 0n || config.maxWinners === 0n ||
     config.maxWinners > 8n || config.freezeLimit === 0n ||
     config.paymentSplitVersion !== 1n ||
@@ -881,11 +881,45 @@ exports.publishRoundManifest = onCall({
 
   const configHash = TypedDataEncoder.hashStruct("RoundConfig", roundTypes, config);
   const roundRef = db.collection("rounds").doc(config.roundId.toString());
+  const seasonRef = db.collection("seasons").doc(config.seasonId.toString());
   await db.runTransaction(async (transaction) => {
-    const existing = await transaction.get(roundRef);
+    const [existing, seasonSnapshot] = await Promise.all([
+      transaction.get(roundRef),
+      transaction.get(seasonRef),
+    ]);
     if (existing.exists) {
       throw new HttpsError("already-exists", "Round manifest is immutable");
     }
+    const season = seasonSnapshot.data() || {};
+    const levelStarts = { ...(season.levelStarts || {}) };
+    const roundIdsByLevel = { ...(season.roundIdsByLevel || {}) };
+    const levelKey = config.level.toString();
+    if (roundIdsByLevel[levelKey]) {
+      throw new HttpsError("already-exists", "Season level is already configured");
+    }
+    const minInterval = 5n * 60n * 60n;
+    const lowerStart = levelStarts[(config.level - 1n).toString()];
+    const upperStart = levelStarts[(config.level + 1n).toString()];
+    if (
+      (lowerStart !== undefined && config.startsAt < BigInt(lowerStart) + minInterval) ||
+      (upperStart !== undefined && BigInt(upperStart) < config.startsAt + minInterval)
+    ) {
+      throw new HttpsError(
+        "failed-precondition",
+        "Adjacent levels must open at least five hours apart",
+      );
+    }
+    levelStarts[levelKey] = config.startsAt.toString();
+    roundIdsByLevel[levelKey] = config.roundId.toString();
+    transaction.set(seasonRef, {
+      seasonId: config.seasonId.toString(),
+      chainId: Number(chainIdParam.value()),
+      contractAddress: coreAddress.toLowerCase(),
+      roundManagerAddress: managerAddress.toLowerCase(),
+      levelStarts,
+      roundIdsByLevel,
+      updatedAt: FieldValue.serverTimestamp(),
+    }, { merge: true });
     transaction.create(roundRef, {
       chainId: Number(chainIdParam.value()),
       contractAddress: coreAddress.toLowerCase(),

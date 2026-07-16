@@ -2,11 +2,9 @@ part of '../views/levels.dart';
 
 class _LevelStateBanner extends StatelessWidget {
   final String message;
-  final VoidCallback onRefresh;
 
   const _LevelStateBanner({
     required this.message,
-    required this.onRefresh,
   });
 
   @override
@@ -30,10 +28,6 @@ class _LevelStateBanner extends StatelessWidget {
               style: const TextStyle(color: Colors.white, fontSize: 13),
             ),
           ),
-          TextButton(
-            onPressed: onRefresh,
-            child: Text('common.refresh'.tr),
-          ),
         ],
       ),
     );
@@ -44,14 +38,12 @@ class BottomTableSection extends StatelessWidget {
   final List<GameTransaction> transactions;
   final bool isLoading;
   final String errorMessage;
-  final VoidCallback onRefresh;
 
   const BottomTableSection({
     Key? key,
     required this.transactions,
     required this.isLoading,
     required this.errorMessage,
-    required this.onRefresh,
   }) : super(key: key);
 
   @override
@@ -72,7 +64,6 @@ class BottomTableSection extends StatelessWidget {
             children: [
               _TransactionsSectionHeader(
                 count: transactions.length,
-                onRefresh: onRefresh,
               ),
               if (isLoading)
                 const LinearProgressIndicator(
@@ -83,7 +74,6 @@ class BottomTableSection extends StatelessWidget {
               if (errorMessage.isNotEmpty)
                 _TransactionsError(
                   message: errorMessage,
-                  onRefresh: onRefresh,
                 )
               else if (!isLoading && transactions.isEmpty)
                 const _TransactionsEmptyState()
@@ -111,11 +101,9 @@ class BottomTableSection extends StatelessWidget {
 
 class _TransactionsSectionHeader extends StatelessWidget {
   final int count;
-  final VoidCallback onRefresh;
 
   const _TransactionsSectionHeader({
     required this.count,
-    required this.onRefresh,
   });
 
   @override
@@ -158,15 +146,6 @@ class _TransactionsSectionHeader extends StatelessWidget {
                   ),
                 ),
               ],
-            ),
-          ),
-          IconButton(
-            onPressed: onRefresh,
-            tooltip: 'common.refresh'.tr,
-            icon: const Icon(
-              CupertinoIcons.refresh,
-              color: EasyGameTheme.teal,
-              size: 19,
             ),
           ),
         ],
@@ -487,11 +466,9 @@ class _TransactionsEmptyState extends StatelessWidget {
 
 class _TransactionsError extends StatelessWidget {
   final String message;
-  final VoidCallback onRefresh;
 
   const _TransactionsError({
     required this.message,
-    required this.onRefresh,
   });
 
   @override
@@ -513,10 +490,6 @@ class _TransactionsError extends StatelessWidget {
               'levels.transactionsUnavailable'.tr,
               style: const TextStyle(color: EasyGameTheme.textMuted),
             ),
-          ),
-          TextButton(
-            onPressed: onRefresh,
-            child: Text('common.refresh'.tr),
           ),
         ],
       ),
