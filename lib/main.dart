@@ -7,7 +7,6 @@ import 'package:lottery_advance/app/services/wallet_session_store.dart';
 import 'package:lottery_advance/app/services/notifications_service.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/base_pay_service.dart';
-import 'package:lottery_advance/app/services/firebase_data_service.dart';
 import 'package:lottery_advance/app/services/language_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/game_clock_service.dart';
@@ -21,7 +20,6 @@ import 'package:lottery_advance/app/modules/home/controllers/game_rounds_control
 import 'package:lottery_advance/app/modules/home/controllers/notifications_controller.dart';
 import 'package:lottery_advance/app/modules/home/views/start_page.dart';
 import 'package:lottery_advance/app/translations/app_translations.dart';
-import 'package:lottery_advance/core/binary_matrix.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
 import 'app/routes/app_pages.dart';
@@ -43,19 +41,6 @@ void main() async {
       print("[DEBUG] main: GetStorage initialized.");
     }
 
-    if (kDebugMode) {
-      print("[DEBUG] main: Initializing BinaryMatrix...");
-    }
-    final matrix = BinaryMatrix();
-    matrix.fillMatrix(6); // Заполняем 6 уровней
-    if (kDebugMode) {
-      print("[DEBUG] main: BinaryMatrix filled.");
-    }
-    matrix.printMatrix();
-    if (kDebugMode) {
-      print("[DEBUG] main: BinaryMatrix printed.");
-    }
-
     Get.put(WalletSessionStore(), permanent: true);
 
     if (kDebugMode) {
@@ -74,7 +59,6 @@ void main() async {
     Get.put(NotificationsService(), permanent: true);
     Get.put(FirebaseBackendService(), permanent: true);
     Get.put(BasePayService(), permanent: true);
-    Get.put(FirebaseDataService(), permanent: true);
     Get.put(GameClockService(), permanent: true);
     Get.put(GameScheduleService(), permanent: true);
     Get.put(GameRoundBlockchainService().bind(), permanent: true);

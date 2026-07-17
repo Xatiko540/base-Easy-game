@@ -26,8 +26,6 @@ Map<String, CellState> _buildCellStates(
       state = CellState.blueUser;
     } else if (participant.isCurrentPlayer) {
       state = CellState.cyanUser;
-    } else if (cellId == 7 || cellId == 15) {
-      state = CellState.goldUser;
     } else {
       state = CellState.greenUser;
     }

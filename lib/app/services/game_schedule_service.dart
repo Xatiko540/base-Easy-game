@@ -10,6 +10,13 @@ import 'package:lottery_advance/app/services/game_schedule_rest_data_source.dart
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/firebase_options.dart';
 
+enum GameScheduleAvailability {
+  loading,
+  awaitingPublication,
+  ready,
+  failed,
+}
+
 class GameScheduleService extends GetxService {
   final WalletConnectService _walletService = Get.find<WalletConnectService>();
   final GameScheduleRestDataSource _restDataSource =
@@ -18,10 +25,14 @@ class GameScheduleService extends GetxService {
   final RxList<GameRoundSchedule> schedules = <GameRoundSchedule>[].obs;
   final RxBool isReady = false.obs;
   final RxString errorMessage = ''.obs;
+  final Rx<GameScheduleAvailability> availability =
+      GameScheduleAvailability.loading.obs;
 
   StreamSubscription<QuerySnapshot<Map<String, dynamic>>>? _subscription;
   Worker? _chainWorker;
+  Worker? _configWorker;
   int _watchGeneration = 0;
+  String? _activeIdentityKey;
 
   Future<GameScheduleService> init() async {
     if (Firebase.apps.isEmpty) {
@@ -33,6 +44,12 @@ class GameScheduleService extends GetxService {
       _walletService.chainId,
       (_) => unawaited(_watchRounds()),
     );
+    _configWorker ??= ever<bool>(
+      Get.find<AppConfigService>().isLoaded,
+      (loaded) {
+        if (loaded) unawaited(_watchRounds());
+      },
+    );
     await _watchRounds();
     isReady.value = true;
     return this;
@@ -41,22 +58,38 @@ class GameScheduleService extends GetxService {
   Future<void> _watchRounds() async {
     final generation = ++_watchGeneration;
     await _subscription?.cancel();
+    if (schedules.isEmpty) {
+      availability.value = GameScheduleAvailability.loading;
+    }
+    errorMessage.value = '';
     final chainId =
         _walletService.chainId.value ?? WalletConnectService.targetBaseChainId;
-    String configuredContract;
-    String configuredManager;
+    _RoundIdentity? identity;
     try {
-      final identity = await _resolveRoundIdentity();
-      configuredContract = identity.contractAddress;
-      configuredManager = identity.managerAddress;
+      identity = await _resolveRoundIdentity();
     } catch (error) {
       if (generation != _watchGeneration) return;
       schedules.clear();
-      errorMessage.value = 'Round contract configuration is incomplete: $error';
+      availability.value = GameScheduleAvailability.failed;
+      errorMessage.value = 'Invalid round contract configuration: $error';
       return;
     }
+    if (identity == null) {
+      if (generation != _watchGeneration) return;
+      schedules.clear();
+      _activeIdentityKey = null;
+      availability.value = GameScheduleAvailability.awaitingPublication;
+      return;
+    }
+    final configuredContract = identity.contractAddress;
+    final configuredManager = identity.managerAddress;
 
-    schedules.clear();
+    final identityKey = '$chainId:$configuredContract:$configuredManager';
+    if (_activeIdentityKey != identityKey) {
+      schedules.clear();
+      _activeIdentityKey = identityKey;
+    }
+
     _subscription = FirebaseFirestore.instance
         .collection('rounds')
         .where('chainId', isEqualTo: chainId)
@@ -115,20 +148,36 @@ class GameScheduleService extends GetxService {
     );
   }
 
-  Future<_RoundIdentity> _resolveRoundIdentity() async {
+  Future<_RoundIdentity?> _resolveRoundIdentity() async {
     final config = Get.find<AppConfigService>();
     var contract = config.get('easyGameContractAddress').toLowerCase();
     var manager = config.get('roundManagerAddress').toLowerCase();
 
+    if (contract.isNotEmpty && !_isContractAddress(contract)) {
+      throw FormatException('Invalid core address: $contract');
+    }
+    if (manager.isNotEmpty && !_isContractAddress(manager)) {
+      throw FormatException('Invalid round manager address: $manager');
+    }
+
     if (contract.isEmpty) {
-      contract = (await _walletService.resolveEasyGameAddress()).toLowerCase();
+      try {
+        contract =
+            (await _walletService.resolveEasyGameAddress()).toLowerCase();
+      } catch (_) {
+        // A compatible core has not been published for this network yet.
+      }
     }
     if (manager.isEmpty) {
-      manager =
-          (await _walletService.resolveRoundManagerAddress()).toLowerCase();
+      try {
+        manager =
+            (await _walletService.resolveRoundManagerAddress()).toLowerCase();
+      } catch (_) {
+        // A compatible round manager has not been published yet.
+      }
     }
     if (contract.isEmpty || manager.isEmpty) {
-      throw const FormatException('Missing core or round manager address');
+      return null;
     }
     return _RoundIdentity(
       contractAddress: contract,
@@ -156,6 +205,7 @@ class GameScheduleService extends GetxService {
       );
     } catch (error) {
       if (generation != _watchGeneration || schedules.isNotEmpty) return;
+      availability.value = GameScheduleAvailability.failed;
       errorMessage.value = '$error';
       if (kDebugMode) {
         debugPrint('Public round schedule fallback failed: $error');
@@ -175,13 +225,21 @@ class GameScheduleService extends GetxService {
         .toList()
       ..sort((a, b) => a.startsAt.compareTo(b.startsAt));
     schedules.assignAll(accepted);
+    availability.value = accepted.isEmpty
+        ? GameScheduleAvailability.awaitingPublication
+        : GameScheduleAvailability.ready;
     errorMessage.value = '';
   }
+
+  bool _isContractAddress(String value) =>
+      RegExp(r'^0x[0-9a-f]{40}$').hasMatch(value) &&
+      value != '0x0000000000000000000000000000000000000000';
 
   @override
   void onClose() {
     _watchGeneration++;
     _chainWorker?.dispose();
+    _configWorker?.dispose();
     _subscription?.cancel();
     _restDataSource.close();
     super.onClose();

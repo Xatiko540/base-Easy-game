@@ -35,37 +35,70 @@ class _RecentActivityTable extends StatelessWidget {
             ),
           ),
           const Divider(height: 1, color: EasyGameTheme.border),
-          if (errorMessage.isNotEmpty)
-            _ProfileTransactionsError(
-              message: errorMessage,
+          AnimatedSize(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: _ProfileTransactionsBody(
+              data: data,
+              errorMessage: errorMessage,
               onRefresh: onRefresh,
-            )
-          else if (data.transactions.isEmpty)
-            const _ProfileTransactionsEmpty()
-          else
-            LayoutBuilder(
-              builder: (context, constraints) {
-                if (constraints.maxWidth < 760) {
-                  return Column(
-                    children: data.transactions
-                        .take(8)
-                        .map((transaction) =>
-                            _ProfileMobileTransaction(transaction: transaction))
-                        .toList(),
-                  );
-                }
-                return Column(
-                  children: [
-                    const _ActivityHeader(),
-                    const Divider(height: 1, color: EasyGameTheme.border),
-                    ...data.transactions.take(8).map((transaction) =>
-                        _ActivityRow(transaction: transaction)),
-                  ],
-                );
-              },
             ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _ProfileTransactionsBody extends StatelessWidget {
+  final ProfileDashboardSnapshot data;
+  final String errorMessage;
+  final VoidCallback onRefresh;
+
+  const _ProfileTransactionsBody({
+    required this.data,
+    required this.errorMessage,
+    required this.onRefresh,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (errorMessage.isNotEmpty) {
+      return _ProfileTransactionsError(
+        key: const ValueKey('transactions-error'),
+        message: errorMessage,
+        onRefresh: onRefresh,
+      );
+    }
+    if (data.transactions.isEmpty) {
+      return const KeyedSubtree(
+        key: ValueKey('transactions-empty'),
+        child: _ProfileTransactionsEmpty(),
+      );
+    }
+    return LayoutBuilder(
+      key: const ValueKey('transactions-list'),
+      builder: (context, constraints) {
+        if (constraints.maxWidth < 760) {
+          return Column(
+            children: data.transactions
+                .take(8)
+                .map((transaction) =>
+                    _ProfileMobileTransaction(transaction: transaction))
+                .toList(),
+          );
+        }
+        return Column(
+          children: [
+            const _ActivityHeader(),
+            const Divider(height: 1, color: EasyGameTheme.border),
+            ...data.transactions
+                .take(8)
+                .map((transaction) => _ActivityRow(transaction: transaction)),
+          ],
+        );
+      },
     );
   }
 }
@@ -75,9 +108,10 @@ class _ProfileTransactionsError extends StatelessWidget {
   final VoidCallback onRefresh;
 
   const _ProfileTransactionsError({
+    Key? key,
     required this.message,
     required this.onRefresh,
-  });
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

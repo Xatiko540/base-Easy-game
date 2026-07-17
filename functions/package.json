@@ -6,7 +6,9 @@
     "node": "22"
   },
   "scripts": {
-    "lint": "eslint .",
+    "lint": "node --check index.js && node --check game_abi.js && node --check round_merkle.js && node --check test_contract_abi.js",
+    "test": "node test_round_merkle.js && node test_contract_abi.js",
+    "test:emulator": "node test_emulator.js",
     "serve": "npx -y firebase-tools@latest emulators:start --only functions,firestore",
     "deploy": "npx -y firebase-tools@latest deploy --only functions,firestore",
     "publish:test-schedule": "node --env-file=../.env publish_base_sepolia_schedule.js"

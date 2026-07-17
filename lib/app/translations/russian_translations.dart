@@ -108,6 +108,7 @@ const Map<String, String> russianTranslations = {
   'round.actionsUnavailable': 'Действия раунда недоступны',
   'round.unavailable': 'Нет подтвержденного раунда',
   'round.configurationMismatch': 'Конфигурация раунда не совпадает',
+  'round.configMismatch': 'Конфигурация раунда не совпадает',
   'round.finished': 'Раунд завершен',
   'round.openResults': 'Открыть результаты раунда',
   'invite.invitesYou': 'приглашает вас в',
@@ -248,16 +249,27 @@ const Map<String, String> russianTranslations = {
   'matrix.statusFrozen': 'Вы заморожены',
   'matrix.statusImmune': 'Активен иммунитет к заморозке',
   'matrix.statusActive': 'Вы активны',
+  'matrix.statusNotParticipant': 'Уровень не активирован',
   'matrix.buyFreeze': 'Купить заморозку',
   'matrix.freezeSelected': 'Заморозить выбранного игрока',
   'matrix.unfreezeNow': 'Разморозиться',
   'matrix.participants': 'Участники раунда и приглашенные вами',
   'matrix.noParticipants': 'В этом раунде пока нет занятых ячеек',
   'matrix.noOpponent': 'Выберите активного соперника в матрице',
+  'matrix.immune': 'иммунитет',
   'matrix.invited': 'приглашен вами',
   'matrix.freezeTokens': 'Токены заморозки',
   'matrix.freezesRemaining': 'Заморозок до иммунитета',
   'matrix.frozenUntil': 'Заморожен до',
+  'matrix.freezeWindow': 'Окно заморозки',
+  'matrix.freezeWindowOpen': 'Открыто',
+  'matrix.freezeWindowClosed': 'Закрыто',
+  'matrix.freezeWindowEnds': 'Закроется',
+  'matrix.freezeUnavailable':
+      'Активируйте этот уровень и дождитесь открытого окна заморозки.',
+  'matrix.noRoundTitle': 'Игра еще не началась',
+  'matrix.noRoundText':
+      'Для этого уровня пока нет проверенного раунда. Арена обновится автоматически после публикации следующей игры.',
   'matrix.settlementTitle': 'Расчет раунда',
   'matrix.settlementComplete': 'Раунд рассчитан в блокчейне.',
   'matrix.settlementReadyText':
@@ -577,6 +589,12 @@ const Map<String, String> russianTranslations = {
       'Не удалось загрузить расписание игры. Попробуйте снова.',
   'levels.gameNotStarted': 'Игра ещё не началась',
   'levels.gameStartsSoon': 'Новый раунд лотереи скоро начнётся',
+  'levels.entryClosedHint':
+      'Приём билетов закрыт. Активный раунд продолжается до расчёта.',
+  'levels.roundFinishedNoTicket':
+      'Раунд завершён без вашего билета на этом уровне.',
+  'levels.roundSettledNoTicket':
+      'Результаты зафиксированы. Вы не участвовали в этом раунде.',
   'levels.ownedPartners': 'Куплено · партнёры @used/@capacity',
   'levels.missed': 'Уровень пропущен',
   'levels.missedHint':

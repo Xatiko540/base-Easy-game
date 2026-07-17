@@ -9,8 +9,6 @@ class _MatrixArenaPanel extends StatelessWidget {
   final VoidCallback onBuyFreeze;
   final VoidCallback onFreeze;
   final VoidCallback onUnfreeze;
-  final VoidCallback onSettle;
-  final VoidCallback onClaimSettlement;
 
   const _MatrixArenaPanel({
     required this.data,
@@ -21,8 +19,6 @@ class _MatrixArenaPanel extends StatelessWidget {
     required this.onBuyFreeze,
     required this.onFreeze,
     required this.onUnfreeze,
-    required this.onSettle,
-    required this.onClaimSettlement,
   });
 
   @override
@@ -76,7 +72,7 @@ class _MatrixArenaPanel extends StatelessWidget {
           LayoutBuilder(
             builder: (context, constraints) {
               final treeSize =
-                  (constraints.maxWidth * 0.92).clamp(600.0, 960.0);
+                  (constraints.maxWidth * 0.92).clamp(280.0, 780.0);
               return SizedBox(
                 height: treeSize,
                 child: _MatrixTree(
@@ -91,7 +87,7 @@ class _MatrixArenaPanel extends StatelessWidget {
           _MatrixProgressBar(
             label: 'matrix.levelFill'.trParams({'level': '${data.level}'}),
             percent: fill,
-            endLabel: '2^${data.level} ${'matrix.slots'.tr}',
+            endLabel: '${data.maxPlayers} ${'matrix.slots'.tr}',
           ),
           const SizedBox(height: 18),
           Wrap(
@@ -130,13 +126,6 @@ class _MatrixArenaPanel extends StatelessWidget {
             onFreeze: onFreeze,
             onUnfreeze: onUnfreeze,
           ),
-          // const SizedBox(height: 18),
-          // _RoundSettlementPanel(
-          //   data: data,
-          //   actionsBusy: actionsBusy,
-          //   onSettle: onSettle,
-          //   onClaim: onClaimSettlement,
-          // ),
           const SizedBox(height: 18),
           _InfoBlock(
             title: 'matrix.howTitle'.tr,
@@ -174,7 +163,9 @@ class _MatrixTree extends StatelessWidget {
               states: states,
               onCellTap: (cellId) {
                 final participant = data.participantAt(cellId);
-                if (participant != null && !participant.isCurrentPlayer) {
+                if (participant != null &&
+                    !participant.isCurrentPlayer &&
+                    participant.skillStatus?.immune != true) {
                   onSelectOpponent(participant.wallet);
                 }
               },
@@ -182,6 +173,50 @@ class _MatrixTree extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _MatrixUnavailablePanel extends StatelessWidget {
+  const _MatrixUnavailablePanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 320),
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: EasyGameTheme.surface.withValues(alpha: 0.88),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: EasyGameTheme.borderSoft),
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(
+            CupertinoIcons.calendar_badge_minus,
+            color: EasyGameTheme.orange,
+            size: 46,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'matrix.noRoundTitle'.tr,
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'matrix.noRoundText'.tr,
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white54, height: 1.5),
+          ),
+        ],
+      ),
     );
   }
 }

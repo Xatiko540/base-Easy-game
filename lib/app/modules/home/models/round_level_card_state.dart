@@ -12,14 +12,31 @@ enum RoundLevelPlayerStatus {
   completed
 }
 
-class ContractLevelPrice {
-  final BigInt ethPriceWei;
-  final BigInt usdcPrice;
-
-  const ContractLevelPrice({
-    required this.ethPriceWei,
-    required this.usdcPrice,
-  });
+enum RoundLevelCardViewMode {
+  scheduleLoading,
+  awaitingRound,
+  refreshingRound,
+  configurationMismatch,
+  playerLoading,
+  dataError,
+  scheduled,
+  active,
+  frozen,
+  missed,
+  progressionFrozen,
+  progressionBlocked,
+  emergencyPaused,
+  entryUnavailable,
+  activationAvailable,
+  entryClosed,
+  entryClosedActive,
+  settlementFinished,
+  settlementActive,
+  settledWithoutEntry,
+  settledActive,
+  paused,
+  cancelled,
+  uninitialized,
 }
 
 class RoundLevelCardState {
@@ -30,8 +47,6 @@ class RoundLevelCardState {
   final ArenaSkillStatus? arenaStatus;
   final PlayerSeasonProgress? seasonProgress;
   final RoundEntryEligibility? entryEligibility;
-  final BigInt? contractEthPriceWei;
-  final BigInt? contractUsdcPrice;
   final bool? contractLevelAvailable;
   final bool playerStateResolved;
   final String? errorMessage;
@@ -44,17 +59,14 @@ class RoundLevelCardState {
     this.arenaStatus,
     this.seasonProgress,
     this.entryEligibility,
-    this.contractEthPriceWei,
-    this.contractUsdcPrice,
     this.contractLevelAvailable,
     this.playerStateResolved = true,
     this.errorMessage,
   });
 
   BigInt get roundId => BigInt.from(round?.schedule.roundId ?? 0);
-  BigInt get ethPriceWei =>
-      round?.ethPriceWei ?? contractEthPriceWei ?? BigInt.zero;
-  BigInt get usdcPrice => round?.usdcPrice ?? contractUsdcPrice ?? BigInt.zero;
+  BigInt get ethPriceWei => round?.ethPriceWei ?? BigInt.zero;
+  BigInt get usdcPrice => round?.usdcPrice ?? BigInt.zero;
   BigInt get prizePoolWei => matrix?.prizePoolEth ?? BigInt.zero;
   BigInt get prizePoolUsdc => matrix?.prizePoolUsdc ?? BigInt.zero;
   BigInt get totalWeight => matrix?.totalWeight ?? BigInt.zero;
@@ -117,5 +129,91 @@ class RoundLevelCardState {
       return BigInt.zero;
     }
     return (playerWeight * BigInt.from(10000)) ~/ totalWeight;
+  }
+
+  RoundLevelCardViewMode resolveViewMode({
+    required GameRoundViewState? liveRound,
+    required bool isScheduleLoading,
+  }) {
+    if (liveRound == null) {
+      return isScheduleLoading
+          ? RoundLevelCardViewMode.scheduleLoading
+          : RoundLevelCardViewMode.awaitingRound;
+    }
+    if (hasRound && roundId != BigInt.from(liveRound.schedule.roundId)) {
+      return RoundLevelCardViewMode.refreshingRound;
+    }
+    if (!liveRound.isConfigurationTrusted) {
+      return RoundLevelCardViewMode.configurationMismatch;
+    }
+    if (isPlayerStatePending) return RoundLevelCardViewMode.playerLoading;
+    if (hasError) return RoundLevelCardViewMode.dataError;
+
+    // A lower level remains unavailable after the player has started higher,
+    // regardless of the current round timer.
+    if (isMissed) return RoundLevelCardViewMode.missed;
+
+    // Scheduled rounds must keep showing their chain-time countdown. Entry
+    // eligibility becomes actionable only after the round opens.
+    if (liveRound.phase == GameRoundPhase.scheduled) {
+      return RoundLevelCardViewMode.scheduled;
+    }
+    if (liveRound.phase == GameRoundPhase.paused) {
+      return RoundLevelCardViewMode.paused;
+    }
+    if (liveRound.phase == GameRoundPhase.cancelled) {
+      return RoundLevelCardViewMode.cancelled;
+    }
+    if (liveRound.phase == GameRoundPhase.uninitialized) {
+      return RoundLevelCardViewMode.uninitialized;
+    }
+
+    if (liveRound.phase == GameRoundPhase.settlementReady) {
+      return isPlayerActive
+          ? RoundLevelCardViewMode.settlementActive
+          : RoundLevelCardViewMode.settlementFinished;
+    }
+    if (liveRound.phase == GameRoundPhase.settled) {
+      return isPlayerActive
+          ? RoundLevelCardViewMode.settledActive
+          : RoundLevelCardViewMode.settledWithoutEntry;
+    }
+
+    // Freeze only blocks play/progression while the round is live. Results
+    // and claims remain reachable after settlement.
+    if (isFrozen) return RoundLevelCardViewMode.frozen;
+    if (isFrozenProgressionBlocked) {
+      return RoundLevelCardViewMode.progressionFrozen;
+    }
+    if (isProgressionBlocked) {
+      return RoundLevelCardViewMode.progressionBlocked;
+    }
+
+    switch (liveRound.phase) {
+      case GameRoundPhase.open:
+        if (isPlayerActive) return RoundLevelCardViewMode.active;
+        if (isEmergencyPaused) {
+          return RoundLevelCardViewMode.emergencyPaused;
+        }
+        return canEnter
+            ? RoundLevelCardViewMode.activationAvailable
+            : RoundLevelCardViewMode.entryUnavailable;
+      case GameRoundPhase.locked:
+        return isPlayerActive
+            ? RoundLevelCardViewMode.entryClosedActive
+            : RoundLevelCardViewMode.entryClosed;
+      case GameRoundPhase.paused:
+        return RoundLevelCardViewMode.paused;
+      case GameRoundPhase.cancelled:
+        return RoundLevelCardViewMode.cancelled;
+      case GameRoundPhase.uninitialized:
+        return RoundLevelCardViewMode.uninitialized;
+      case GameRoundPhase.scheduled:
+        return RoundLevelCardViewMode.scheduled;
+      case GameRoundPhase.settlementReady:
+        return RoundLevelCardViewMode.settlementFinished;
+      case GameRoundPhase.settled:
+        return RoundLevelCardViewMode.settledWithoutEntry;
+    }
   }
 }

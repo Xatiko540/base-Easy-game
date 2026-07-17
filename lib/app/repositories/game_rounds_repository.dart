@@ -96,9 +96,9 @@ class GameRoundsRepository extends GetxService {
         return 0;
       case GameRoundPhase.locked:
         return 1;
-      case GameRoundPhase.settlementReady:
-        return 2;
       case GameRoundPhase.scheduled:
+        return 2;
+      case GameRoundPhase.settlementReady:
         return 3;
       case GameRoundPhase.paused:
         return 4;

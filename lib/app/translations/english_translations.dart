@@ -107,6 +107,7 @@ const Map<String, String> englishTranslations = {
   'round.actionsUnavailable': 'Round actions are unavailable',
   'round.unavailable': 'No verified round',
   'round.configurationMismatch': 'Round configuration mismatch',
+  'round.configMismatch': 'Round configuration mismatch',
   'round.finished': 'Round finished',
   'round.openResults': 'Open round results',
   'invite.invitesYou': 'invites you to',
@@ -246,16 +247,27 @@ const Map<String, String> englishTranslations = {
   'matrix.statusFrozen': 'You are frozen',
   'matrix.statusImmune': 'Freeze immunity active',
   'matrix.statusActive': 'You are active',
+  'matrix.statusNotParticipant': 'Level is not activated',
   'matrix.buyFreeze': 'Buy freeze token',
   'matrix.freezeSelected': 'Freeze selected player',
   'matrix.unfreezeNow': 'Unfreeze now',
   'matrix.participants': 'Round participants and your invitees',
   'matrix.noParticipants': 'No occupied cells in this round yet',
   'matrix.noOpponent': 'Select an active opponent in the matrix',
+  'matrix.immune': 'immune',
   'matrix.invited': 'invited',
   'matrix.freezeTokens': 'Freeze tokens',
   'matrix.freezesRemaining': 'Freezes until immunity',
   'matrix.frozenUntil': 'Frozen until',
+  'matrix.freezeWindow': 'Freeze window',
+  'matrix.freezeWindowOpen': 'Open',
+  'matrix.freezeWindowClosed': 'Closed',
+  'matrix.freezeWindowEnds': 'Closes at',
+  'matrix.freezeUnavailable':
+      'Activate this level and wait for an open freeze window.',
+  'matrix.noRoundTitle': 'The game has not started yet',
+  'matrix.noRoundText':
+      'No verified round is published for this level. The arena will update automatically when the next game appears.',
   'matrix.settlementTitle': 'Round settlement',
   'matrix.settlementComplete': 'The round is settled on-chain.',
   'matrix.settlementReadyText':
@@ -574,6 +586,12 @@ const Map<String, String> englishTranslations = {
       'The game schedule could not be loaded. Please try again.',
   'levels.gameNotStarted': 'The game hasn\'t started yet',
   'levels.gameStartsSoon': 'A new lottery round will start soon',
+  'levels.entryClosedHint':
+      'Ticket entry is closed. The active round continues until settlement.',
+  'levels.roundFinishedNoTicket':
+      'The round ended without a ticket on this level.',
+  'levels.roundSettledNoTicket':
+      'Results are finalized. You did not enter this round.',
   'levels.ownedPartners': 'Owned · @used/@capacity partners',
   'levels.missed': 'Level missed',
   'levels.missedHint':

@@ -1,9 +1,8 @@
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
+import 'package:lottery_advance/app/models/player_progression_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
-import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
-import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
 import 'package:lottery_advance/app/services/base_pay_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
@@ -23,10 +22,8 @@ class RoundPaymentController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
   final BasePayService basePayService = Get.find<BasePayService>();
   final GameRoundsController _rounds = Get.find<GameRoundsController>();
-  final RoundLevelsRepository _levelPrices = Get.find<RoundLevelsRepository>();
 
   final Rxn<BigInt> availableBalanceUnits = Rxn<BigInt>();
-  final Rxn<ContractLevelPrice> contractPrice = Rxn<ContractLevelPrice>();
   final RxnBool contractLevelAvailable = RxnBool();
   final isBalanceLoading = false.obs;
   final isPreflightLoading = false.obs;
@@ -39,13 +36,8 @@ class RoundPaymentController extends GetxController {
   bool get paysWithUsdc => paymentAsset != EasyGamePaymentAsset.native;
   bool get usesBasePay => paymentAsset == EasyGamePaymentAsset.basePay;
   String get currency => paysWithUsdc ? 'USDC' : walletService.nativeSymbol;
-  BigInt get amountUnits {
-    final onchain = contractPrice.value;
-    if (onchain != null) {
-      return paysWithUsdc ? onchain.usdcPrice : onchain.ethPriceWei;
-    }
-    return paysWithUsdc ? round.value.usdcPrice : round.value.ethPriceWei;
-  }
+  BigInt get amountUnits =>
+      paysWithUsdc ? round.value.usdcPrice : round.value.ethPriceWei;
 
   String get amountLabel => paysWithUsdc
       ? formatUsdc(amountUnits, decimals: 6)
@@ -69,10 +61,17 @@ class RoundPaymentController extends GetxController {
   bool get canSubmit =>
       !isProcessing &&
       !isPreflightLoading.value &&
-      contractPrice.value != null &&
+      round.value.canEnter &&
+      _isSelectedRoundCurrent &&
       contractLevelAvailable.value == true &&
       preflightError.value.isEmpty &&
       (usesBasePay || hasEnoughBalance != false);
+
+  bool get _isSelectedRoundCurrent {
+    final latest = _rounds.roundForLevel(level);
+    return latest != null &&
+        latest.schedule.roundId == round.value.schedule.roundId;
+  }
 
   @override
   void onInit() {
@@ -182,6 +181,15 @@ class RoundPaymentController extends GetxController {
     isPreflightLoading.value = true;
     preflightError.value = '';
     try {
+      final latest = _rounds.roundForLevel(level);
+      if (latest == null ||
+          latest.schedule.roundId != round.value.schedule.roundId) {
+        throw StateError('round.actionsUnavailable'.tr);
+      }
+      round.value = latest;
+      if (!latest.canEnter) {
+        throw StateError('round.actionsUnavailable'.tr);
+      }
       if (walletService.isConnected.value) {
         await walletService.ensureBaseNetwork();
       }
@@ -191,11 +199,12 @@ class RoundPaymentController extends GetxController {
         throw StateError('payment.levelEmergencyPausedHint'.tr);
       }
 
-      final onchainPrice = await _levelPrices.loadContractPrice(level);
-      contractPrice.value = onchainPrice;
-      if (onchainPrice.ethPriceWei != round.value.ethPriceWei ||
-          onchainPrice.usdcPrice != round.value.usdcPrice) {
-        throw StateError('payment.contractPriceMismatch'.tr);
+      if (!round.value.isConfigurationTrusted) {
+        throw StateError('round.configMismatch'.tr);
+      }
+
+      if (walletService.isConnected.value) {
+        await _verifyProgressionEligibility(latest);
       }
 
       if (!usesBasePay && walletService.isConnected.value) {
@@ -217,6 +226,36 @@ class RoundPaymentController extends GetxController {
       if (throwOnFailure) rethrow;
     } finally {
       isPreflightLoading.value = false;
+    }
+  }
+
+  Future<void> _verifyProgressionEligibility(
+    GameRoundViewState currentRound,
+  ) async {
+    RoundEntryEligibility eligibility;
+    try {
+      eligibility = await walletService.getRoundEntryEligibility(
+        seasonId: BigInt.from(currentRound.schedule.seasonId),
+        level: level,
+      );
+    } catch (_) {
+      // Compatibility path for the previous Base Sepolia manager. The core
+      // transaction still enforces eligibility on-chain.
+      return;
+    }
+    switch (eligibility.reason) {
+      case RoundEntryEligibilityReason.eligible:
+        return;
+      case RoundEntryEligibilityReason.alreadyPurchasedOrLower:
+        throw StateError('levels.missedHint'.tr);
+      case RoundEntryEligibilityReason.nextLevelRequired:
+        throw StateError('levels.activateRequiredLevel'.trParams({
+          'level': '${eligibility.requiredLevel}',
+        }));
+      case RoundEntryEligibilityReason.frozen:
+        throw StateError('levels.unfreezeCurrentLevel'.tr);
+      case RoundEntryEligibilityReason.unknown:
+        throw StateError('levels.entryUnavailable'.tr);
     }
   }
 

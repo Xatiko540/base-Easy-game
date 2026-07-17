@@ -48,11 +48,13 @@ class _ArenaSkillsPanel extends StatelessWidget {
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  data.playerFrozen
-                      ? 'matrix.statusFrozen'.tr
-                      : status?.immune == true
-                          ? 'matrix.statusImmune'.tr
-                          : 'matrix.statusActive'.tr,
+                  !data.playerActive
+                      ? 'matrix.statusNotParticipant'.tr
+                      : data.playerFrozen
+                          ? 'matrix.statusFrozen'.tr
+                          : status?.immune == true
+                              ? 'matrix.statusImmune'.tr
+                              : 'matrix.statusActive'.tr,
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
@@ -84,6 +86,17 @@ class _ArenaSkillsPanel extends StatelessWidget {
                   label: 'matrix.frozenUntil'.tr,
                   value: _formatArenaDate(status!.frozenUntil!),
                 ),
+              _ArenaStatusValue(
+                label: 'matrix.freezeWindow'.tr,
+                value: data.freezeWindowOpen
+                    ? 'matrix.freezeWindowOpen'.tr
+                    : 'matrix.freezeWindowClosed'.tr,
+              ),
+              if (data.freezeClosesAt != null)
+                _ArenaStatusValue(
+                  label: 'matrix.freezeWindowEnds'.tr,
+                  value: _formatArenaDate(data.freezeClosesAt!),
+                ),
             ],
           ),
           const SizedBox(height: 14),
@@ -93,14 +106,17 @@ class _ArenaSkillsPanel extends StatelessWidget {
             children: [
               _SkillActionButton(
                 icon: CupertinoIcons.snow,
-                label: '${'matrix.buyFreeze'.tr} · 0.30 USDC',
-                onPressed:
-                    actionsBusy || !data.playerActive ? null : onBuyFreeze,
+                label:
+                    '${'matrix.buyFreeze'.tr} · ${_usdc(data.freezeTokenPriceUsdc)} USDC',
+                onPressed: actionsBusy || !data.canUseFreezeSkills
+                    ? null
+                    : onBuyFreeze,
               ),
               _SkillActionButton(
                 icon: CupertinoIcons.location,
                 label: 'matrix.freezeSelected'.tr,
                 onPressed: actionsBusy ||
+                        !data.canUseFreezeSkills ||
                         selectedOpponent.isEmpty ||
                         (status?.freezeTokens ?? 0) == 0
                     ? null
@@ -124,42 +140,56 @@ class _ArenaSkillsPanel extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 8),
-          if (data.participants.isEmpty)
-            Text('matrix.noParticipants'.tr,
-                style: const TextStyle(color: Colors.white38))
-          else
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: data.participants.map((participant) {
-                final selected = participant.wallet.toLowerCase() ==
-                    selectedOpponent.toLowerCase();
-                return ChoiceChip(
-                  selected: selected,
-                  onSelected: participant.isCurrentPlayer
-                      ? null
-                      : (_) => onSelectOpponent(participant.wallet),
-                  avatar: Icon(
-                    participant.skillStatus?.frozen == true
-                        ? CupertinoIcons.snow
-                        : participant.isInvited
-                            ? CupertinoIcons.person_badge_plus
-                            : CupertinoIcons.person,
-                    size: 16,
-                    color: participant.skillStatus?.frozen == true
-                        ? Colors.lightBlueAccent
-                        : participant.isInvited
-                            ? EasyGameTheme.purple
-                            : EasyGameTheme.teal,
+          AnimatedSize(
+            duration: const Duration(milliseconds: 280),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topLeft,
+            child: data.participants.isEmpty
+                ? Text(
+                    'matrix.noParticipants'.tr,
+                    key: const ValueKey('participants-empty'),
+                    style: const TextStyle(color: Colors.white38),
+                  )
+                : Wrap(
+                    key: const ValueKey('participants-list'),
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: data.participants.map((participant) {
+                      final selected = participant.wallet.toLowerCase() ==
+                          selectedOpponent.toLowerCase();
+                      return ChoiceChip(
+                        selected: selected,
+                        onSelected: participant.isCurrentPlayer ||
+                                participant.skillStatus?.immune == true
+                            ? null
+                            : (_) => onSelectOpponent(participant.wallet),
+                        avatar: Icon(
+                          participant.skillStatus?.frozen == true
+                              ? CupertinoIcons.snow
+                              : participant.skillStatus?.immune == true
+                                  ? CupertinoIcons.shield_fill
+                              : participant.isInvited
+                                  ? CupertinoIcons.person_badge_plus
+                                  : CupertinoIcons.person,
+                          size: 16,
+                          color: participant.skillStatus?.frozen == true
+                              ? Colors.lightBlueAccent
+                              : participant.skillStatus?.immune == true
+                                  ? Colors.greenAccent
+                              : participant.isInvited
+                                  ? EasyGameTheme.purple
+                                  : EasyGameTheme.teal,
+                        ),
+                        label: Text(
+                          '#${participant.cellId} ${_shortAddress(participant.wallet)}'
+                          '${participant.isCurrentPlayer ? ' · ${'matrix.you'.tr}' : ''}'
+                          '${participant.isInvited ? ' · ${'matrix.invited'.tr}' : ''}'
+                          '${participant.skillStatus?.immune == true ? ' · ${'matrix.immune'.tr}' : ''}',
+                        ),
+                      );
+                    }).toList(),
                   ),
-                  label: Text(
-                    '#${participant.cellId} ${_shortAddress(participant.wallet)}'
-                    '${participant.isCurrentPlayer ? ' · ${'matrix.you'.tr}' : ''}'
-                    '${participant.isInvited ? ' · ${'matrix.invited'.tr}' : ''}',
-                  ),
-                );
-              }).toList(),
-            ),
+          ),
         ],
       ),
     );
@@ -219,96 +249,5 @@ class _SkillActionButton extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
       ),
     );
-  }
-}
-
-class _RoundSettlementPanel extends StatelessWidget {
-  final _MatrixArenaSnapshot data;
-  final bool actionsBusy;
-  final VoidCallback onSettle;
-  final VoidCallback onClaim;
-
-  const _RoundSettlementPanel({
-    required this.data,
-    required this.actionsBusy,
-    required this.onSettle,
-    required this.onClaim,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final claimable = data.settlementClaimable;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF171829),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: EasyGameTheme.borderSoft),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'matrix.settlementTitle'.tr,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w900,
-              fontSize: 16,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            data.roundSettled
-                ? 'matrix.settlementComplete'.tr
-                : data.canSettle
-                    ? 'matrix.settlementReadyText'.tr
-                    : 'matrix.settlementWaitingText'.tr,
-            style: const TextStyle(color: Colors.white54, height: 1.45),
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
-            children: [
-              Text(
-                '${'matrix.claimableEth'.tr}: ${_formatWei(claimable.ethAmount)} ETH',
-                style: const TextStyle(color: EasyGameTheme.teal),
-              ),
-              Text(
-                '${'matrix.claimableUsdc'.tr}: ${_formatSettlementUsdc(claimable.usdcAmount)} USDC',
-                style: const TextStyle(color: EasyGameTheme.purple),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              _SkillActionButton(
-                icon: CupertinoIcons.doc_checkmark,
-                label: 'matrix.settleRound'.tr,
-                onPressed: actionsBusy || !data.canSettle ? null : onSettle,
-              ),
-              _SkillActionButton(
-                icon: CupertinoIcons.creditcard,
-                label: 'matrix.claimSettlement'.tr,
-                onPressed: actionsBusy || !claimable.hasReward ? null : onClaim,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatSettlementUsdc(BigInt amount) {
-    final whole = amount ~/ BigInt.from(1000000);
-    final fraction = (amount % BigInt.from(1000000))
-        .toString()
-        .padLeft(6, '0')
-        .replaceFirst(RegExp(r'0+$'), '');
-    return fraction.isEmpty ? '$whole' : '$whole.$fraction';
   }
 }

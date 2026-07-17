@@ -1,5 +1,24 @@
 part of '../views/levels.dart';
 
+class _LevelDetailSkeleton extends StatelessWidget {
+  const _LevelDetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      children: [
+        StableSkeletonBlock(height: 220),
+        SizedBox(height: 16),
+        StableSkeletonBlock(height: 112),
+        SizedBox(height: 16),
+        StableSkeletonBlock(height: 280),
+        SizedBox(height: 16),
+        StableSkeletonBlock(height: 180),
+      ],
+    );
+  }
+}
+
 class _LevelDetailPanel extends StatelessWidget {
   final String title;
   final List<DetailRow> rows;
@@ -57,81 +76,22 @@ class _LevelDetailPanel extends StatelessWidget {
 }
 
 class _LevelEventsTable extends StatelessWidget {
-  final int level;
+  final List<GameTransaction> transactions;
+  final bool isLoading;
+  final String errorMessage;
 
-  const _LevelEventsTable({required this.level});
+  const _LevelEventsTable({
+    required this.transactions,
+    required this.isLoading,
+    required this.errorMessage,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1F2E),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'levelDetail.transactionsHistory'.tr,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: DataTable(
-              headingTextStyle: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.bold,
-              ),
-              dataTextStyle: const TextStyle(color: Colors.grey),
-              columnSpacing: 28,
-              columns: [
-                DataColumn(label: Text('levels.event'.tr)),
-                DataColumn(label: Text('common.level'.tr)),
-                DataColumn(label: Text('levelDetail.meaning'.tr)),
-                DataColumn(label: Text('levels.status'.tr)),
-              ],
-              rows: [
-                DataRow(cells: [
-                  const DataCell(Text('MatrixPlaced')),
-                  DataCell(Text('$level')),
-                  DataCell(Text('levelDetail.positionCreated'.tr)),
-                  DataCell(Text('common.contractEvent'.tr)),
-                ]),
-                DataRow(cells: [
-                  const DataCell(Text('PrizePositionReached')),
-                  DataCell(Text('$level')),
-                  DataCell(Text('levelDetail.rewardMeaning'.tr)),
-                  DataCell(Text('common.contractEvent'.tr)),
-                ]),
-                DataRow(cells: [
-                  const DataCell(Text('ReferralBonusAdded')),
-                  DataCell(Text('$level')),
-                  DataCell(Text('levelDetail.referralMeaning'.tr)),
-                  DataCell(Text('common.contractEvent'.tr)),
-                ]),
-                DataRow(cells: [
-                  const DataCell(Text('Recycled / Frozen')),
-                  DataCell(Text('$level')),
-                  DataCell(Text('levelDetail.cycleMeaning'.tr)),
-                  DataCell(Text('common.contractEvent'.tr)),
-                ]),
-              ],
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'levelDetail.exactRows'.tr,
-            style: const TextStyle(color: Colors.grey, fontSize: 12),
-          ),
-        ],
-      ),
+    return BottomTableSection(
+      transactions: transactions,
+      isLoading: isLoading,
+      errorMessage: errorMessage,
     );
   }
 }
@@ -164,18 +124,24 @@ class _LevelNavButton extends StatelessWidget {
         ),
       ),
     ];
-    return GestureDetector(
-      onTap: enabled ? onTap : null,
-      child: Container(
-        height: 48,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1A1F2E),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: trailing ? content.reversed.toList() : content,
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: label,
+      child: InkWell(
+        onTap: enabled ? onTap : null,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          height: 48,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          decoration: BoxDecoration(
+            color: const Color(0xFF1A1F2E),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: trailing ? content.reversed.toList() : content,
+          ),
         ),
       ),
     );

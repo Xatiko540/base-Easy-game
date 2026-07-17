@@ -10,6 +10,7 @@ import 'package:lottery_advance/app/modules/home/models/round_level_card_state.d
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/modules/home/views/levels.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/widgets/stable_loading_surface.dart';
 import 'package:lottery_advance/utils/theme.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../models/levels_models.dart';
@@ -53,12 +54,6 @@ class ProfileScreen extends StatelessWidget {
                     onShare: profileController.shareReferralLink,
                   ),
                   const SizedBox(height: 26),
-                  if (loading)
-                    const LinearProgressIndicator(
-                      color: EasyGameTheme.teal,
-                      backgroundColor: EasyGameTheme.border,
-                    ),
-                  if (loading) const SizedBox(height: 14),
                   if (error.isNotEmpty) ...[
                     _ProfileErrorBanner(
                       message: error,
@@ -71,21 +66,27 @@ class ProfileScreen extends StatelessWidget {
                     subtitle: 'profile.smartGamesSubtitle'.tr,
                   ),
                   const SizedBox(height: 16),
-                  _ProgramPanel(
-                    data: data,
-                  ),
-                  const SizedBox(height: 22),
-                  _AboutContractsRow(
-                    controller: profileController,
-                    data: data,
-                    isClaimingPrize: isClaimingPrize,
-                    isClaimingReferral: isClaimingReferral,
-                  ),
-                  const SizedBox(height: 22),
-                  _RecentActivityTable(
-                    data: data,
-                    errorMessage: transactionsError,
-                    onRefresh: profileController.refreshDashboard,
+                  StableLoadingSurface(
+                    isLoading: loading,
+                    hasData: data.levels.isNotEmpty || data.player != null,
+                    child: Column(
+                      children: [
+                        _ProgramPanel(data: data),
+                        const SizedBox(height: 22),
+                        _AboutContractsRow(
+                          controller: profileController,
+                          data: data,
+                          isClaimingPrize: isClaimingPrize,
+                          isClaimingReferral: isClaimingReferral,
+                        ),
+                        const SizedBox(height: 22),
+                        _RecentActivityTable(
+                          data: data,
+                          errorMessage: transactionsError,
+                          onRefresh: profileController.refreshDashboard,
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

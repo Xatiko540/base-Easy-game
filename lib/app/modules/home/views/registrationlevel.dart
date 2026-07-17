@@ -62,7 +62,7 @@ class RegistrationScreen extends StatelessWidget {
           title: 'registration.title'.tr.replaceAll('\n', ' '),
           breadcrumb:
               '${'app.name'.tr} / ${'registration.title'.tr.split('\n').first}',
-          activeSection: 'Dashboard',
+          activeSection: 'Easy Games',
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(vertical: 12),
             child: Center(

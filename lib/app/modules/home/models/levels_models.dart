@@ -143,6 +143,16 @@ class LevelDetailSnapshot {
   });
 }
 
+class LevelDetailDestination {
+  final int level;
+  final BigInt roundId;
+
+  const LevelDetailDestination({
+    required this.level,
+    required this.roundId,
+  });
+}
+
 class DetailRow {
   final String label;
   final String value;
