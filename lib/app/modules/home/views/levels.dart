@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/widgets/stable_loading_surface.dart';
 import 'package:lottery_advance/utils/theme.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/game_transaction_model.dart';
@@ -133,38 +134,32 @@ class LevelsScreen extends StatelessWidget {
                           _LevelStateBanner(
                             message: errorMessage,
                           ),
-                        SizedBox(
-                          height: 2,
-                          child: AnimatedOpacity(
-                            duration: const Duration(milliseconds: 220),
-                            opacity: loading ? 1 : 0,
-                            child: const LinearProgressIndicator(
-                              minHeight: 2,
-                              color: EasyGameTheme.teal,
-                              backgroundColor: Colors.transparent,
-                            ),
-                          ),
-                        ),
                         const SizedBox(height: 10),
-                        GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padding: EdgeInsets.zero,
-                          gridDelegate:
-                              SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: crossAxisCount,
-                            crossAxisSpacing: 24,
-                            mainAxisSpacing: 24,
-                            childAspectRatio: childAspectRatio,
+                        StableLoadingSurface(
+                          isLoading: loading,
+                          hasData: levelsProvider.levels.any(
+                            (item) => item.hasRound,
                           ),
-                          itemCount: levelCount,
-                          itemBuilder: (context, index) {
-                            final level = levelsProvider.levels[index];
-                            return _LevelCardPresenter(
-                              level: level,
-                              currencySymbol: currency,
-                            );
-                          },
+                          child: GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            padding: EdgeInsets.zero,
+                            gridDelegate:
+                                SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: crossAxisCount,
+                              crossAxisSpacing: 24,
+                              mainAxisSpacing: 24,
+                              childAspectRatio: childAspectRatio,
+                            ),
+                            itemCount: levelCount,
+                            itemBuilder: (context, index) {
+                              final level = levelsProvider.levels[index];
+                              return _LevelCardPresenter(
+                                level: level,
+                                currencySymbol: currency,
+                              );
+                            },
+                          ),
                         ),
                       ],
                     ),
@@ -258,18 +253,18 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
         return ExpressAppShell(
           title: 'levels.levelTitle'.trParams({'level': '$level'}),
           breadcrumb: 'levels.breadcrumbLevel'.trParams({'level': '$level'}),
-          activeSection: 'Dashboard',
+          activeSection: 'Easy Games',
           onRefresh: detailController.refreshDetail,
           child: Obx(
             () {
               final data = detailController.snapshot.value;
               final width = MediaQuery.of(context).size.width;
-              final previousRoundId = level > 1
-                  ? detailController.roundIdForLevel(level - 1)
-                  : null;
-              final nextRoundId = level < easyGameLevelCount
-                  ? detailController.roundIdForLevel(level + 1)
-                  : null;
+              // The original game layout places the higher level on the left
+              // and the lower level on the right.
+              final leftDestination =
+                  detailController.destinationForLevel(level + 1);
+              final rightDestination =
+                  detailController.destinationForLevel(level - 1);
               return SingleChildScrollView(
                 padding: EdgeInsets.symmetric(
                   horizontal: width < 700 ? 0 : 16,
@@ -296,43 +291,35 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         _LevelNavButton(
-                          label: 'levels.levelTitle'.trParams(
-                              {'level': '${level <= 1 ? 1 : level - 1}'}),
-                          icon: CupertinoIcons.chevron_back,
-                          enabled: previousRoundId != null,
-                          onTap: () => Get.off(
-                            () => EasyGameLevelDetailScreen(
-                              level: level - 1,
-                              roundId: previousRoundId!,
-                            ),
-                          ),
-                        ),
-                        _LevelNavButton(
                           label: 'levels.levelTitle'.trParams({
                             'level':
                                 '${level >= easyGameLevelCount ? easyGameLevelCount : level + 1}'
                           }),
+                          icon: CupertinoIcons.chevron_back,
+                          enabled: leftDestination != null,
+                          onTap: () => _replaceLevelDetail(
+                            leftDestination,
+                          ),
+                        ),
+                        _LevelNavButton(
+                          label: 'levels.levelTitle'.trParams(
+                              {'level': '${level <= 1 ? 1 : level - 1}'}),
                           icon: CupertinoIcons.chevron_forward,
                           trailing: true,
-                          enabled: nextRoundId != null,
-                          onTap: () => Get.off(
-                            () => EasyGameLevelDetailScreen(
-                              level: level + 1,
-                              roundId: nextRoundId!,
-                            ),
-                          ),
+                          enabled: rightDestination != null,
+                          onTap: () => _replaceLevelDetail(rightDestination),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    if (detailController.isLoading.value)
-                      const LinearProgressIndicator(),
                     if (detailController.errorMessage.value.isNotEmpty)
                       _LevelStateBanner(
                         message: 'levels.unableLoadDetails'.trParams(
                             {'error': detailController.errorMessage.value}),
                       ),
-                    if (data != null) ...[
+                    if (data == null)
+                      const _LevelDetailSkeleton()
+                    else ...[
                       _LevelHeroPanel(
                         level: level,
                         priceWei: data.card.ethPriceWei,
@@ -433,7 +420,11 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                         controller: detailController,
                       ),
                       const SizedBox(height: 12),
-                      _LevelEventsTable(level: level),
+                      _LevelEventsTable(
+                        transactions: detailController.transactions.toList(),
+                        isLoading: detailController.isTransactionsLoading.value,
+                        errorMessage: detailController.transactionsError.value,
+                      ),
                     ],
                   ],
                 ),
@@ -442,6 +433,18 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+
+  void _replaceLevelDetail(LevelDetailDestination? destination) {
+    if (destination == null) return;
+    Get.off(
+      () => EasyGameLevelDetailScreen(
+        level: destination.level,
+        roundId: destination.roundId,
+      ),
+      transition: Transition.fadeIn,
+      duration: const Duration(milliseconds: 180),
     );
   }
 }

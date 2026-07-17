@@ -35,6 +35,7 @@ class LevelsProvider extends GetxController {
   int _refreshRun = 0;
   bool _fetchInFlight = false;
   bool _fetchQueued = false;
+  bool _hasCompletedInitialLoad = false;
   Timer? _refreshDebounce;
   Timer? _autoRefreshTimer;
   StreamSubscription<List<GameTransaction>>? _transactionsSub;
@@ -157,7 +158,7 @@ class LevelsProvider extends GetxController {
     if (isClosed) return;
 
     // Keep already rendered cards in place during background refreshes.
-    isLoading.value = levels.every((item) => !item.hasRound);
+    isLoading.value = !_hasCompletedInitialLoad;
     errorMessage.value = '';
     try {
       final results = await Future.wait<dynamic>([
@@ -169,7 +170,7 @@ class LevelsProvider extends GetxController {
           },
         ),
         if (walletService.isConnected.value && playerAddress == null)
-          _settlement.getClaimable(),
+          _loadSettlementClaimable(),
       ]);
       if (isClosed || run != _refreshRun) return;
 
@@ -190,7 +191,21 @@ class LevelsProvider extends GetxController {
       errorMessage.value = '${'levels.unableRefresh'.tr}: $error';
       if (kDebugMode) debugPrint(errorMessage.value);
     } finally {
-      if (!isClosed && run == _refreshRun) isLoading.value = false;
+      if (!isClosed && run == _refreshRun) {
+        _hasCompletedInitialLoad = true;
+        isLoading.value = false;
+      }
+    }
+  }
+
+  Future<SettlementClaimable> _loadSettlementClaimable() async {
+    try {
+      return await _settlement.getClaimable();
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('Settlement balance is not available yet: $error');
+      }
+      return settlementClaimable.value;
     }
   }
 

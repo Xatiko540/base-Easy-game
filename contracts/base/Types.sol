@@ -17,31 +17,14 @@ struct Player {
     uint256 totalTickets;
     uint256 baseWeight;
     uint256 referralWeight;
-    uint256 loyaltyWeight;
     uint256 matrixWeight;
     uint256 nftWeight;
     uint256 totalWeight;
     uint256 boxTokens;
     uint256 recycleCount;
     uint256 claimableReferralBonus;
-    uint256 claimablePrize;
-    uint256 pendingPrize;
     uint256 joinedAt;
     uint256 lastActiveAt;
-}
-
-struct PlayerLevel {
-    bool active;
-    bool frozen;
-    uint256 tickets;
-    uint256 cellId;
-    uint256 parentCellId;
-    uint256 leftChildCellId;
-    uint256 rightChildCellId;
-    uint256 cycleCount;
-    uint256 levelWeight;
-    uint256 claimablePrize;
-    uint256 pendingPrize;
 }
 
 struct MatrixNode {
@@ -52,13 +35,11 @@ struct MatrixNode {
     uint256 leftChildCellId;
     uint256 rightChildCellId;
     bool closed;
-    bool prizeCell;
 }
 
 struct WeightBreakdown {
     uint256 baseWeight;
     uint256 referralWeight;
-    uint256 loyaltyWeight;
     uint256 matrixWeight;
     uint256 nftWeight;
 }
@@ -100,13 +81,10 @@ struct RoundState {
     bool settled;
     bool cancelled;
     bool paused;
-    uint256 prizePoolEth;
-    uint256 prizePoolUsdc;
 }
 
 struct PlayerRound {
     bool active;
-    bool frozen;
     uint8 level;
     uint256 tickets;
     uint256 cellId;
@@ -115,8 +93,4 @@ struct PlayerRound {
     uint256 rightChildCellId;
     uint256 cycleCount;
     uint256 totalWeight;
-    uint256 claimablePrize;
-    uint256 pendingPrize;
-    uint256 claimablePrizeUsdc;
-    uint256 pendingPrizeUsdc;
 }

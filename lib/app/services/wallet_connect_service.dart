@@ -280,6 +280,14 @@ class WalletConnectService extends GetxService {
       print("[DEBUG] WalletConnectService: onInit started.");
     }
     super.onInit();
+    _balanceIdentityWorkers.addAll([
+      ever<bool>(isConnected, (_) => _scheduleBalanceForCurrentIdentity()),
+      ever<String>(
+        currentAddress,
+        (_) => _scheduleBalanceForCurrentIdentity(),
+      ),
+      ever<int?>(chainId, (_) => _scheduleBalanceForCurrentIdentity()),
+    ]);
     unawaited(_restoreConnection());
     _listenWalletChanges();
     if (kDebugMode) {
@@ -444,190 +452,6 @@ class WalletConnectService extends GetxService {
       } else {
         paymentStatus.value = PaymentFlowStatus.submitted;
         paymentStatusMessage.value = 'Payment submitted to the network.';
-      }
-      return txHash;
-    } catch (e) {
-      paymentStatus.value = PaymentFlowStatus.failed;
-      paymentStatusMessage.value = e.toString();
-      rethrow;
-    } finally {
-      isPaying.value = false;
-    }
-  }
-
-  Future<String> activateEasyGameLevel({
-    required int level,
-    double? amountEther,
-    BigInt? amountWei,
-    String? inviter,
-    bool waitForReceipt = true,
-  }) async {
-    if (level < 1 || level > 17) {
-      throw Exception('Invalid Easy Game level');
-    }
-
-    if (!isConnected.value) {
-      await connectBaseAccount();
-    }
-    await ensureBaseNetwork();
-
-    final contractAddress = await resolveEasyGameAddress();
-    final inviterAddress = _normalizeAddress(
-      inviter?.isNotEmpty == true ? inviter! : activeInviter,
-    );
-    final paymentWei = amountWei ??
-        (amountEther != null
-            ? _etherToWei(amountEther)
-            : await getEasyGameLevelPriceWei(level));
-    final txParams = _easyGameActivationTxParams(
-      contractAddress: contractAddress,
-      level: level,
-      inviterAddress: inviterAddress,
-      paymentWei: paymentWei,
-    );
-
-    isPaying.value = true;
-    paymentStatus.value = PaymentFlowStatus.preparing;
-    paymentStatusMessage.value = 'Preparing contract payment.';
-    lastPaymentTxHash.value = '';
-    lastPaymentReceipt.value = null;
-    lastLevelPaymentWei.value = paymentWei;
-    try {
-      paymentStatus.value = PaymentFlowStatus.estimatingGas;
-      paymentStatusMessage.value =
-          'Estimating gas on ${currentNetwork.displayName}.';
-      lastGasEstimate.value = await _estimateGas(txParams);
-
-      paymentStatus.value = PaymentFlowStatus.waitingForWallet;
-      paymentStatusMessage.value =
-          'Confirm the contract transaction in your wallet.';
-      final txHash = await _walletRequest<String>('eth_sendTransaction', [
-        txParams,
-      ]);
-      lastPaymentTxHash.value = txHash;
-
-      if (waitForReceipt) {
-        paymentStatus.value = PaymentFlowStatus.confirming;
-        paymentStatusMessage.value = 'Waiting for onchain confirmation.';
-        final receipt = await waitForTransactionReceipt(txHash);
-        lastPaymentReceipt.value = receipt;
-        if (!receipt.success) {
-          throw Exception('Transaction reverted onchain: $txHash');
-        }
-        paymentStatus.value = PaymentFlowStatus.success;
-        paymentStatusMessage.value = 'Level activation confirmed onchain.';
-        await refreshNativeBalanceSilently();
-      } else {
-        paymentStatus.value = PaymentFlowStatus.submitted;
-        paymentStatusMessage.value = 'Transaction submitted to the network.';
-      }
-      return txHash;
-    } catch (e) {
-      paymentStatus.value = PaymentFlowStatus.failed;
-      paymentStatusMessage.value = e.toString();
-      rethrow;
-    } finally {
-      isPaying.value = false;
-    }
-  }
-
-  Future<String> activateEasyGameLevelWithUSDC({
-    required int level,
-    String? inviter,
-    bool waitForReceipt = true,
-  }) async {
-    if (level < 1 || level > 17) {
-      throw Exception('Invalid Easy Game level');
-    }
-
-    if (!isConnected.value) {
-      await connectBaseAccount();
-    }
-    await ensureBaseNetwork();
-
-    final contractAddress = await resolveEasyGameAddress();
-    final tokenAddress = await resolveUsdcAddress();
-    final inviterAddress = _normalizeAddress(
-      inviter?.isNotEmpty == true ? inviter! : activeInviter,
-    );
-    final paymentUsdc = await getEasyGameLevelPriceUsdc(level);
-
-    isPaying.value = true;
-    paymentStatus.value = PaymentFlowStatus.preparing;
-    paymentStatusMessage.value = 'wallet.usdcPreparing'.tr;
-    lastPaymentTxHash.value = '';
-    lastPaymentReceipt.value = null;
-    lastLevelPaymentWei.value = BigInt.zero;
-
-    try {
-      final allowance = await getUsdcAllowance(
-        owner: currentAddress.value,
-        spender: contractAddress,
-      );
-      if (allowance < paymentUsdc) {
-        paymentStatus.value = PaymentFlowStatus.waitingForWallet;
-        paymentStatusMessage.value = 'wallet.usdcApprove'.tr;
-        final approveTx = {
-          'from': currentAddress.value,
-          'to': tokenAddress,
-          'value': '0x0',
-          'data': _appendBuilderDataSuffix(
-            _erc20ApproveCallData(contractAddress, paymentUsdc),
-          ),
-        };
-        paymentStatus.value = PaymentFlowStatus.estimatingGas;
-        lastGasEstimate.value = await _estimateGas(approveTx);
-        paymentStatus.value = PaymentFlowStatus.waitingForWallet;
-        final approveHash = await _walletRequest<String>(
-          'eth_sendTransaction',
-          [approveTx],
-        );
-        if (waitForReceipt) {
-          paymentStatus.value = PaymentFlowStatus.confirming;
-          paymentStatusMessage.value = 'wallet.usdcWaitingApproval'.tr;
-          final receipt = await waitForTransactionReceipt(approveHash);
-          if (!receipt.success) {
-            throw Exception('USDC approval reverted onchain: $approveHash');
-          }
-        }
-      }
-
-      final txParams = {
-        'from': currentAddress.value,
-        'to': contractAddress,
-        'value': '0x0',
-        'data': _appendBuilderDataSuffix(
-          _activateLevelWithUsdcCallData(level, inviterAddress),
-        ),
-      };
-
-      paymentStatus.value = PaymentFlowStatus.estimatingGas;
-      paymentStatusMessage.value = 'wallet.usdcEstimating'.trParams({
-        'network': currentNetwork.displayName,
-      });
-      lastGasEstimate.value = await _estimateGas(txParams);
-
-      paymentStatus.value = PaymentFlowStatus.waitingForWallet;
-      paymentStatusMessage.value = 'wallet.usdcConfirm'.tr;
-      final txHash = await _walletRequest<String>('eth_sendTransaction', [
-        txParams,
-      ]);
-      lastPaymentTxHash.value = txHash;
-
-      if (waitForReceipt) {
-        paymentStatus.value = PaymentFlowStatus.confirming;
-        paymentStatusMessage.value = 'wallet.waitingConfirmation'.tr;
-        final receipt = await waitForTransactionReceipt(txHash);
-        lastPaymentReceipt.value = receipt;
-        if (!receipt.success) {
-          throw Exception('USDC activation reverted onchain: $txHash');
-        }
-        paymentStatus.value = PaymentFlowStatus.success;
-        paymentStatusMessage.value = 'wallet.usdcConfirmed'.tr;
-        await refreshNativeBalanceSilently();
-      } else {
-        paymentStatus.value = PaymentFlowStatus.submitted;
-        paymentStatusMessage.value = 'wallet.usdcSubmitted'.tr;
       }
       return txHash;
     } catch (e) {
@@ -835,128 +659,11 @@ class WalletConnectService extends GetxService {
     ));
   }
 
-  Future<EasyGamePaymentPreview> previewEasyGameLevelPayment({
-    required int level,
-    String? inviter,
-  }) async {
-    if (!isConnected.value) {
-      await connectBaseAccount();
-    }
-    await ensureBaseNetwork();
-
-    isEstimatingPayment.value = true;
-    try {
-      final contractAddress = await resolveEasyGameAddress();
-      final inviterAddress = _normalizeAddress(
-        inviter?.isNotEmpty == true ? inviter! : activeInviter,
-      );
-      final paymentWei = await getEasyGameLevelPriceWei(level);
-      final txParams = _easyGameActivationTxParams(
-        contractAddress: contractAddress,
-        level: level,
-        inviterAddress: inviterAddress,
-        paymentWei: paymentWei,
-      );
-      final gasEstimate = await _estimateGas(txParams);
-      lastGasEstimate.value = gasEstimate;
-      lastLevelPaymentWei.value = paymentWei;
-      return EasyGamePaymentPreview(
-        paymentWei: paymentWei,
-        gasEstimate: gasEstimate,
-        network: currentNetwork,
-      );
-    } finally {
-      isEstimatingPayment.value = false;
-    }
-  }
-
-  Future<BigInt> getEasyGameLevelPriceWei(int level) async {
-    final response = await _easyGameCall(
-      '0x2e50d906${level.toRadixString(16).padLeft(64, '0')}',
-    );
-    return _wordToBigInt(_decodeWords(response).first);
-  }
-
-  Future<BigInt> getEasyGameLevelPriceUsdc(int level) async {
-    final response = await _easyGameCall(
-      '0x04eb2734${level.toRadixString(16).padLeft(64, '0')}',
-    );
-    return _wordToBigInt(_decodeWords(response).first);
-  }
-
-  Future<EasyGameLevelState> getEasyGameLevel({
-    String? playerAddress,
-    required int level,
-  }) async {
-    final address = _normalizeAddress(playerAddress ?? currentAddress.value);
-    final response = await _easyGameCall(
-      _encodeAddressUint8Call('a0978ac2', address, level),
-    );
-    final words = _decodeWords(response);
-
-    return EasyGameLevelState(
-      active: _wordToBool(words[0]),
-      frozen: _wordToBool(words[1]),
-      cycles: _wordToBigInt(words[2]),
-      positionId: _wordToBigInt(words[3]),
-      earnedWei: _wordToBigInt(words[4]),
-    );
-  }
-
-  Future<bool> isEasyGameLevelActive({
-    String? playerAddress,
-    required int level,
-  }) async {
-    final address = _normalizeAddress(playerAddress ?? currentAddress.value);
-    final response = await _easyGameCall(
-      _encodeAddressUint8Call('75b7d7c1', address, level),
-    );
-    return _wordToBool(_decodeWords(response).first);
-  }
-
-  Future<bool> isEasyGameLevelFrozen({
-    String? playerAddress,
-    required int level,
-  }) async {
-    final address = _normalizeAddress(playerAddress ?? currentAddress.value);
-    final response = await _easyGameCall(
-      _encodeAddressUint8Call('0e475efd', address, level),
-    );
-    return _wordToBool(_decodeWords(response).first);
-  }
-
   Future<bool> isEasyGameLevelAvailable(int level) async {
     final response = await _easyGameCall(
       '0x52ebb227${level.toRadixString(16).padLeft(64, '0')}',
     );
     return _wordToBool(_decodeWords(response).first);
-  }
-
-  Future<EasyGameMatrixStats> getEasyGameMatrixStats(int level) async {
-    final response = await _easyGameCall(
-      '0xb9aee263${level.toRadixString(16).padLeft(64, '0')}',
-    );
-    final words = _decodeWords(response);
-    return EasyGameMatrixStats(
-      size: _wordToBigInt(words[0]),
-      nextOpenParentId: _wordToBigInt(words[1]),
-    );
-  }
-
-  Future<EasyGameAdvanceLevelStats> getEasyGameAdvanceLevelStats(
-    int level,
-  ) async {
-    final response = await _easyGameCall(
-      '0x22fbfe80${level.toRadixString(16).padLeft(64, '0')}',
-    );
-    final words = _decodeWords(response);
-    return EasyGameAdvanceLevelStats(
-      prizePoolWei: _wordToBigInt(words[0]),
-      totalWeight: _wordToBigInt(words[1]),
-      activeCells: _wordToBigInt(words[2]),
-      nextOpenParentId: _wordToBigInt(words[3]),
-      nextCellId: _wordToBigInt(words[4]),
-    );
   }
 
   Future<GameRoundPhase> getEasyGameRoundPhase(BigInt roundId) async {
@@ -1012,8 +719,6 @@ class WalletConnectService extends GetxService {
       settled: _wordToBool(words[5]),
       cancelled: _wordToBool(words[6]),
       paused: _wordToBool(words[7]),
-      prizePoolEth: _wordToBigInt(words[8]),
-      prizePoolUsdc: _wordToBigInt(words[9]),
       ethPriceWei: ethPriceWei,
       usdcPrice: usdcPrice,
       phase: responses[1] as GameRoundPhase,
@@ -1055,11 +760,10 @@ class WalletConnectService extends GetxService {
     final tuple = List<dynamic>.from(values.first as List);
     return RoundPlayerState(
       active: tuple[0] as bool,
-      frozen: tuple[1] as bool,
-      level: (tuple[2] as BigInt).toInt(),
-      cellId: tuple[4] as BigInt,
-      cycleCount: tuple[8] as BigInt,
-      totalWeight: tuple[9] as BigInt,
+      level: (tuple[1] as BigInt).toInt(),
+      cellId: tuple[3] as BigInt,
+      cycleCount: tuple[7] as BigInt,
+      totalWeight: tuple[8] as BigInt,
     );
   }
 
@@ -1170,67 +874,6 @@ class WalletConnectService extends GetxService {
     );
   }
 
-  Future<EasyGameAdvanceLevelStats> getEasyGameAdvanceLevelStatsUsdc(
-    int level,
-  ) async {
-    final response = await _easyGameCall(
-      '0x26e0cfe7${level.toRadixString(16).padLeft(64, '0')}',
-    );
-    final words = _decodeWords(response);
-    return EasyGameAdvanceLevelStats(
-      prizePoolWei: _wordToBigInt(words[0]),
-      totalWeight: _wordToBigInt(words[1]),
-      activeCells: _wordToBigInt(words[2]),
-      nextOpenParentId: _wordToBigInt(words[3]),
-      nextCellId: _wordToBigInt(words[4]),
-    );
-  }
-
-  Future<EasyGameTokenRewards> getEasyGameTokenRewards({
-    String? playerAddress,
-    required int level,
-  }) async {
-    final address = _normalizeAddress(playerAddress ?? currentAddress.value);
-    final response = await _easyGameCall(
-      _encodeAddressUint8Call('4ca3696c', address, level),
-    );
-    final words = _decodeWords(response);
-    return EasyGameTokenRewards(
-      referralBonusUsdc: _wordToBigInt(words[0]),
-      claimablePrizeUsdc: _wordToBigInt(words[1]),
-      pendingPrizeUsdc: _wordToBigInt(words[2]),
-    );
-  }
-
-  Future<BigInt> getEasyGamePlayerWeight({
-    String? playerAddress,
-    required int level,
-  }) async {
-    final address = _normalizeAddress(playerAddress ?? currentAddress.value);
-    final response = await _easyGameCall(
-      _encodeAddressUint8Call('03a65dfa', address, level),
-    );
-    return _wordToBigInt(_decodeWords(response).first);
-  }
-
-  Future<BigInt> getEasyGamePlayerChanceBps({
-    String? playerAddress,
-    required int level,
-  }) async {
-    final address = _normalizeAddress(playerAddress ?? currentAddress.value);
-    final response = await _easyGameCall(
-      _encodeAddressUint8Call('7dcda2d4', address, level),
-    );
-    return _wordToBigInt(_decodeWords(response).first);
-  }
-
-  Future<BigInt> getEasyGameMatrixPrizePoolWei(int level) async {
-    final response = await _easyGameCall(
-      '0x8c5b8ea5${level.toRadixString(16).padLeft(64, '0')}',
-    );
-    return _wordToBigInt(_decodeWords(response).first);
-  }
-
   Future<BigInt> getEasyGameProjectFeesAccruedWei() async {
     final response = await _easyGameCall('0x19a08594');
     return _wordToBigInt(_decodeWords(response).first);
@@ -1319,17 +962,17 @@ class WalletConnectService extends GetxService {
       totalTickets: _wordToBigInt(words[5]),
       baseWeight: _wordToBigInt(words[6]),
       referralWeight: _wordToBigInt(words[7]),
-      loyaltyWeight: _wordToBigInt(words[8]),
-      matrixWeight: _wordToBigInt(words[9]),
-      nftWeight: _wordToBigInt(words[10]),
-      totalWeight: _wordToBigInt(words[11]),
-      boxTokens: _wordToBigInt(words[12]),
-      recycleCount: _wordToBigInt(words[13]),
-      claimableReferralBonusWei: _wordToBigInt(words[14]),
-      claimablePrizeWei: _wordToBigInt(words[15]),
-      pendingPrizeWei: _wordToBigInt(words[16]),
-      joinedAt: _wordToBigInt(words[17]),
-      lastActiveAt: _wordToBigInt(words[18]),
+      loyaltyWeight: BigInt.zero,
+      matrixWeight: _wordToBigInt(words[8]),
+      nftWeight: _wordToBigInt(words[9]),
+      totalWeight: _wordToBigInt(words[10]),
+      boxTokens: _wordToBigInt(words[11]),
+      recycleCount: _wordToBigInt(words[12]),
+      claimableReferralBonusWei: _wordToBigInt(words[13]),
+      claimablePrizeWei: BigInt.zero,
+      pendingPrizeWei: BigInt.zero,
+      joinedAt: _wordToBigInt(words[14]),
+      lastActiveAt: _wordToBigInt(words[15]),
     );
   }
 
@@ -1355,42 +998,6 @@ class WalletConnectService extends GetxService {
       preparingMessage: 'wallet.usdcReferralPreparing'.tr,
       successMessage: 'wallet.usdcReferralConfirmed'.tr,
       submittedMessage: 'wallet.usdcReferralSubmitted'.tr,
-      waitForReceipt: waitForReceipt,
-    );
-  }
-
-  Future<String> claimEasyGamePrize({
-    required int level,
-    bool waitForReceipt = true,
-  }) {
-    if (level < 1 || level > 17) {
-      throw Exception('Invalid Easy Game level');
-    }
-    final encodedLevel = level.toRadixString(16).padLeft(64, '0');
-    return _sendEasyGameContractTransaction(
-      data: '0xc864ce56$encodedLevel',
-      paymentWei: BigInt.zero,
-      preparingMessage: 'Preparing prize claim.',
-      successMessage: 'Prize claim confirmed onchain.',
-      submittedMessage: 'Prize claim submitted to the network.',
-      waitForReceipt: waitForReceipt,
-    );
-  }
-
-  Future<String> claimEasyGamePrizeUSDC({
-    required int level,
-    bool waitForReceipt = true,
-  }) {
-    if (level < 1 || level > 17) {
-      throw Exception('Invalid Easy Game level');
-    }
-    final encodedLevel = level.toRadixString(16).padLeft(64, '0');
-    return _sendEasyGameContractTransaction(
-      data: '0x3f896dd9$encodedLevel',
-      paymentWei: BigInt.zero,
-      preparingMessage: 'wallet.usdcPrizePreparing'.tr,
-      successMessage: 'wallet.usdcPrizeConfirmed'.tr,
-      submittedMessage: 'wallet.usdcPrizeSubmitted'.tr,
       waitForReceipt: waitForReceipt,
     );
   }
@@ -1489,9 +1096,9 @@ class WalletConnectService extends GetxService {
   }
 
   Future<String> buyArenaFreezeToken(BigInt roundId) async {
-    const price = 300000;
     final skills = await resolveArenaSkillsAddress();
-    await _ensureUsdcAllowance(skills, BigInt.from(price));
+    final price = await getArenaFreezeTokenPriceUsdc();
+    await _ensureUsdcAllowance(skills, price);
     final data = await _abiCallData(
       artifactName: 'EasyGameArenaSkills',
       functionName: 'buyFreezeToken',
@@ -1503,6 +1110,17 @@ class WalletConnectService extends GetxService {
       paymentWei: BigInt.zero,
       waitForReceipt: true,
     );
+  }
+
+  Future<BigInt> getArenaFreezeTokenPriceUsdc() async {
+    final skills = await resolveArenaSkillsAddress();
+    final values = await _abiCall(
+      artifactName: 'EasyGameArenaSkills',
+      contractAddress: skills,
+      functionName: 'FREEZE_TOKEN_PRICE_USDC',
+      parameters: const [],
+    );
+    return values.first as BigInt;
   }
 
   Future<String> freezeArenaPlayer(BigInt roundId, String target) async {
@@ -1568,11 +1186,14 @@ class WalletConnectService extends GetxService {
     return address;
   }
 
-  Future<SettlementClaimable> getSettlementClaimable() async {
-    if (currentAddress.value.isEmpty) return SettlementClaimable.zero;
+  Future<SettlementClaimable> getSettlementClaimable({
+    String? playerAddress,
+  }) async {
+    final requested = playerAddress ?? currentAddress.value;
+    if (requested.isEmpty) return SettlementClaimable.zero;
     final settlement = await resolveRoundSettlementAddress();
     final player = wallet.EthereumAddress.fromHex(
-      _normalizeAddress(currentAddress.value),
+      _normalizeAddress(requested),
     );
     final values = await Future.wait([
       _abiCall(
@@ -1736,10 +1357,30 @@ class WalletConnectService extends GetxService {
   Future<BigInt> _readNativeBalance() async {
     final address = currentAddress.value;
     final balanceEpoch = _balanceEpoch;
-    final result = await _readOnlyRequest<String>('eth_getBalance', [
-      address,
-      'latest',
-    ]);
+    final params = [address, 'latest'];
+    late final String result;
+    if (isConnected.value && isWalletAvailable) {
+      try {
+        result = await _walletRequest<String>('eth_getBalance', params);
+      } catch (walletError) {
+        if (kDebugMode) {
+          print(
+            'Wallet balance read failed, using ${currentNetwork.displayName} RPC: $walletError',
+          );
+        }
+        result = await _publicRpcRequest<String>(
+          'eth_getBalance',
+          params,
+          useConfiguredRpc: false,
+        );
+      }
+    } else {
+      result = await _publicRpcRequest<String>(
+        'eth_getBalance',
+        params,
+        useConfiguredRpc: false,
+      );
+    }
     final balance = _hexToBigInt(result);
     if (balanceEpoch == _balanceEpoch && currentAddress.value == address) {
       nativeBalanceWei.value = balance;
@@ -1769,8 +1410,29 @@ class WalletConnectService extends GetxService {
 
   Timer? _receiptPollTimer;
   Timer? _balanceRefreshTimer;
+  Timer? _balanceIdentityDebounce;
   Future<BigInt>? _balanceRefreshFuture;
   int _balanceEpoch = 0;
+  String _balanceIdentity = '';
+  final List<Worker> _balanceIdentityWorkers = [];
+
+  void _scheduleBalanceForCurrentIdentity() {
+    final identity = isConnected.value && currentAddress.value.isNotEmpty
+        ? '${currentAddress.value.toLowerCase()}:${chainId.value ?? 0}'
+        : '';
+    if (identity != _balanceIdentity) {
+      _balanceIdentity = identity;
+      _invalidateBalanceRefresh();
+    }
+
+    _balanceIdentityDebounce?.cancel();
+    if (identity.isEmpty) return;
+    _balanceIdentityDebounce = Timer(const Duration(milliseconds: 180), () {
+      if (_balanceIdentity != identity || !isConnected.value) return;
+      _startBalanceRefresh();
+      unawaited(refreshNativeBalanceSilently());
+    });
+  }
 
   void _prepareBalanceForAddress(String address) {
     if (currentAddress.value.toLowerCase() == address.toLowerCase()) return;
@@ -2120,44 +1782,12 @@ class WalletConnectService extends GetxService {
     }
   }
 
-  String _activateLevelCallData(int level, String inviterAddress) {
-    const selector = '48d46be1';
-    final encodedLevel = level.toRadixString(16).padLeft(64, '0');
-    final encodedInviter =
-        inviterAddress.replaceFirst('0x', '').padLeft(64, '0');
-    return '0x$selector$encodedLevel$encodedInviter';
-  }
-
-  String _activateLevelWithUsdcCallData(int level, String inviterAddress) {
-    const selector = 'f4f5058d';
-    final encodedLevel = level.toRadixString(16).padLeft(64, '0');
-    final encodedInviter =
-        inviterAddress.replaceFirst('0x', '').padLeft(64, '0');
-    return '0x$selector$encodedLevel$encodedInviter';
-  }
-
   String _erc20ApproveCallData(String spender, BigInt amount) {
     return _encodeAddressUint256Call(
       '095ea7b3',
       _normalizeAddress(spender),
       amount,
     );
-  }
-
-  Map<String, dynamic> _easyGameActivationTxParams({
-    required String contractAddress,
-    required int level,
-    required String inviterAddress,
-    required BigInt paymentWei,
-  }) {
-    return {
-      'from': currentAddress.value,
-      'to': contractAddress,
-      'value': _bigIntToHex(paymentWei),
-      'data': _appendBuilderDataSuffix(
-        _activateLevelCallData(level, inviterAddress),
-      ),
-    };
   }
 
   Future<String> _sendEasyGameContractTransaction({
@@ -2322,10 +1952,15 @@ class WalletConnectService extends GetxService {
     return result;
   }
 
-  Future<T> _publicRpcRequest<T>(String method, List<dynamic> params) async {
+  Future<T> _publicRpcRequest<T>(
+    String method,
+    List<dynamic> params, {
+    bool useConfiguredRpc = true,
+  }) async {
     final configuredRpc = Get.find<AppConfigService>().get('web3PublicRpcUrl');
-    final rpcUrl =
-        configuredRpc.isNotEmpty ? configuredRpc : currentNetwork.rpcUrl;
+    final rpcUrl = useConfiguredRpc && configuredRpc.isNotEmpty
+        ? configuredRpc
+        : currentNetwork.rpcUrl;
     final response = await http.post(
       Uri.parse(rpcUrl),
       headers: const {'content-type': 'application/json'},
@@ -2344,16 +1979,6 @@ class WalletConnectService extends GetxService {
       throw Exception('RPC request failed: ${payload['error']}');
     }
     return payload['result'] as T;
-  }
-
-  String _encodeAddressUint8Call(String selector, String address, int value) {
-    if (value < 0 || value > 255) {
-      throw Exception('Invalid uint8 value');
-    }
-
-    final encodedAddress = address.replaceFirst('0x', '').padLeft(64, '0');
-    final encodedValue = value.toRadixString(16).padLeft(64, '0');
-    return '0x$selector$encodedAddress$encodedValue';
   }
 
   String _encodeAddressCall(String selector, String address) {
@@ -2417,6 +2042,10 @@ class WalletConnectService extends GetxService {
   void onClose() {
     _receiptPollTimer?.cancel();
     _balanceRefreshTimer?.cancel();
+    _balanceIdentityDebounce?.cancel();
+    for (final worker in _balanceIdentityWorkers) {
+      worker.dispose();
+    }
     super.onClose();
   }
 }
@@ -2457,18 +2086,6 @@ extension PaymentFlowStatusLabel on PaymentFlowStatus {
   }
 }
 
-class EasyGamePaymentPreview {
-  final BigInt paymentWei;
-  final BigInt gasEstimate;
-  final AppNetworkConfig network;
-
-  const EasyGamePaymentPreview({
-    required this.paymentWei,
-    required this.gasEstimate,
-    required this.network,
-  });
-}
-
 class EasyGameTransactionReceipt {
   final String transactionHash;
   final String status;
@@ -2489,60 +2106,6 @@ class EasyGameTransactionReceipt {
   });
 
   bool get success => status.toLowerCase() == '0x1';
-}
-
-class EasyGameLevelState {
-  final bool active;
-  final bool frozen;
-  final BigInt cycles;
-  final BigInt positionId;
-  final BigInt earnedWei;
-
-  const EasyGameLevelState({
-    required this.active,
-    required this.frozen,
-    required this.cycles,
-    required this.positionId,
-    required this.earnedWei,
-  });
-}
-
-class EasyGameMatrixStats {
-  final BigInt size;
-  final BigInt nextOpenParentId;
-
-  const EasyGameMatrixStats({
-    required this.size,
-    required this.nextOpenParentId,
-  });
-}
-
-class EasyGameAdvanceLevelStats {
-  final BigInt prizePoolWei;
-  final BigInt totalWeight;
-  final BigInt activeCells;
-  final BigInt nextOpenParentId;
-  final BigInt nextCellId;
-
-  const EasyGameAdvanceLevelStats({
-    required this.prizePoolWei,
-    required this.totalWeight,
-    required this.activeCells,
-    required this.nextOpenParentId,
-    required this.nextCellId,
-  });
-}
-
-class EasyGameTokenRewards {
-  final BigInt referralBonusUsdc;
-  final BigInt claimablePrizeUsdc;
-  final BigInt pendingPrizeUsdc;
-
-  const EasyGameTokenRewards({
-    required this.referralBonusUsdc,
-    required this.claimablePrizeUsdc,
-    required this.pendingPrizeUsdc,
-  });
 }
 
 class EasyGamePlayerSummary {

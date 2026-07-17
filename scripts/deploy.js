@@ -60,9 +60,7 @@ function updateAppArtifact(contractName, chainId, address) {
     "..",
     "artifacts",
     "contracts",
-    contractName === "Lottery" || contractName === "LotteryGenerator"
-      ? "Lottery_Advance.sol"
-      : `${contractName}.sol`,
+    `${contractName}.sol`,
     `${contractName}.json`
   );
   const artifact = JSON.parse(
@@ -137,7 +135,6 @@ async function main() {
   };
   let usdcAddress = process.env.USDC_ADDRESS || "";
   let mockUsdc;
-  const deployLegacyLottery = process.env.DEPLOY_LEGACY_LOTTERY === "true";
 
   if (isLocalNetwork && process.env.LOCAL_USE_MOCK_USDC !== "false") {
     const MockUSDC = await hre.ethers.getContractFactory("MockUSDC");
@@ -171,21 +168,6 @@ async function main() {
     );
   }
 
-  if (deployLegacyLottery) {
-    const LotteryGenerator = await hre.ethers.getContractFactory(
-      "LotteryGenerator"
-    );
-    const lotteryGenerator = await LotteryGenerator.deploy();
-    await lotteryGenerator.waitForDeployment();
-
-    const address = await recordDeployment(
-      "LotteryGenerator",
-      lotteryGenerator
-    );
-
-    updateAppArtifact("LotteryGenerator", network.chainId, address);
-  }
-
   const EasyGameRoundManager = await hre.ethers.getContractFactory(
     "EasyGameRoundManager"
   );
@@ -209,20 +191,6 @@ async function main() {
   await easyGame.waitForDeployment();
 
   const easyGameAddress = await recordDeployment("EasyGameAdvance", easyGame);
-
-  const baseSepoliaLevelPrice =
-    process.env.BASE_SEPOLIA_LEVEL_PRICE_ETH ||
-    (chainId === 84532 ? "0.0001" : "");
-  if (baseSepoliaLevelPrice) {
-    const parsedLevelPrice = hre.ethers.parseEther(baseSepoliaLevelPrice);
-    if (parsedLevelPrice <= 0n) {
-      throw new Error("BASE_SEPOLIA_LEVEL_PRICE_ETH must be greater than zero.");
-    }
-    await recordTransaction(
-      "EasyGameAdvance.setAllLevelPrices",
-      await easyGame.setAllLevelPrices(parsedLevelPrice)
-    );
-  }
 
   const setCoreTx = await roundManager.setGameCore(easyGameAddress);
   await recordTransaction("RoundManager.setGameCore", setCoreTx);

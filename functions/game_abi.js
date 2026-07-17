@@ -1,43 +1,41 @@
-const GAME_ABI = [
-  "event LevelActivated(address indexed player,uint8 indexed level,uint256 value,uint256 cellId)",
-  "event PaymentSplit(address indexed player,uint8 indexed level,uint256 matrixPrizeAmount,uint256 directReferralAmount,uint256 secondLineAmount,uint256 thirdLineAmount,uint256 projectFeeAmount)",
-  "event TokenPaymentSplit(address indexed player,uint8 indexed level,address indexed token,uint256 matrixPrizeAmount,uint256 directReferralAmount,uint256 secondLineAmount,uint256 thirdLineAmount,uint256 projectFeeAmount)",
-  "event MatrixPlaced(address indexed player,uint8 indexed level,uint256 indexed cellId,uint256 parentCellId)",
-  "event ReferralBonusAdded(address indexed inviter,address indexed invitee,uint8 indexed level,uint256 amount,uint256 weight)",
-  "event SecondLineBonusAdded(address indexed inviter,address indexed invitee,uint8 indexed level,uint256 amount,uint256 weight)",
-  "event ThirdLineBonusAdded(address indexed inviter,address indexed invitee,uint8 indexed level,uint256 amount,uint256 weight)",
-  "event Recycled(address indexed player,uint8 indexed level,uint256 cycle,uint256 newCellId)",
-  "event WeightUpdated(address indexed player,uint8 indexed level,uint256 levelWeight)",
-  "event BoxTokenGranted(address indexed player,uint8 indexed level,uint256 amount)",
-  "event PrizePositionReached(address indexed player,uint8 indexed level,uint256 indexed cellId,uint256 amount,bool pending)",
-  "event TokenPrizePositionReached(address indexed player,uint8 indexed level,address indexed token,uint256 cellId,uint256 amount,bool pending)",
-  "event DrawWon(address indexed winner,uint8 indexed level,uint256 amount,bool pending)",
-  "event TokenDrawWon(address indexed winner,uint8 indexed level,address indexed token,uint256 amount,bool pending)",
-  "event LevelFrozen(address indexed player,uint8 indexed level)",
-  "event LevelUnfrozen(address indexed player,uint8 indexed level)",
-  "event ReferralBonusClaimed(address indexed player,uint256 amount)",
-  "event TokenReferralBonusClaimed(address indexed player,address indexed token,uint256 amount)",
-  "event PrizeClaimed(address indexed player,uint8 indexed level,uint256 amount)",
-  "event TokenPrizeClaimed(address indexed player,address indexed token,uint8 indexed level,uint256 amount)",
-  "event ProjectFeeAccrued(uint8 indexed level,uint256 amount,uint256 totalAccrued)",
-  "event TokenProjectFeeAccrued(address indexed token,uint8 indexed level,uint256 amount,uint256 totalAccrued)",
-  "event ProjectFeesWithdrawn(address indexed wallet,uint256 amount)",
-  "event TokenProjectFeesWithdrawn(address indexed token,address indexed wallet,uint256 amount)",
-  "event DrawRequested(uint8 indexed level,uint256 randomSeed,uint256 totalWeight)",
-  "event LevelPriceChanged(uint8 indexed level,uint256 oldPrice,uint256 newPrice)",
-  "event LevelUsdcPriceChanged(uint8 indexed level,uint256 oldPrice,uint256 newPrice)",
-  "event LevelAvailabilityChanged(uint8 indexed level,bool available)",
-  "event WalletsChanged(address projectWallet,address treasuryWallet,address operatorWallet)",
-  "event UsdcTokenChanged(address indexed oldToken,address indexed newToken)",
-  "event OwnershipTransferred(address indexed previousOwner,address indexed newOwner)",
-  "function getPlayer(address player) view returns ((bool exists,address wallet,address inviter,address secondLine,address thirdLine,uint256 totalTickets,uint256 baseWeight,uint256 referralWeight,uint256 loyaltyWeight,uint256 matrixWeight,uint256 nftWeight,uint256 totalWeight,uint256 boxTokens,uint256 recycleCount,uint256 claimableReferralBonus,uint256 claimablePrize,uint256 pendingPrize,uint256 joinedAt,uint256 lastActiveAt))",
-  "function getPlayerLevelFull(address player,uint8 level) view returns ((bool active,bool frozen,uint256 tickets,uint256 cellId,uint256 parentCellId,uint256 leftChildCellId,uint256 rightChildCellId,uint256 cycleCount,uint256 levelWeight,uint256 claimablePrize,uint256 pendingPrize))",
-  "function getPlayerTokenRewards(address player,uint8 level) view returns (uint256 referralBonus,uint256 claimablePrize,uint256 pendingPrize)",
-  "function getLevelStats(uint8 level) view returns (uint256 prizePool,uint256 totalWeight,uint256 activeCells,uint256 nextOpenParent,uint256 nextCell)",
-  "function getLevelStatsUSDC(uint8 level) view returns (uint256 prizePool,uint256 totalWeight,uint256 activeCells,uint256 nextOpenParent,uint256 nextCell)",
-  "function levelPrices(uint8 level) view returns (uint256)",
-  "function levelPricesUsdc(uint8 level) view returns (uint256)",
-  "function levelAvailable(uint8 level) view returns (bool)"
+// Minimal ABIs used by the deployment smoke test. Runtime game reads belong to
+// the Flutter round services; Functions only verify that the configured
+// contracts are deployed and wired to the same core/manager/USDC addresses.
+const CORE_LINK_ABI = [
+  "function roundManager() view returns (address)",
+  "function settlementContract() view returns (address)",
+  "function basePayGateway() view returns (address)",
+  "function usdcToken() view returns (address)",
 ];
 
-module.exports = { GAME_ABI };
+const ROUND_MANAGER_LINK_ABI = [
+  "function gameCore() view returns (address)",
+  "function arenaSkills() view returns (address)",
+];
+
+const ARENA_SKILLS_LINK_ABI = [
+  "function gameCore() view returns (address)",
+  "function roundManager() view returns (address)",
+  "function usdcToken() view returns (address)",
+];
+
+const SETTLEMENT_LINK_ABI = [
+  "function gameCore() view returns (address)",
+  "function roundManager() view returns (address)",
+  "function arenaSkills() view returns (address)",
+  "function usdcToken() view returns (address)",
+];
+
+const BASE_PAY_GATEWAY_LINK_ABI = [
+  "function gameCore() view returns (address)",
+  "function usdcToken() view returns (address)",
+  "function fulfiller() view returns (address)",
+];
+
+module.exports = {
+  CORE_LINK_ABI,
+  ROUND_MANAGER_LINK_ABI,
+  ARENA_SKILLS_LINK_ABI,
+  SETTLEMENT_LINK_ABI,
+  BASE_PAY_GATEWAY_LINK_ABI,
+};

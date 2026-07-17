@@ -6,6 +6,7 @@ import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
+import 'package:lottery_advance/utils/wallet_balance_formatter.dart';
 
 import '../widgets/notifications/notifications_bottom_sheet.dart';
 import '../controllers/notifications_controller.dart';
@@ -75,7 +76,6 @@ class ExpressAppShell extends StatelessWidget {
                             child: _ExpressTopBar(
                               title: title,
                               breadcrumb: breadcrumb,
-                              onRefresh: onRefresh,
                               activeSection: activeSection ?? title,
                             ),
                           ),
@@ -174,13 +174,11 @@ class _ExpressSidebar extends StatelessWidget {
 class _ExpressTopBar extends StatelessWidget {
   final String title;
   final String? breadcrumb;
-  final VoidCallback? onRefresh;
   final String activeSection;
 
   const _ExpressTopBar({
     required this.title,
     this.breadcrumb,
-    this.onRefresh,
     required this.activeSection,
   });
 
@@ -239,14 +237,6 @@ class _ExpressTopBar extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(width: 10),
-                        if (onRefresh != null) ...[
-                          _RoundIconButton(
-                            icon: CupertinoIcons.refresh,
-                            tooltip: 'common.refresh'.tr,
-                            onTap: onRefresh,
-                          ),
-                          const SizedBox(width: 8),
-                        ],
                         _RoundIconButton(
                           icon: CupertinoIcons.search,
                           tooltip: 'common.search'.tr,
@@ -301,7 +291,6 @@ class _ExpressTopBar extends StatelessWidget {
     WalletConnectService walletService,
   ) async {
     if (walletService.isConnected.value) {
-      await walletService.refreshNativeBalance();
       return;
     }
 
@@ -369,7 +358,7 @@ class _MobileTopBar extends StatelessWidget {
             label: walletService.isConnected.value
                 ? walletService.nativeBalanceWei.value == null
                     ? '... ${walletService.nativeSymbol}'
-                    : '${_formatShellWei(walletService.nativeBalanceWei.value!)} ${walletService.nativeSymbol}'
+                    : '${formatNativeBalanceWei(walletService.nativeBalanceWei.value!)} ${walletService.nativeSymbol}'
                 : 'Base',
             emphasized: !walletService.isConnected.value,
             onTap: () => _handleMobileWalletTap(context, walletService),
@@ -401,7 +390,6 @@ Future<void> _handleMobileWalletTap(
   WalletConnectService walletService,
 ) async {
   if (walletService.isConnected.value) {
-    await walletService.refreshNativeBalance();
     return;
   }
   try {
@@ -585,11 +573,8 @@ class _BalanceChip extends StatelessWidget {
         label: walletService.isConnected.value
             ? walletService.nativeBalanceWei.value == null
                 ? '... ${walletService.nativeSymbol}'
-                : '${_formatShellWei(walletService.nativeBalanceWei.value!)} ${walletService.nativeSymbol}'
+                : '${formatNativeBalanceWei(walletService.nativeBalanceWei.value!)} ${walletService.nativeSymbol}'
             : '-- ${walletService.nativeSymbol}',
-        onTap: walletService.isConnected.value
-            ? () => walletService.refreshNativeBalanceSilently()
-            : null,
       ),
     );
   }
@@ -841,28 +826,6 @@ class _FloatingHelpButtons extends StatelessWidget {
       ),
     );
   }
-}
-
-String _formatShellWei(BigInt wei, {int decimals = 6}) {
-  final negative = wei < BigInt.zero;
-  final value = negative ? -wei : wei;
-  final divisor = BigInt.from(10).pow(18);
-  final whole = value ~/ divisor;
-  final fraction = value % divisor;
-  if (fraction == BigInt.zero || decimals <= 0) {
-    return '${negative ? '-' : ''}$whole';
-  }
-  final padded = fraction.toString().padLeft(18, '0');
-  final clipped =
-      padded.substring(0, decimals).replaceFirst(RegExp(r'0+$'), '');
-  if (clipped.isEmpty) {
-    if (value != BigInt.zero) {
-      final leadingZeros = ''.padRight(decimals - 1, '0');
-      return '${negative ? '-' : ''}<0.${leadingZeros}1';
-    }
-    return '${negative ? '-' : ''}$whole';
-  }
-  return '${negative ? '-' : ''}$whole.$clipped';
 }
 
 class _FloatingPill extends StatelessWidget {

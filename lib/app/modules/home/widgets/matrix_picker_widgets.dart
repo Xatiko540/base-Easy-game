@@ -2,10 +2,12 @@ part of '../views/utility_screens.dart';
 
 class _MatrixLevelPicker extends StatelessWidget {
   final int selectedLevel;
+  final Set<int> availableLevels;
   final ValueChanged<int> onChanged;
 
   const _MatrixLevelPicker({
     required this.selectedLevel,
+    required this.availableLevels,
     required this.onChanged,
   });
 
@@ -32,11 +34,11 @@ class _MatrixLevelPicker extends StatelessWidget {
             crossAxisSpacing: 10,
             childAspectRatio: 2.1,
             children: [
-              for (var level = 16; level >= 1; level--)
+              for (var level = easyGameLevelCount; level >= 1; level--)
                 _LevelChoiceButton(
                   level: level,
                   selected: level == selectedLevel,
-                  locked: level <= 2,
+                  locked: !availableLevels.contains(level),
                   onTap: () => onChanged(level),
                 ),
             ],
@@ -63,7 +65,7 @@ class _LevelChoiceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: onTap,
+      onTap: locked ? null : onTap,
       borderRadius: BorderRadius.circular(12),
       child: Container(
         alignment: Alignment.center,
@@ -108,8 +110,6 @@ class _MatrixLegend extends StatelessWidget {
       _LegendItem('matrix.empty'.tr, Colors.white24, CupertinoIcons.circle),
       _LegendItem('common.frozen'.tr, EasyGameTheme.teal, CupertinoIcons.snow),
       _LegendItem('matrix.recycle'.tr, EasyGameTheme.orange, CupertinoIcons.refresh),
-      _LegendItem(
-          'matrix.winningCell'.tr, EasyGameTheme.gold, CupertinoIcons.star_fill),
     ];
     return _Panel(
       child: Column(

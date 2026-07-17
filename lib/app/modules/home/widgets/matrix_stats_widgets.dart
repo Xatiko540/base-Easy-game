@@ -200,6 +200,8 @@ class _LevelVolumePanel extends StatelessWidget {
           const SizedBox(height: 10),
           for (final row in topRows)
             _LevelProgressRow(row: row, currency: currency),
+          for (var index = topRows.length; index < 6; index++)
+            const SizedBox(height: 30),
         ],
       ),
     );

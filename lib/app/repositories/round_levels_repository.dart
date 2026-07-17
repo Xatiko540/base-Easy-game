@@ -13,17 +13,6 @@ class RoundLevelsRepository extends GetxService {
   bool? _progressionQueriesSupported;
   DateTime? _progressionRetryAfter;
 
-  Future<ContractLevelPrice> loadContractPrice(int level) async {
-    final prices = await Future.wait([
-      _wallet.getEasyGameLevelPriceWei(level),
-      _wallet.getEasyGameLevelPriceUsdc(level),
-    ]);
-    return ContractLevelPrice(
-      ethPriceWei: prices[0],
-      usdcPrice: prices[1],
-    );
-  }
-
   Future<List<RoundLevelCardState>> loadCards({
     String? playerAddress,
     void Function(List<RoundLevelCardState> batch)? onBatch,
@@ -67,24 +56,7 @@ class RoundLevelsRepository extends GetxService {
     PlayerSeasonProgress? seasonProgress,
   }) async {
     if (round == null) {
-      try {
-        final values = await Future.wait<dynamic>([
-          loadContractPrice(level),
-          _wallet.isEasyGameLevelAvailable(level),
-        ]);
-        final prices = values[0] as ContractLevelPrice;
-        return RoundLevelCardState(
-          level: level,
-          contractEthPriceWei: prices.ethPriceWei,
-          contractUsdcPrice: prices.usdcPrice,
-          contractLevelAvailable: values[1] as bool,
-        );
-      } catch (error) {
-        return RoundLevelCardState(
-          level: level,
-          errorMessage: error.toString(),
-        );
-      }
+      return RoundLevelCardState(level: level);
     }
 
     final roundId = BigInt.from(round.schedule.roundId);
@@ -166,6 +138,31 @@ class RoundLevelsRepository extends GetxService {
     }
   }
 
+  Future<RoundLevelCardState> loadPlayerLevel({
+    required int level,
+    required GameRoundViewState? round,
+    String? playerAddress,
+  }) async {
+    final resolvedPlayerAddress = playerAddress?.isNotEmpty == true
+        ? playerAddress
+        : _wallet.isConnected.value
+            ? _wallet.currentAddress.value
+            : null;
+    PlayerSeasonProgress? seasonProgress;
+    if (round != null && resolvedPlayerAddress?.isNotEmpty == true) {
+      final progressBySeason = await _loadSeasonProgress(
+        playerAddress: resolvedPlayerAddress,
+      );
+      seasonProgress = progressBySeason[round.schedule.seasonId];
+    }
+    return loadLevel(
+      level: level,
+      round: round,
+      playerAddress: resolvedPlayerAddress,
+      seasonProgress: seasonProgress,
+    );
+  }
+
   Future<RoundMatrixStats> _loadMatrixStats(
     BigInt roundId,
     GameRoundViewState round,
@@ -175,8 +172,8 @@ class RoundLevelsRepository extends GetxService {
     } catch (_) {
       final chainState = round.chainState;
       return RoundMatrixStats(
-        prizePoolEth: chainState?.prizePoolEth ?? BigInt.zero,
-        prizePoolUsdc: chainState?.prizePoolUsdc ?? BigInt.zero,
+        prizePoolEth: BigInt.zero,
+        prizePoolUsdc: BigInt.zero,
         totalWeight: BigInt.zero,
         activeCells: chainState?.occupiedCells ?? BigInt.zero,
         nextCellId: BigInt.zero,

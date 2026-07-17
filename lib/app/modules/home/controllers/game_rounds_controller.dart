@@ -14,9 +14,24 @@ class GameRoundsController extends GetxController {
   RxList<GameRoundViewState> get timeline => _repository.timeline;
   RxBool get isClockSynchronized => _clockService.isSynchronized;
   RxBool get isScheduleReady => _scheduleService.isReady;
-  RxString get scheduleError => _scheduleService.errorMessage;
+  Rx<GameScheduleAvailability> get scheduleAvailability =>
+      _scheduleService.availability;
+  bool get isScheduleLoading =>
+      scheduleAvailability.value == GameScheduleAvailability.loading;
 
   GameRoundViewState? roundForLevel(int level) => roundsByLevel[level];
+
+  GameRoundViewState? roundForLevelInSeason(int level, int seasonId) {
+    final selected = roundForLevel(level);
+    if (selected?.schedule.seasonId == seasonId) return selected;
+    for (final round in timeline) {
+      if (round.schedule.level == level &&
+          round.schedule.seasonId == seasonId) {
+        return round;
+      }
+    }
+    return null;
+  }
 
   GameRoundViewState? get nearestEvent {
     final active = timeline.where((item) =>

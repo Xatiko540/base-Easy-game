@@ -2,15 +2,11 @@ const fs = require("fs");
 const path = require("path");
 
 const contracts = [
-  "EasyGame",
   "EasyGameAdvance",
   "EasyGameRoundManager",
   "EasyGameArenaSkills",
   "EasyGameRoundSettlement",
   "EasyGameBasePayGateway",
-  "Lottery",
-  "LotteryGenerator",
-  "Migrations",
 ];
 
 for (const contractName of contracts) {
@@ -19,9 +15,7 @@ for (const contractName of contracts) {
     "..",
     "artifacts",
     "contracts",
-    contractName === "Lottery" || contractName === "LotteryGenerator"
-      ? "Lottery_Advance.sol"
-      : `${contractName}.sol`,
+    `${contractName}.sol`,
     `${contractName}.json`
   );
   const appArtifactPath = path.join(

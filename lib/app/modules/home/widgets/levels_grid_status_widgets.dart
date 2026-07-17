@@ -65,16 +65,12 @@ class BottomTableSection extends StatelessWidget {
               _TransactionsSectionHeader(
                 count: transactions.length,
               ),
-              if (isLoading)
-                const LinearProgressIndicator(
-                  minHeight: 2,
-                  color: EasyGameTheme.teal,
-                  backgroundColor: EasyGameTheme.cardDark,
-                ),
               if (errorMessage.isNotEmpty)
                 _TransactionsError(
                   message: errorMessage,
                 )
+              else if (isLoading && transactions.isEmpty)
+                const _TransactionsSkeleton()
               else if (!isLoading && transactions.isEmpty)
                 const _TransactionsEmptyState()
               else if (compact)
@@ -95,6 +91,26 @@ class BottomTableSection extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _TransactionsSkeleton extends StatelessWidget {
+  const _TransactionsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.fromLTRB(18, 4, 18, 18),
+      child: Column(
+        children: [
+          StableSkeletonBlock(height: 52),
+          SizedBox(height: 8),
+          StableSkeletonBlock(height: 52),
+          SizedBox(height: 8),
+          StableSkeletonBlock(height: 52),
+        ],
+      ),
     );
   }
 }

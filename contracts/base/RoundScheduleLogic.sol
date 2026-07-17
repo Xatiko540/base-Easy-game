@@ -315,10 +315,15 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
             config.maxPlayers > MAX_PLAYERS_PER_ROUND ||
             config.maxWinners == 0 ||
             config.maxWinners > MAX_WINNERS_PER_ROUND ||
-            config.freezeLimit == 0 ||
             config.winningCellsRoot == bytes32(0)
         ) {
             revert InvalidRoundCapacity();
+        }
+        uint16 expectedFreezeLimit = uint16(
+            ((config.endsAt - config.startsAt + 1 days - 1) / 1 days) * 10
+        );
+        if (config.freezeLimit != expectedFreezeLimit) {
+            revert InvalidFreezeLimit(expectedFreezeLimit, config.freezeLimit);
         }
         if (config.ethPrice == 0 && config.usdcPrice == 0) {
             revert InvalidRoundPrice();

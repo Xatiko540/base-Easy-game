@@ -7,6 +7,7 @@ import 'package:lottery_advance/app/modules/home/controllers/partner_bonus_contr
 import 'package:lottery_advance/app/modules/home/models/partner_bonus_models.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/widgets/stable_loading_surface.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
 part '../widgets/partner_bonus_widgets.dart';
@@ -73,24 +74,28 @@ class PartnerBonusScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  if (loading)
-                    const LinearProgressIndicator(
-                      color: EasyGameTheme.teal,
-                      backgroundColor: EasyGameTheme.border,
+                  StableLoadingSurface(
+                    isLoading: loading,
+                    hasData: data.totalTickets > BigInt.zero ||
+                        data.totalWeight > BigInt.zero ||
+                        !loading,
+                    child: Column(
+                      children: [
+                        _PartnerMetricGrid(
+                          data: data,
+                          currency: walletService.nativeSymbol,
+                        ),
+                        const SizedBox(height: 20),
+                        _PersonalReferralPanel(
+                          controller: partnerController,
+                        ),
+                        _ClaimableReferralPanel(controller: partnerController),
+                        _ReferralRulesPanel(data: data),
+                        const _ReferralFlowPanel(),
+                        const _BonusTable(),
+                      ],
                     ),
-                  if (loading) const SizedBox(height: 14),
-                  _PartnerMetricGrid(
-                    data: data,
-                    currency: walletService.nativeSymbol,
                   ),
-                  const SizedBox(height: 20),
-                  _PersonalReferralPanel(
-                    controller: partnerController,
-                  ),
-                  _ClaimableReferralPanel(controller: partnerController),
-                  _ReferralRulesPanel(data: data),
-                  const _ReferralFlowPanel(),
-                  const _BonusTable(),
                 ],
               ),
             ),

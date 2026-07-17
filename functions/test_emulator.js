@@ -197,11 +197,14 @@ async function main() {
     assert(src.includes('exports.verifyBaseAccountSession'), 'verifyBaseAccountSession function');
     assert(src.includes('exports.registerDevice'), 'registerDevice function');
     assert(src.includes('exports.trackTransaction'), 'trackTransaction function');
+    assert(src.includes('exports.contractSmokeTest'), 'contractSmokeTest function');
     assert(src.includes('exports.publishRoundManifest'), 'publishRoundManifest function');
     assert(src.includes('exports.getRoundSettlementProofs'), 'getRoundSettlementProofs function');
     assert(src.includes('exports.fulfillBasePayRound'), 'fulfillBasePayRound function');
     assert(!/^exports\.syncGameEvents\s*=/m.test(src), 'syncGameEvents worker disabled');
     assert(!/^exports\.confirmTransactions\s*=/m.test(src), 'confirmTransactions worker disabled');
+    assert(!src.includes('exports.syncLevel'), 'legacy syncLevel removed');
+    assert(!src.includes('exports.syncAllLevels'), 'legacy syncAllLevels removed');
 
     // Security
     assert(src.includes('enforceAppCheck: true'), 'enforceAppCheck: true');
@@ -224,15 +227,12 @@ async function main() {
 
     // Transaction tracking
     assert(src.includes('transactions'), 'transactions collection');
-    assert(src.includes('receipt.from'), 'verify receipt.from matches wallet');
+    assert(src.includes('status: "submitted"'), 'submitted transaction state');
 
-    // Manual reconciliation remains available without scheduled workers.
-    assert(src.includes('getLogs'), 'indexer: getLogs from RPC');
-    assert(src.includes('iface.parseLog'), 'indexer: parseLog');
-    assert(src.includes('reconcilePlayer'), 'indexer: reconcilePlayer');
-    assert(src.includes('reconcileLevel'), 'indexer: reconcileLevel');
-    assert(src.includes('pushToWallet'), 'indexer: pushToWallet (FCM)');
-    assert(src.includes('lastProcessedBlock'), 'indexer: checkpoint');
+    // Deployment integrity replaces the removed legacy level indexer.
+    assert(src.includes('CORE_LINK_ABI'), 'core deployment ABI');
+    assert(src.includes('Contract links are inconsistent'), 'link validation');
+    assert(src.includes('Contract bytecode is missing'), 'bytecode validation');
 
     // Error types
     assert(src.includes('unauthenticated'), 'UNAUTHENTICATED error');
@@ -248,39 +248,24 @@ async function main() {
     assert(src.includes('us-central1'), 'region: us-central1');
   }
 
-  // ─── 7. GAME_ABI ─────────────────────────────────
-  console.log('[7] GAME_ABI verification');
+  // ─── 7. DEPLOYMENT ABIs ───────────────────────────
+  console.log('[7] Deployment ABI verification');
   {
-    const { GAME_ABI } = require('./game_abi');
-    assert(Array.isArray(GAME_ABI), 'GAME_ABI is array');
-    assert(GAME_ABI.length >= 32, 'GAME_ABI has ' + GAME_ABI.length + ' entries');
-
-    const events = GAME_ABI.filter(a => a.startsWith('event'));
-    const fns = GAME_ABI.filter(a => a.startsWith('function'));
-
-    assert(events.length >= 20, events.length + ' events');
-    assert(fns.length >= 8, fns.length + ' functions');
-
-    // Check all key events
-    const keyEvents = [
-      'LevelActivated', 'DrawWon', 'DrawRequested', 'PrizeClaimed',
-      'MatrixPlaced', 'Recycled', 'PrizePositionReached',
-      'ReferralBonusClaimed', 'PaymentSplit',
-      'LevelFrozen', 'LevelUnfrozen', 'OwnershipTransferred',
-      'TokenDrawWon', 'TokenPrizeClaimed', 'TokenPaymentSplit'
+    const deploymentAbis = require('./game_abi');
+    const expected = [
+      'CORE_LINK_ABI',
+      'ROUND_MANAGER_LINK_ABI',
+      'ARENA_SKILLS_LINK_ABI',
+      'SETTLEMENT_LINK_ABI',
+      'BASE_PAY_GATEWAY_LINK_ABI',
     ];
-    for (const ev of keyEvents) {
-      assert(events.some(e => e.includes(ev)), 'event: ' + ev);
-    }
-
-    // Check all key functions
-    const keyFns = [
-      'getPlayer', 'getPlayerLevelFull', 'getPlayerTokenRewards',
-      'getLevelStats', 'getLevelStatsUSDC',
-      'levelPrices', 'levelPricesUsdc', 'levelAvailable'
-    ];
-    for (const fn of keyFns) {
-      assert(fns.some(f => f.includes(fn)), 'function: ' + fn);
+    for (const name of expected) {
+      assert(Array.isArray(deploymentAbis[name]), name + ' is array');
+      assert(deploymentAbis[name].length >= 2, name + ' has link getters');
+      assert(
+        deploymentAbis[name].every((entry) => entry.startsWith('function')),
+        name + ' contains only current getters',
+      );
     }
   }
 

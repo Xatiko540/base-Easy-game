@@ -4,10 +4,10 @@ pragma solidity ^0.8.24;
 import "./Storage.sol";
 import "./Errors.sol";
 import "./Validation.sol";
-import "./MatrixLogic.sol";
+import "./PlayerRegistryLogic.sol";
 import "../rounds/IEasyGameRoundManager.sol";
 
-abstract contract RoundGameLogic is EasyGameAdvanceStorage, MatrixLogic {
+abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic {
     event RoundActivated(
         address indexed player,
         uint256 indexed roundId,
@@ -109,7 +109,6 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, MatrixLogic {
         node.player = playerAddress;
         node.level = level;
         node.parentCellId = parentCellId;
-        node.prizeCell = false;
 
         PlayerRound storage playerState = playerRounds[playerAddress][roundId];
         playerState.cellId = cellId;
@@ -207,15 +206,35 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, MatrixLogic {
         accepted = _acceptedWeight(state.totalWeight, accepted, MAX_TOTAL_WEIGHT_PER_LEVEL);
         if (accepted == 0) return;
 
-        if (weightType == 0) breakdown.baseWeight += accepted;
-        else if (weightType == 1) breakdown.referralWeight += accepted;
-        else if (weightType == 3) breakdown.matrixWeight += accepted;
-        else breakdown.nftWeight += accepted;
+        Player storage player = players[playerAddress];
+        if (weightType == 0) {
+            breakdown.baseWeight += accepted;
+            player.baseWeight += accepted;
+        } else if (weightType == 1) {
+            breakdown.referralWeight += accepted;
+            player.referralWeight += accepted;
+        } else if (weightType == 3) {
+            breakdown.matrixWeight += accepted;
+            player.matrixWeight += accepted;
+        } else {
+            breakdown.nftWeight += accepted;
+            player.nftWeight += accepted;
+        }
 
         state.totalWeight += accepted;
         roundTotalWeight[roundId] += accepted;
-        players[playerAddress].totalWeight += accepted;
+        player.totalWeight += accepted;
         emit RoundWeightUpdated(playerAddress, roundId, state.totalWeight);
+    }
+
+    function _acceptedWeight(
+        uint256 current,
+        uint256 requested,
+        uint256 cap
+    ) private pure returns (uint256) {
+        if (current >= cap) return 0;
+        uint256 remaining = cap - current;
+        return requested > remaining ? remaining : requested;
     }
 
     function _splitRoundPayment(
@@ -234,9 +253,27 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, MatrixLogic {
         else roundPrizePools[config.roundId] += matrixAmount;
 
         Player storage player = players[playerAddress];
-        _creditRoundReferral(config.roundId, player.inviter, directAmount, DIRECT_REF_WEIGHT, paidWithUsdc);
-        _creditRoundReferral(config.roundId, player.secondLine, secondAmount, SECOND_REF_WEIGHT, paidWithUsdc);
-        _creditRoundReferral(config.roundId, player.thirdLine, thirdAmount, THIRD_REF_WEIGHT, paidWithUsdc);
+        _creditRoundReferral(
+            config.roundId,
+            player.inviter,
+            directAmount,
+            DIRECT_REF_WEIGHT,
+            paidWithUsdc
+        );
+        _creditRoundReferral(
+            config.roundId,
+            player.secondLine,
+            secondAmount,
+            SECOND_REF_WEIGHT,
+            paidWithUsdc
+        );
+        _creditRoundReferral(
+            config.roundId,
+            player.thirdLine,
+            thirdAmount,
+            THIRD_REF_WEIGHT,
+            paidWithUsdc
+        );
 
         if (paidWithUsdc) projectFeesAccruedUsdc += feeAmount;
         else projectFeesAccrued += feeAmount;

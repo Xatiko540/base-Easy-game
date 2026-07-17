@@ -4,9 +4,7 @@ import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/player_progression_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
-import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
 import 'package:lottery_advance/app/modules/home/views/activate_express_game_screen.dart';
-import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/services/base_pay_service.dart';
@@ -14,15 +12,12 @@ import 'package:lottery_advance/app/services/base_pay_service.dart';
 class RegistrationController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
   final GameRoundsController _rounds = Get.find<GameRoundsController>();
-  final RoundLevelsRepository _levelPrices = Get.find<RoundLevelsRepository>();
 
   RegistrationController();
 
   final uplineController = TextEditingController();
   final selectedLevel = 3.obs;
   final selectedPriceUnits = BigInt.zero.obs;
-  final RxMap<int, ContractLevelPrice> contractPrices =
-      <int, ContractLevelPrice>{}.obs;
   final RxMap<int, bool> contractAvailability = <int, bool>{}.obs;
   final paymentAsset = EasyGamePaymentAsset.native.obs;
   final Rxn<GameRoundViewState> selectedRound = Rxn<GameRoundViewState>();
@@ -54,9 +49,7 @@ class RegistrationController extends GetxController {
         selectedRound.value = _roundForLevel(selectedLevel.value);
         _applyRoundPrice();
       }),
-      ever<int?>(walletService.chainId, (_) => _loadContractPrices()),
     ]);
-    _loadContractPrices();
   }
 
   @override
@@ -81,10 +74,6 @@ class RegistrationController extends GetxController {
   String get selectedPriceLabel => formatAssetAmount(selectedPriceUnits.value);
 
   BigInt priceForLevel(int level) {
-    final contractPrice = contractPrices[level];
-    if (contractPrice != null) {
-      return paysWithUsdc ? contractPrice.usdcPrice : contractPrice.ethPriceWei;
-    }
     final round = _roundForLevel(level);
     return paysWithUsdc
         ? round?.usdcPrice ?? BigInt.zero
@@ -279,11 +268,6 @@ class RegistrationController extends GetxController {
       throw Exception('payment.levelEmergencyPausedHint'.tr);
     }
     await _requireProgressionEligibility(round);
-    final contractPrice = await _ensureContractPrice(selectedLevel.value);
-    if (contractPrice.ethPriceWei != round.ethPriceWei ||
-        contractPrice.usdcPrice != round.usdcPrice) {
-      throw StateError('payment.contractPriceMismatch'.tr);
-    }
     return round;
   }
 
@@ -317,37 +301,8 @@ class RegistrationController extends GetxController {
     }
   }
 
-  Future<ContractLevelPrice> _ensureContractPrice(int level) async {
-    final cached = contractPrices[level];
-    if (cached != null) return cached;
-
-    final loaded = await _levelPrices.loadContractPrice(level);
-    if (!isClosed) {
-      contractPrices[level] = loaded;
-      _applyRoundPrice();
-    }
-    return loaded;
-  }
-
   void _applyRoundPrice() {
     selectedPriceUnits.value = priceForLevel(selectedLevel.value);
-  }
-
-  Future<void> _loadContractPrices() async {
-    final requests = <Future<void>>[];
-    for (var level = 1; level <= easyGameLevelCount; level++) {
-      requests.add(Future.wait<dynamic>([
-        _levelPrices.loadContractPrice(level),
-        walletService.isEasyGameLevelAvailable(level),
-      ]).then((values) {
-        if (!isClosed) {
-          contractPrices[level] = values[0] as ContractLevelPrice;
-          contractAvailability[level] = values[1] as bool;
-        }
-      }).catchError((_) {}));
-    }
-    await Future.wait(requests);
-    if (!isClosed) _applyRoundPrice();
   }
 
   String formatAssetAmount(BigInt amount) {

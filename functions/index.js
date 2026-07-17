@@ -1,13 +1,10 @@
 const { initializeApp } = require("firebase-admin/app");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
-const { getMessaging } = require("firebase-admin/messaging");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
-const { onSchedule } = require("firebase-functions/v2/scheduler");
 const { defineSecret, defineString } = require("firebase-functions/params");
 const { logger } = require("firebase-functions");
 const {
   Contract,
-  Interface,
   JsonRpcProvider,
   Wallet,
   TypedDataEncoder,
@@ -24,7 +21,13 @@ const {
 } = require("viem");
 const { getPaymentStatus } = require("@base-org/account");
 const crypto = require("crypto");
-const { GAME_ABI } = require("./game_abi");
+const {
+  CORE_LINK_ABI,
+  ROUND_MANAGER_LINK_ABI,
+  ARENA_SKILLS_LINK_ABI,
+  SETTLEMENT_LINK_ABI,
+  BASE_PAY_GATEWAY_LINK_ABI,
+} = require("./game_abi");
 const { buildWinningCellTree } = require("./round_merkle");
 
 initializeApp();
@@ -52,7 +55,6 @@ const basePayGatewayAddressParam = defineString("EASY_GAME_BASE_PAY_GATEWAY_ADDR
 const basePayFulfillerKey = defineSecret("BASE_PAY_FULFILLER_PRIVATE_KEY");
 const chainIdParam = defineString("EASY_GAME_CHAIN_ID", { default: "8453" });
 const confirmationsParam = defineString("EASY_GAME_CONFIRMATIONS", { default: "5" });
-const startBlockParam = defineString("EASY_GAME_START_BLOCK", { default: "0" });
 const appPublicUrlParam = defineString("APP_PUBLIC_URL", { default: "https://easygame.io" });
 const publicRpcUrlParam = defineString("WEB3_PUBLIC_RPC_URL", { default: "https://mainnet.base.org" });
 const environmentParam = defineString("APP_ENVIRONMENT", { default: "production" });
@@ -69,7 +71,6 @@ const baseAccountAllowedOriginsParam = defineString("BASE_ACCOUNT_ALLOWED_ORIGIN
   default: "https://lottery-advance.web.app,https://lottery-advance.firebaseapp.com,https://easygame.io",
 });
 const region = "us-central1";
-const iface = new Interface(GAME_ABI);
 const maxDeviceTokensPerWallet = 10;
 const allowedPlatforms = new Set(["web", "android", "ios", "macos", "windows", "linux"]);
 const zeroAddress = "0x0000000000000000000000000000000000000000";
@@ -225,36 +226,9 @@ function publicOptionalAddress(param) {
   return normalized === zeroAddress ? "" : normalized;
 }
 
-function runtime() {
-  const address = contractAddress.value();
-  if (!isAddress(address) || getAddress(address) === zeroAddress) {
-    throw new Error("EASY_GAME_CONTRACT_ADDRESS is invalid or not configured");
-  }
-  const provider = new JsonRpcProvider(rpcUrl.value(), Number(chainIdParam.value()));
-  return {
-    provider,
-    contract: new Contract(address, GAME_ABI, provider),
-    address: getAddress(address),
-    chainId: Number(chainIdParam.value()),
-  };
-}
-
 function wallet(value) {
   if (typeof value !== "string" || !isAddress(value)) return null;
   return getAddress(value).toLowerCase();
-}
-
-function jsonValue(value) {
-  if (typeof value === "bigint") return value.toString();
-  if (Array.isArray(value)) return value.map(jsonValue);
-  if (value && typeof value === "object") {
-    const result = {};
-    for (const [key, item] of Object.entries(value)) {
-      if (!/^\d+$/.test(key)) result[key] = jsonValue(item);
-    }
-    return result;
-  }
-  return value;
 }
 
 function roundConfigFromDocument(round) {
@@ -296,6 +270,13 @@ function requireUser(request) {
   return request.auth.uid;
 }
 
+function requireAdmin(request) {
+  requireUser(request);
+  if (!request.auth?.token?.admin) {
+    throw new HttpsError("permission-denied", "Admin claim required");
+  }
+}
+
 function requireApp(request) {
   if (environmentParam.value() === "local") return;
   if (!request.app) throw new HttpsError("failed-precondition", "Firebase App Check required");
@@ -327,212 +308,6 @@ async function enforceRateLimit(name, subject, max, windowSeconds) {
     }, { merge: true });
   });
 }
-
-function eventId(chainId, log) {
-  return `${chainId}_${log.transactionHash}_${log.index}`;
-}
-
-function eventWallets(name, args) {
-  const candidates = [];
-  for (const key of ["player", "winner", "inviter", "invitee"]) {
-    const normalized = wallet(args[key]);
-    if (normalized) candidates.push(normalized);
-  }
-  return [...new Set(candidates)];
-}
-
-async function pushToWallet(walletAddress, title, body, data = {}) {
-  const snapshot = await db.collection("walletDevices").doc(walletAddress).collection("tokens").limit(20).get();
-  const tokens = snapshot.docs.map((doc) => doc.get("token")).filter(Boolean);
-  if (tokens.length === 0) return;
-  const response = await getMessaging().sendEachForMulticast({
-    tokens,
-    notification: { title, body },
-    data: Object.fromEntries(Object.entries(data).map(([key, value]) => [key, String(value)])),
-  });
-  const invalid = [];
-  response.responses.forEach((item, index) => {
-    if (!item.success && ["messaging/invalid-registration-token", "messaging/registration-token-not-registered"].includes(item.error?.code)) {
-      invalid.push(snapshot.docs[index].ref.delete());
-    }
-  });
-  await Promise.all(invalid);
-}
-
-async function projectEvent(parsed, log, block, chainId) {
-  const name = parsed.name;
-  const args = jsonValue(parsed.args.toObject());
-  const id = eventId(chainId, log);
-  const ref = db.collection("events").doc(id);
-  if ((await ref.get()).exists) return;
-
-  const batch = db.batch();
-  batch.create(ref, {
-    chainId,
-    contract: log.address.toLowerCase(),
-    type: name,
-    args,
-    blockNumber: log.blockNumber,
-    blockHash: log.blockHash,
-    transactionHash: log.transactionHash,
-    logIndex: log.index,
-    blockTimestamp: Timestamp.fromMillis(Number(block.timestamp) * 1000),
-    indexedAt: FieldValue.serverTimestamp(),
-  });
-
-  const player = wallet(args.player || args.winner || args.inviter);
-  const level = args.level == null ? null : Number(args.level);
-  if (player) {
-    batch.set(db.collection("users").doc(`${chainId}_${player}`), {
-      wallet: player,
-      chainId,
-      exists: true,
-      lastEventType: name,
-      lastEventBlock: log.blockNumber,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-  }
-  if (player && level) {
-    batch.set(db.collection("users").doc(`${chainId}_${player}`).collection("levels").doc(String(level)), {
-      level,
-      lastEventType: name,
-      lastEventBlock: log.blockNumber,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-  }
-  if (level) {
-    batch.set(db.collection("levels").doc(`${chainId}_${level}`), {
-      chainId,
-      level,
-      lastEventType: name,
-      lastEventBlock: log.blockNumber,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-  }
-  await batch.commit();
-
-  const title = name.replace(/([A-Z])/g, " $1").trim();
-  for (const target of eventWallets(name, args)) {
-    await pushToWallet(target, title, `Easy Game event on level ${level || "-"}`, {
-      eventId: id,
-      type: name,
-      level: level || "",
-      transactionHash: log.transactionHash,
-    });
-  }
-}
-
-async function reconcilePlayer(contract, chainId, playerAddress, levels) {
-  const player = jsonValue(await contract.getPlayer(playerAddress));
-  const userRef = db.collection("users").doc(`${chainId}_${playerAddress}`);
-  await userRef.set({ ...player, wallet: playerAddress, chainId, syncedAt: FieldValue.serverTimestamp() }, { merge: true });
-  for (const level of levels.slice(0, 17)) {
-    const [state, tokenRewards] = await Promise.all([
-      contract.getPlayerLevelFull(playerAddress, level),
-      contract.getPlayerTokenRewards(playerAddress, level),
-    ]);
-    await userRef.collection("levels").doc(String(level)).set({
-      ...jsonValue(state),
-      tokenRewards: jsonValue(tokenRewards),
-      level,
-      syncedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-  }
-}
-
-async function reconcileLevel(contract, chainId, level) {
-  const [stats, usdcStats, ethPrice, usdcPrice, available] = await Promise.all([
-    contract.getLevelStats(level),
-    contract.getLevelStatsUSDC(level),
-    contract.levelPrices(level),
-    contract.levelPricesUsdc(level),
-    contract.levelAvailable(level),
-  ]);
-  await db.collection("levels").doc(`${chainId}_${level}`).set({
-    chainId,
-    level,
-    available,
-    ethPriceWei: ethPrice.toString(),
-    usdcPrice: usdcPrice.toString(),
-    stats: jsonValue(stats),
-    usdcStats: jsonValue(usdcStats),
-    syncedAt: FieldValue.serverTimestamp(),
-  }, { merge: true });
-}
-
-async function runIndexer() {
-  const { provider, contract, address, chainId } = runtime();
-  const checkpointRef = db.collection("system").doc(`indexer_${chainId}`);
-  const checkpoint = await checkpointRef.get();
-  const latest = await provider.getBlockNumber();
-  const safeHead = Math.max(0, latest - Number(confirmationsParam.value()));
-  const previous = checkpoint.exists ? Number(checkpoint.get("lastProcessedBlock")) : Number(startBlockParam.value()) - 1;
-  if (safeHead <= previous) return { processed: 0, from: previous + 1, to: safeHead };
-
-  const fromBlock = previous + 1;
-  const toBlock = Math.min(safeHead, fromBlock + 499);
-  const logs = await provider.getLogs({ address, fromBlock, toBlock });
-  const blocks = new Map();
-  const affectedPlayers = new Map();
-  const affectedLevels = new Set();
-  let processed = 0;
-
-  for (const log of logs) {
-    let parsed;
-    try { parsed = iface.parseLog(log); } catch (_) { continue; }
-    let block = blocks.get(log.blockNumber);
-    if (!block) {
-      block = await provider.getBlock(log.blockNumber);
-      blocks.set(log.blockNumber, block);
-    }
-    await projectEvent(parsed, log, block, chainId);
-    processed++;
-    const args = parsed.args.toObject();
-    const level = args.level == null ? null : Number(args.level);
-    if (level) affectedLevels.add(level);
-    for (const target of eventWallets(parsed.name, args)) {
-      if (!affectedPlayers.has(target)) affectedPlayers.set(target, new Set());
-      if (level) affectedPlayers.get(target).add(level);
-    }
-  }
-
-  for (const level of [...affectedLevels].slice(0, 17)) await reconcileLevel(contract, chainId, level);
-  for (const [playerAddress, levels] of [...affectedPlayers.entries()].slice(0, 20)) {
-    await reconcilePlayer(contract, chainId, playerAddress, [...levels]);
-  }
-
-  const lastBlock = await provider.getBlock(toBlock);
-  await checkpointRef.set({
-    chainId,
-    contract: address.toLowerCase(),
-    lastProcessedBlock: toBlock,
-    lastProcessedHash: lastBlock.hash,
-    safeHead,
-    latest,
-    processed,
-    status: "healthy",
-    updatedAt: FieldValue.serverTimestamp(),
-  }, { merge: true });
-  return { processed, from: fromBlock, to: toBlock };
-}
-
-// NOTE: BASE_RPC_URL secret updated to sepolia.base.org (v2) — redeploy enforced
-// TODO: enable when contract is deployed with real address
-// exports.syncGameEvents = onSchedule({
-//   schedule: "every 1 minutes",
-//   region,
-//   timeoutSeconds: 120,
-//   memory: "256MiB",
-//   maxInstances: 1,
-//   secrets: [rpcUrl],
-// }, async () => {
-//   try {
-//     logger.info("Indexer completed", await runIndexer());
-//   } catch (error) {
-//     logger.error("Indexer failed", error);
-//     throw error;
-//   }
-// });
 
 exports.verifyBaseAccountSession = onCall({
   region,
@@ -691,113 +466,110 @@ exports.trackTransaction = onCall({ region, enforceAppCheck: true }, async (requ
   return { tracked: true };
 });
 
-exports.syncLevel = onCall({ region, enforceAppCheck: true, secrets: [rpcUrl] }, async (request) => {
-  requireApp(request);
-  const uid = requireUser(request);
-  await enforceRateLimit("syncLevel", uid, 30, 60 * 60);
-  const level = Number(request.data?.level);
-  if (level < 1 || level > 17) throw new HttpsError("invalid-argument", "Level must be 1-17");
-
-  const { contract, chainId } = runtime();
-  const [stats, usdcStats, ethPrice, usdcPrice, available] = await Promise.all([
-    contract.getLevelStats(level),
-    contract.getLevelStatsUSDC(level),
-    contract.levelPrices(level),
-    contract.levelPricesUsdc(level),
-    contract.levelAvailable(level),
-  ]);
-  const doc = {
-    chainId,
-    level,
-    available,
-    ethPriceWei: ethPrice.toString(),
-    usdcPrice: usdcPrice.toString(),
-    stats: jsonValue(stats),
-    usdcStats: jsonValue(usdcStats),
-    syncedAt: FieldValue.serverTimestamp(),
-  };
-  await db.collection("levels").doc(`${chainId}_${level}`).set(doc, { merge: true });
-  return { level, synced: true, ...doc };
-});
-
-exports.syncAllLevels = onCall({
+exports.contractSmokeTest = onCall({
   region,
   enforceAppCheck: true,
-  timeoutSeconds: 120,
+  timeoutSeconds: 60,
   secrets: [rpcUrl],
 }, async (request) => {
   requireApp(request);
-  const uid = requireUser(request);
-  await enforceRateLimit("syncAllLevels", uid, 5, 60 * 60);
+  requireAdmin(request);
 
-  const { contract, chainId } = runtime();
-  const results = [];
-  for (let level = 1; level <= 17; level++) {
-    const [stats, usdcStats, ethPrice, usdcPrice, available] = await Promise.all([
-      contract.getLevelStats(level),
-      contract.getLevelStatsUSDC(level),
-      contract.levelPrices(level),
-      contract.levelPricesUsdc(level),
-      contract.levelAvailable(level),
-    ]);
-    const doc = {
-      chainId,
-      level,
-      available,
-      ethPriceWei: ethPrice.toString(),
-      usdcPrice: usdcPrice.toString(),
-      stats: jsonValue(stats),
-      usdcStats: jsonValue(usdcStats),
-      syncedAt: FieldValue.serverTimestamp(),
-    };
-    await db.collection("levels").doc(`${chainId}_${level}`).set(doc, { merge: true });
-    results.push({ level, synced: true });
+  const chainId = Number(chainIdParam.value());
+  const addresses = {
+    core: publicContractAddress(),
+    roundManager: publicOptionalAddress(roundManagerAddressParam),
+    arenaSkills: publicOptionalAddress(arenaSkillsAddressParam),
+    settlement: publicOptionalAddress(roundSettlementAddressParam),
+    basePayGateway: publicOptionalAddress(basePayGatewayAddressParam),
+    usdc: publicOptionalAddress(usdcTokenAddressParam),
+  };
+  const missingConfig = Object.entries(addresses)
+    .filter(([, address]) => !address)
+    .map(([name]) => name);
+  if (missingConfig.length > 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Deployment config is incomplete: ${missingConfig.join(", ")}`,
+    );
   }
-  return { synced: results.length, levels: results };
-});
 
-// TODO: enable when contract is deployed with real address
-// exports.confirmTransactions = onSchedule({
-//   schedule: "every 2 minutes",
-//   region,
-//   timeoutSeconds: 60,
-//   memory: "256MiB",
-//   maxInstances: 1,
-//   secrets: [rpcUrl],
-// }, async () => {
-//   const { provider, address, chainId } = runtime();
-//   const snapshot = await db.collection("transactions").where("status", "==", "submitted").limit(50).get();
-//   for (const doc of snapshot.docs) {
-//     const receipt = await provider.getTransactionReceipt(doc.get("transactionHash"));
-//     if (!receipt) continue;
-//     const validContract = receipt.to?.toLowerCase() === address.toLowerCase();
-//     const walletAddress = wallet(doc.get("wallet"));
-//     const validSender = walletAddress && receipt.from?.toLowerCase() === walletAddress;
-//     const status = receipt.status === 1 && validContract && validSender
-//       ? "confirmed"
-//       : validContract && !validSender
-//         ? "rejected_owner_mismatch"
-//         : "failed";
-//     await doc.ref.set({
-//       status,
-//       blockNumber: receipt.blockNumber,
-//       receiptFrom: receipt.from?.toLowerCase() || null,
-//       receiptTo: receipt.to?.toLowerCase() || null,
-//       resolvedAt: FieldValue.serverTimestamp(),
-//     }, { merge: true });
-//     const target = doc.get("wallet");
-//     if (target) await pushToWallet(target, status === "confirmed" ? "Transaction confirmed" : "Transaction failed", doc.get("transactionHash"), { status, chainId });
-//   }
-// });
+  const provider = new JsonRpcProvider(rpcUrl.value(), chainId);
+  const entries = Object.entries(addresses);
+  const codes = await Promise.all(
+    entries.map(([, address]) => provider.getCode(address)),
+  );
+  const missingCode = entries
+    .filter((_, index) => codes[index] === "0x")
+    .map(([name]) => name);
+  if (missingCode.length > 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Contract bytecode is missing: ${missingCode.join(", ")}`,
+    );
+  }
+
+  const core = new Contract(addresses.core, CORE_LINK_ABI, provider);
+  const manager = new Contract(
+    addresses.roundManager,
+    ROUND_MANAGER_LINK_ABI,
+    provider,
+  );
+  const skills = new Contract(
+    addresses.arenaSkills,
+    ARENA_SKILLS_LINK_ABI,
+    provider,
+  );
+  const settlement = new Contract(
+    addresses.settlement,
+    SETTLEMENT_LINK_ABI,
+    provider,
+  );
+  const gateway = new Contract(
+    addresses.basePayGateway,
+    BASE_PAY_GATEWAY_LINK_ABI,
+    provider,
+  );
+  const normalized = Object.fromEntries(
+    Object.entries(addresses).map(([name, address]) => [name, address.toLowerCase()]),
+  );
+  const links = {
+    coreRoundManager: (await core.roundManager()).toLowerCase() === normalized.roundManager,
+    coreSettlement: (await core.settlementContract()).toLowerCase() === normalized.settlement,
+    coreGateway: (await core.basePayGateway()).toLowerCase() === normalized.basePayGateway,
+    coreUsdc: (await core.usdcToken()).toLowerCase() === normalized.usdc,
+    managerCore: (await manager.gameCore()).toLowerCase() === normalized.core,
+    managerSkills: (await manager.arenaSkills()).toLowerCase() === normalized.arenaSkills,
+    skillsCore: (await skills.gameCore()).toLowerCase() === normalized.core,
+    skillsManager: (await skills.roundManager()).toLowerCase() === normalized.roundManager,
+    skillsUsdc: (await skills.usdcToken()).toLowerCase() === normalized.usdc,
+    settlementCore: (await settlement.gameCore()).toLowerCase() === normalized.core,
+    settlementManager: (await settlement.roundManager()).toLowerCase() === normalized.roundManager,
+    settlementSkills: (await settlement.arenaSkills()).toLowerCase() === normalized.arenaSkills,
+    settlementUsdc: (await settlement.usdcToken()).toLowerCase() === normalized.usdc,
+    gatewayCore: (await gateway.gameCore()).toLowerCase() === normalized.core,
+    gatewayUsdc: (await gateway.usdcToken()).toLowerCase() === normalized.usdc,
+    gatewayFulfiller: (await gateway.fulfiller()).toLowerCase() !== zeroAddress,
+  };
+  const brokenLinks = Object.entries(links)
+    .filter(([, linked]) => !linked)
+    .map(([name]) => name);
+  if (brokenLinks.length > 0) {
+    throw new HttpsError(
+      "failed-precondition",
+      `Contract links are inconsistent: ${brokenLinks.join(", ")}`,
+    );
+  }
+
+  return { ok: true, chainId, addresses, links };
+});
 
 exports.publishRoundManifest = onCall({
   region,
   enforceAppCheck: true,
 }, async (request) => {
   requireApp(request);
-  if (!request.auth?.token?.admin) {
-    throw new HttpsError("permission-denied", "Admin claim required");
-  }
+  requireAdmin(request);
   const managerAddress = publicOptionalAddress(roundManagerAddressParam);
   const signerAddress = publicOptionalAddress(roundScheduleSignerParam);
   const coreAddress = publicContractAddress();

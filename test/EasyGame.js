@@ -40,7 +40,6 @@ describe("EasyGameAdvance", function () {
     );
     await easyGame.waitForDeployment();
     await roundManager.setGameCore(await easyGame.getAddress());
-    await easyGame.setLegacyActivationEnabled(true);
     const BasePayGateway = await ethers.getContractFactory(
       "EasyGameBasePayGateway"
     );
@@ -98,11 +97,6 @@ describe("EasyGameAdvance", function () {
     const { easyGame } = await deployFixture();
 
     expect(await easyGame.LEVEL_COUNT()).to.equal(17);
-    expect(await easyGame.levelPrices(1)).to.equal(ethers.parseEther("0.05"));
-    expect(await easyGame.levelPrices(16)).to.equal(ethers.parseEther("8"));
-    expect(await easyGame.levelPrices(17)).to.equal(ethers.parseEther("12"));
-    expect(await easyGame.levelPricesUsdc(1)).to.equal(50000);
-    expect(await easyGame.levelPricesUsdc(17)).to.equal(12000000);
     expect(await easyGame.levelAvailable(1)).to.equal(true);
     expect(await easyGame.levelAvailable(2)).to.equal(true);
     expect(await easyGame.levelAvailable(3)).to.equal(true);
@@ -115,397 +109,6 @@ describe("EasyGameAdvance", function () {
     expect(await easyGame.PROJECT_FEE_BPS()).to.equal(500);
   });
 
-  if (false) describe("removed legacy activation compatibility", function () {
-  it("activates a level, places the player, and gives base weight", async function () {
-    const { easyGame, root } = await deployFixture();
-    const price = await easyGame.levelPrices(17);
-
-    await expect(
-      easyGame.connect(root).activateLevel(17, ethers.ZeroAddress, {
-        value: price,
-      })
-    )
-      .to.emit(easyGame, "LevelActivated")
-      .withArgs(root.address, 17, price, 1)
-      .and.to.emit(easyGame, "MatrixPlaced")
-      .withArgs(root.address, 17, 1, 0);
-
-    const level = await easyGame.getPlayerLevel(root.address, 17);
-    expect(level.active).to.equal(true);
-    expect(level.positionId).to.equal(1);
-    expect(await easyGame.getPlayerWeight(root.address, 17)).to.equal(100);
-    expect(await easyGame.totalWeightByLevel(17)).to.equal(100);
-  });
-
-  it("splits payments into pool, three referral lines, and project fees", async function () {
-    const { easyGame, root, first, second, third, projectWallet } =
-      await deployFixture();
-    const price = await easyGame.levelPrices(3);
-
-    await easyGame.connect(root).activateLevel(3, ethers.ZeroAddress, {
-      value: price,
-    });
-    await easyGame.connect(first).activateLevel(3, root.address, {
-      value: price,
-    });
-    await easyGame.connect(second).activateLevel(3, first.address, {
-      value: price,
-    });
-
-    const beforeFourth = await ethers.provider.getBalance(
-      projectWallet.address
-    );
-    await expect(
-      easyGame.connect(third).activateLevel(3, second.address, {
-        value: price,
-      })
-    )
-      .to.emit(easyGame, "PaymentSplit")
-      .withArgs(
-        third.address,
-        3,
-        (price * 7550n) / 10000n,
-        (price * 950n) / 10000n,
-        (price * 600n) / 10000n,
-        (price * 400n) / 10000n,
-        (price * 500n) / 10000n
-      );
-
-    const secondPlayer = await easyGame.getPlayer(second.address);
-    const firstPlayer = await easyGame.getPlayer(first.address);
-    const rootPlayer = await easyGame.getPlayer(root.address);
-
-    expect(secondPlayer.claimableReferralBonus).to.equal(
-      (price * 950n) / 10000n
-    );
-    expect(firstPlayer.claimableReferralBonus).to.equal(
-      (price * 950n) / 10000n + (price * 600n) / 10000n
-    );
-    expect(rootPlayer.claimableReferralBonus).to.equal(
-      (price * 950n) / 10000n +
-        (price * 600n) / 10000n +
-        (price * 400n) / 10000n
-    );
-    expect(await easyGame.projectFeesAccrued()).to.equal(
-      (price * 500n * 4n) / 10000n
-    );
-
-    await expect(easyGame.withdrawProjectFees()).to.changeEtherBalance(
-      projectWallet,
-      await easyGame.projectFeesAccrued()
-    );
-    expect(await easyGame.projectFeesAccrued()).to.equal(0);
-    expect(await ethers.provider.getBalance(projectWallet.address)).to.be.gt(
-      beforeFourth
-    );
-  });
-
-  it("keeps missing referral lines inside the matrix prize pool", async function () {
-    const { easyGame, root } = await deployFixture();
-    const price = await easyGame.levelPrices(4);
-
-    await easyGame.connect(root).activateLevel(4, ethers.ZeroAddress, {
-      value: price,
-    });
-
-    const expectedPool = (price * (7550n + 950n + 600n + 400n)) / 10000n;
-    expect(await easyGame.matrixPrizePools(4)).to.equal(expectedPool);
-  });
-
-  it("activates with USDC, credits all referral lines, and withdraws token fees", async function () {
-    const { easyGame, usdc, root, first, second, third, projectWallet } =
-      await deployFixture();
-    const easyGameAddress = await easyGame.getAddress();
-    const price = await easyGame.levelPricesUsdc(7);
-
-    for (const signer of [root, first, second, third]) {
-      await usdc.mint(signer.address, price);
-      await usdc.connect(signer).approve(easyGameAddress, price);
-    }
-
-    await expect(
-      easyGame.connect(root).activateLevelWithUSDC(7, ethers.ZeroAddress)
-    )
-      .to.emit(easyGame, "TokenPaymentSplit")
-      .withArgs(
-        root.address,
-        7,
-        await usdc.getAddress(),
-        (price * 7550n) / 10000n,
-        (price * 950n) / 10000n,
-        (price * 600n) / 10000n,
-        (price * 400n) / 10000n,
-        (price * 500n) / 10000n
-      );
-
-    await easyGame.connect(first).activateLevelWithUSDC(7, root.address);
-    await easyGame.connect(second).activateLevelWithUSDC(7, first.address);
-    await easyGame.connect(third).activateLevelWithUSDC(7, second.address);
-
-    expect(await easyGame.matrixPrizePoolsUsdc(7)).to.be.gt(0);
-    expect(await easyGame.projectFeesAccruedUsdc()).to.equal(
-      (price * 500n * 4n) / 10000n
-    );
-    expect(await easyGame.claimableReferralBonusUsdc(root.address)).to.equal(
-      (price * 950n) / 10000n +
-        (price * 600n) / 10000n +
-        (price * 400n) / 10000n
-    );
-
-    const before = await usdc.balanceOf(root.address);
-    await easyGame.connect(root).claimReferralBonusUSDC();
-    expect(await usdc.balanceOf(root.address)).to.be.gt(before);
-
-    const fees = await easyGame.projectFeesAccruedUsdc();
-    const projectBefore = await usdc.balanceOf(projectWallet.address);
-    await easyGame.withdrawProjectFeesUSDC();
-    expect(await usdc.balanceOf(projectWallet.address)).to.equal(
-      projectBefore + fees
-    );
-    expect(await easyGame.projectFeesAccruedUsdc()).to.equal(0);
-
-    const ethPrice = await easyGame.levelPrices(8);
-    await easyGame.connect(root).activateLevel(8, ethers.ZeroAddress, {
-      value: ethPrice,
-    });
-    expect(await easyGame.matrixPrizePools(8)).to.be.gt(0);
-  });
-
-  it("fills binary cells left-to-right, recycles parent, and grants box weight", async function () {
-    const { easyGame, root, first, second } = await deployFixture();
-    const price = await easyGame.levelPrices(3);
-
-    await easyGame.connect(root).activateLevel(3, ethers.ZeroAddress, {
-      value: price,
-    });
-    await easyGame.connect(first).activateLevel(3, root.address, {
-      value: price,
-    });
-
-    await expect(
-      easyGame.connect(second).activateLevel(3, root.address, {
-        value: price,
-      })
-    )
-      .to.emit(easyGame, "Recycled")
-      .withArgs(root.address, 3, 1, 4)
-      .and.to.emit(easyGame, "BoxTokenGranted")
-      .withArgs(root.address, 3, 1);
-
-    const rootPosition = await easyGame.getPlayerPosition(root.address, 3);
-    expect(rootPosition.positionId).to.equal(4);
-
-    const buyerPosition = await easyGame.getPlayerPosition(second.address, 3);
-    expect(buyerPosition.positionId).to.equal(3);
-
-    const rootPlayer = await easyGame.getPlayer(root.address);
-    expect(rootPlayer.recycleCount).to.equal(1);
-    expect(rootPlayer.boxTokens).to.equal(1);
-    expect(await easyGame.getPlayerWeight(root.address, 3)).to.equal(360);
-  });
-
-  it("credits prize-position rewards from the matrix prize pool", async function () {
-    const { easyGame, root, first, second, third, fourth, fifth, sixth } =
-      await deployFixture();
-    const players = [root, first, second, third, fourth, fifth, sixth];
-    const price = await easyGame.levelPrices(5);
-
-    for (let i = 0; i < players.length; i++) {
-      await easyGame
-        .connect(players[i])
-        .activateLevel(5, i === 0 ? ethers.ZeroAddress : root.address, {
-          value: price,
-          gasLimit: 5000000,
-        });
-    }
-
-    const node = await easyGame.getMatrixNode(5, 7);
-    expect(node.prizeCell).to.equal(true);
-
-    const prizeLevel = await easyGame.getPlayerLevelFull(node.player, 5);
-    expect(prizeLevel.claimablePrize).to.be.gt(0);
-
-    const winner = players.find(
-      (player) => player.address.toLowerCase() === node.player.toLowerCase()
-    );
-    const prize = prizeLevel.claimablePrize;
-    await expect(easyGame.connect(winner).claimPrize(5)).to.changeEtherBalance(
-      winner,
-      prize
-    );
-    expect(
-      (await easyGame.getPlayerLevelFull(node.player, 5)).claimablePrize
-    ).to.equal(0);
-  });
-
-  it("disables unverifiable weighted draws without changing the prize pool", async function () {
-    const { easyGame, root, first, second } = await deployFixture();
-    const price = await easyGame.levelPrices(6);
-
-    await easyGame.connect(root).activateLevel(6, ethers.ZeroAddress, {
-      value: price,
-    });
-    await easyGame.connect(first).activateLevel(6, root.address, {
-      value: price,
-    });
-    await easyGame.connect(second).activateLevel(6, first.address, {
-      value: price,
-    });
-
-    const poolBefore = await easyGame.matrixPrizePools(6);
-    await expect(easyGame.requestDraw(6)).to.be.revertedWithCustomError(
-      easyGame,
-      "WeightedDrawDisabled"
-    );
-    expect(await easyGame.matrixPrizePools(6)).to.equal(poolBefore);
-  });
-
-  it("freezes after two recycle cycles and unfreezes on next level activation", async function () {
-    const {
-      easyGame,
-      owner,
-      root,
-      first,
-      second,
-      third,
-      fourth,
-      fifth,
-      sixth,
-      seventh,
-    } = await deployFixture();
-    const level1Price = await easyGame.levelPrices(1);
-    await easyGame.connect(owner).setLevelAvailable(1, true);
-    await easyGame.connect(owner).setLevelAvailable(2, true);
-
-    const players = [root, first, second, third, fourth, fifth, sixth, seventh];
-    for (let i = 0; i < players.length; i++) {
-      await easyGame
-        .connect(players[i])
-        .activateLevel(1, i === 0 ? ethers.ZeroAddress : root.address, {
-          value: level1Price,
-          gasLimit: 6000000,
-        });
-    }
-
-    expect(await easyGame.isLevelFrozen(root.address, 1)).to.equal(true);
-
-    const level2Price = await easyGame.levelPrices(2);
-    await easyGame.connect(root).activateLevel(2, ethers.ZeroAddress, {
-      value: level2Price,
-      gasLimit: 5000000,
-    });
-
-    expect(await easyGame.isLevelFrozen(root.address, 1)).to.equal(false);
-  });
-
-  it("bounds recycle processing and rejects oversized batches", async function () {
-    const {
-      easyGame,
-      root,
-      first,
-      second,
-      third,
-      fourth,
-      fifth,
-      sixth,
-      seventh,
-      outsider,
-    } = await deployFixture();
-    const players = [
-      root,
-      first,
-      second,
-      third,
-      fourth,
-      fifth,
-      sixth,
-      seventh,
-      outsider,
-    ];
-    const price = await easyGame.levelPrices(3);
-    const recycledTopic = easyGame.interface.getEvent("Recycled").topicHash;
-
-    for (let index = 0; index < players.length; index++) {
-      const tx = await easyGame
-        .connect(players[index])
-        .activateLevel(3, index === 0 ? ethers.ZeroAddress : root.address, {
-          value: price,
-          gasLimit: 5000000,
-        });
-      const receipt = await tx.wait();
-      const recycleEvents = receipt.logs.filter(
-        (log) => log.topics[0] === recycledTopic
-      );
-
-      expect(recycleEvents.length).to.be.lte(
-        Number(await easyGame.MAX_RECYCLE_STEPS_PER_TX())
-      );
-      expect(receipt.gasUsed).to.be.lt(2500000);
-    }
-
-    await expect(
-      easyGame.processPendingRecycles(3, 5)
-    ).to.be.revertedWithCustomError(easyGame, "InvalidRecycleBatch");
-  });
-
-  it("keeps ETH and USDC balances equal to pools, fees, and player liabilities", async function () {
-    const { easyGame, usdc, root, first, second, third } =
-      await deployFixture();
-    const players = [root, first, second, third];
-    const easyGameAddress = await easyGame.getAddress();
-    const ethPrice = await easyGame.levelPrices(3);
-    const usdcPrice = await easyGame.levelPricesUsdc(4);
-
-    for (let index = 0; index < players.length; index++) {
-      const inviter =
-        index === 0 ? ethers.ZeroAddress : players[index - 1].address;
-      await easyGame.connect(players[index]).activateLevel(3, inviter, {
-        value: ethPrice,
-        gasLimit: 5000000,
-      });
-
-      await usdc.mint(players[index].address, usdcPrice);
-      await usdc.connect(players[index]).approve(easyGameAddress, usdcPrice);
-      await easyGame
-        .connect(players[index])
-        .activateLevelWithUSDC(4, inviter, { gasLimit: 5000000 });
-    }
-
-    let ethPools = 0n;
-    let usdcPools = 0n;
-    for (let level = 1; level <= 17; level++) {
-      ethPools += await easyGame.matrixPrizePools(level);
-      usdcPools += await easyGame.matrixPrizePoolsUsdc(level);
-    }
-
-    let ethPlayerLiabilities = 0n;
-    let usdcPlayerLiabilities = 0n;
-    for (const player of players) {
-      const state = await easyGame.getPlayer(player.address);
-      ethPlayerLiabilities +=
-        state.claimableReferralBonus +
-        state.claimablePrize +
-        state.pendingPrize;
-      usdcPlayerLiabilities +=
-        (await easyGame.claimableReferralBonusUsdc(player.address)) +
-        (await easyGame.claimablePrizeUsdc(player.address)) +
-        (await easyGame.pendingPrizeUsdc(player.address));
-    }
-
-    const expectedEth =
-      ethPools + (await easyGame.projectFeesAccrued()) + ethPlayerLiabilities;
-    const expectedUsdc =
-      usdcPools +
-      (await easyGame.projectFeesAccruedUsdc()) +
-      usdcPlayerLiabilities;
-
-    expect(await ethers.provider.getBalance(easyGameAddress)).to.equal(
-      expectedEth
-    );
-    expect(await usdc.balanceOf(easyGameAddress)).to.equal(expectedUsdc);
-  });
-
-  });
 
   describe("signed round schedules", function () {
     const roundTypes = {
@@ -761,7 +364,41 @@ describe("EasyGameAdvance", function () {
         freezeLimit: 0,
       });
       await expect(roundManager.initializeRound(config, signature))
-        .to.be.revertedWithCustomError(roundManager, "InvalidRoundCapacity");
+        .to.be.revertedWithCustomError(roundManager, "InvalidFreezeLimit")
+        .withArgs(10, 0);
+    });
+
+    it("derives the freeze immunity limit from the round duration", async function () {
+      const fixture = await deployFixture();
+      const block = await ethers.provider.getBlock("latest");
+      const startsAt = BigInt(block.timestamp - 10);
+      const endsAt = startsAt + 25n * 60n * 60n;
+      const invalid = await signedOpenRound(fixture, {
+        roundId: 1009n,
+        startsAt,
+        endsAt,
+        freezeClosesAt: endsAt,
+        freezeLimit: 10,
+      });
+      await expect(
+        fixture.roundManager.initializeRound(invalid.config, invalid.signature)
+      )
+        .to.be.revertedWithCustomError(
+          fixture.roundManager,
+          "InvalidFreezeLimit"
+        )
+        .withArgs(20, 10);
+
+      const valid = await signedOpenRound(fixture, {
+        roundId: 1010n,
+        startsAt,
+        endsAt,
+        freezeClosesAt: endsAt,
+        freezeLimit: 20,
+      });
+      await expect(
+        fixture.roundManager.initializeRound(valid.config, valid.signature)
+      ).to.emit(fixture.roundManager, "RoundInitialized");
     });
 
     it("supports owner pause, resume, cancellation, and signer rotation", async function () {
@@ -870,7 +507,6 @@ describe("EasyGameAdvance", function () {
       expect(playerRound.totalWeight).to.equal(100);
       expect(stats.prizePoolEth).to.equal((config.ethPrice * 9500n) / 10000n);
       expect(stats.activeCells).to.equal(1);
-      expect(await easyGame.matrixPrizePools(config.level)).to.equal(0);
     });
 
     it("isolates matrix cells and pools between consecutive rounds of one level", async function () {
@@ -927,6 +563,125 @@ describe("EasyGameAdvance", function () {
       expect(stats.prizePoolUsdc).to.equal(
         (config.usdcPrice * 9500n) / 10000n
       );
+    });
+
+    it("keeps ETH round balances equal to pools, fees, and referral liabilities", async function () {
+      const fixture = await deployFixture();
+      const {
+        easyGame,
+        projectWallet,
+        root,
+        first,
+        second,
+        third,
+      } = fixture;
+      const { config, signature } = await signedOpenRound(fixture, {
+        roundId: 3005n,
+      });
+      const entries = [
+        [root, ethers.ZeroAddress],
+        [first, root.address],
+        [second, first.address],
+        [third, second.address],
+      ];
+
+      for (const [player, inviter] of entries) {
+        await easyGame.connect(player).activateRound(
+          config,
+          signature,
+          inviter,
+          { value: config.ethPrice }
+        );
+      }
+
+      const stats = await easyGame.getRoundGameStats(config.roundId);
+      const fees = await easyGame.projectFeesAccrued();
+      const referralLiabilities =
+        (await easyGame.getPlayer(root.address)).claimableReferralBonus +
+        (await easyGame.getPlayer(first.address)).claimableReferralBonus +
+        (await easyGame.getPlayer(second.address)).claimableReferralBonus;
+      const contractBalance = await ethers.provider.getBalance(
+        await easyGame.getAddress()
+      );
+
+      expect(contractBalance).to.equal(config.ethPrice * 4n);
+      expect(stats.prizePoolEth + fees + referralLiabilities).to.equal(
+        contractBalance
+      );
+      const rootState = await easyGame.getPlayer(root.address);
+      expect(rootState.baseWeight).to.equal(100);
+      expect(rootState.referralWeight).to.equal(175);
+      expect(rootState.matrixWeight).to.equal(50);
+      expect(rootState.nftWeight).to.equal(10);
+      expect(rootState.totalWeight).to.equal(335);
+
+      for (const player of [root, first, second]) {
+        if ((await easyGame.getPlayer(player.address)).claimableReferralBonus > 0) {
+          await easyGame.connect(player).claimReferralBonus();
+        }
+      }
+      await expect(easyGame.withdrawProjectFees()).to.changeEtherBalance(
+        projectWallet,
+        fees
+      );
+      expect(await ethers.provider.getBalance(await easyGame.getAddress()))
+        .to.equal(stats.prizePoolEth);
+    });
+
+    it("keeps USDC round balances equal to pools, fees, and referral liabilities", async function () {
+      const fixture = await deployFixture();
+      const {
+        easyGame,
+        usdc,
+        projectWallet,
+        root,
+        first,
+        second,
+        third,
+      } = fixture;
+      const { config, signature } = await signedOpenRound(fixture, {
+        roundId: 3006n,
+      });
+      const entries = [
+        [root, ethers.ZeroAddress],
+        [first, root.address],
+        [second, first.address],
+        [third, second.address],
+      ];
+      const coreAddress = await easyGame.getAddress();
+
+      for (const [player, inviter] of entries) {
+        await usdc.mint(player.address, config.usdcPrice);
+        await usdc.connect(player).approve(coreAddress, config.usdcPrice);
+        await easyGame
+          .connect(player)
+          .activateRoundWithUSDC(config, signature, inviter);
+      }
+
+      const stats = await easyGame.getRoundGameStats(config.roundId);
+      const fees = await easyGame.projectFeesAccruedUsdc();
+      const referralLiabilities =
+        (await easyGame.claimableReferralBonusUsdc(root.address)) +
+        (await easyGame.claimableReferralBonusUsdc(first.address)) +
+        (await easyGame.claimableReferralBonusUsdc(second.address));
+      const contractBalance = await usdc.balanceOf(coreAddress);
+
+      expect(contractBalance).to.equal(config.usdcPrice * 4n);
+      expect(stats.prizePoolUsdc + fees + referralLiabilities).to.equal(
+        contractBalance
+      );
+
+      for (const player of [root, first, second]) {
+        if ((await easyGame.claimableReferralBonusUsdc(player.address)) > 0) {
+          await easyGame.connect(player).claimReferralBonusUSDC();
+        }
+      }
+      await expect(easyGame.withdrawProjectFeesUSDC()).to.changeTokenBalance(
+        usdc,
+        projectWallet,
+        fees
+      );
+      expect(await usdc.balanceOf(coreAddress)).to.equal(stats.prizePoolUsdc);
     });
 
     it("fulfills a verified Base Pay transfer without charging the player twice", async function () {

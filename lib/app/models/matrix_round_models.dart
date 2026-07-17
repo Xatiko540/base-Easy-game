@@ -18,7 +18,6 @@ class RoundMatrixStats {
 
 class RoundPlayerState {
   final bool active;
-  final bool frozen;
   final int level;
   final BigInt cellId;
   final BigInt cycleCount;
@@ -26,7 +25,6 @@ class RoundPlayerState {
 
   const RoundPlayerState({
     required this.active,
-    required this.frozen,
     required this.level,
     required this.cellId,
     required this.cycleCount,

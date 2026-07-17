@@ -17,13 +17,6 @@ class _LegendItem {
   const _LegendItem(this.label, this.color, this.icon);
 }
 
-class _TreeNodeSpec {
-  final int cellId;
-  final Offset position;
-
-  const _TreeNodeSpec(this.cellId, this.position);
-}
-
 class _LevelArenaStat {
   final int level;
   final BigInt priceWei;
@@ -64,12 +57,14 @@ class _MatrixArenaSnapshot {
   final BigInt playerWeight;
   final BigInt chanceBps;
   final BigInt boxTokens;
+  final int maxPlayers;
+  final GameRoundPhase phase;
+  final DateTime? freezeClosesAt;
+  final bool freezeWindowOpen;
+  final BigInt freezeTokenPriceUsdc;
   final _MatrixSkillRules skillRules;
   final List<MatrixParticipant> participants;
   final ArenaSkillStatus? playerSkillStatus;
-  final SettlementClaimable settlementClaimable;
-  final bool canSettle;
-  final bool roundSettled;
 
   const _MatrixArenaSnapshot({
     required this.level,
@@ -87,12 +82,14 @@ class _MatrixArenaSnapshot {
     required this.playerWeight,
     required this.chanceBps,
     required this.boxTokens,
+    required this.maxPlayers,
+    required this.phase,
+    required this.freezeClosesAt,
+    required this.freezeWindowOpen,
+    required this.freezeTokenPriceUsdc,
     required this.skillRules,
     required this.participants,
     required this.playerSkillStatus,
-    required this.settlementClaimable,
-    required this.canSettle,
-    required this.roundSettled,
   });
 
   factory _MatrixArenaSnapshot.empty(int level) {
@@ -112,12 +109,14 @@ class _MatrixArenaSnapshot {
       playerWeight: BigInt.zero,
       chanceBps: BigInt.zero,
       boxTokens: BigInt.zero,
+      maxPlayers: 0,
+      phase: GameRoundPhase.uninitialized,
+      freezeClosesAt: null,
+      freezeWindowOpen: false,
+      freezeTokenPriceUsdc: BigInt.zero,
       skillRules: _MatrixSkillRules.empty(),
       participants: const [],
       playerSkillStatus: null,
-      settlementClaimable: SettlementClaimable.zero,
-      canSettle: false,
-      roundSettled: false,
     );
   }
 
@@ -125,9 +124,11 @@ class _MatrixArenaSnapshot {
     if (activeCells == BigInt.zero) {
       return 0;
     }
-    final slots = BigInt.one << level;
-    return activeCells.toDouble() / slots.toDouble() * 100;
+    if (maxPlayers <= 0) return 0;
+    return (activeCells.toDouble() / maxPlayers * 100).clamp(0, 100);
   }
+
+  bool get canUseFreezeSkills => playerActive && freezeWindowOpen;
 
   MatrixParticipant? participantAt(int cellId) {
     for (final participant in participants) {
@@ -138,47 +139,28 @@ class _MatrixArenaSnapshot {
 }
 
 class _MatrixSkillRules {
-  final int roundHours;
   final int freezeLimit;
   final int freezeHitsTaken;
-  final double freezePriceUsd;
-  final double unfreezeBaseUsd;
-  final BigInt unfreezePrizeWei;
 
   const _MatrixSkillRules({
-    required this.roundHours,
     required this.freezeLimit,
     required this.freezeHitsTaken,
-    required this.freezePriceUsd,
-    required this.unfreezeBaseUsd,
-    required this.unfreezePrizeWei,
   });
 
   factory _MatrixSkillRules.fromArena({
-    required BigInt prizePoolWei,
-    required bool playerFrozen,
     int freezeLimit = 10,
     int freezeHitsTaken = 0,
-    int roundHours = 24,
   }) {
     return _MatrixSkillRules(
-      roundHours: roundHours,
       freezeLimit: freezeLimit,
       freezeHitsTaken: freezeHitsTaken,
-      freezePriceUsd: 0.30,
-      unfreezeBaseUsd: 1,
-      unfreezePrizeWei: prizePoolWei * BigInt.from(7) ~/ BigInt.from(100),
     );
   }
 
   factory _MatrixSkillRules.empty() {
     return _MatrixSkillRules(
-      roundHours: 24,
       freezeLimit: 10,
       freezeHitsTaken: 0,
-      freezePriceUsd: 0.30,
-      unfreezeBaseUsd: 1,
-      unfreezePrizeWei: BigInt.zero,
     );
   }
 
@@ -209,27 +191,52 @@ class _StatisticsSnapshot {
   });
 }
 
+class _RoundStatisticsSample {
+  final int level;
+  final BigInt priceWei;
+  final RoundMatrixStats matrix;
+  final bool playerActive;
+  final bool playerFrozen;
+
+  const _RoundStatisticsSample({
+    required this.level,
+    required this.priceWei,
+    required this.matrix,
+    required this.playerActive,
+    required this.playerFrozen,
+  });
+}
+
+class _MemberPreviewRoundState {
+  final bool active;
+  final bool frozen;
+
+  const _MemberPreviewRoundState({
+    this.active = false,
+    this.frozen = false,
+  });
+}
+
 class _MemberPreviewSnapshot {
   final String query;
   final String normalizedAddress;
-  final List<EasyGameLevelState> levels;
+  final List<_MemberPreviewRoundState> rounds;
+  final BigInt claimableEth;
 
   const _MemberPreviewSnapshot({
     required this.query,
     required this.normalizedAddress,
-    required this.levels,
+    required this.rounds,
+    required this.claimableEth,
   });
 
   bool get isWallet => normalizedAddress.isNotEmpty;
 
-  int get activeCount => levels.where((state) => state.active).length;
+  int get activeCount => rounds.where((state) => state.active).length;
 
-  int get frozenCount => levels.where((state) => state.frozen).length;
+  int get frozenCount => rounds.where((state) => state.frozen).length;
 
-  BigInt get earnedWei => levels.fold<BigInt>(
-        BigInt.zero,
-        (sum, state) => sum + state.earnedWei,
-      );
+  BigInt get earnedWei => claimableEth;
 }
 
 class _InfoSplitRow {

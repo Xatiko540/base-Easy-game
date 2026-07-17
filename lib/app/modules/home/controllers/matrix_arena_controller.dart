@@ -2,12 +2,13 @@ part of '../views/utility_screens.dart';
 
 class _MatrixArenaController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
-  final GameSettlementService settlementService =
-      Get.find<GameSettlementService>();
+  final GameRoundsController roundsController = Get.find<GameRoundsController>();
+  final GameClockService clockService = Get.find<GameClockService>();
 
   _MatrixArenaController();
 
   final selectedLevel = 1.obs;
+  final availableLevels = <int>[].obs;
   final snapshot = _MatrixArenaSnapshot.empty(1).obs;
   final isLoading = false.obs;
   final isSkillActionRunning = false.obs;
@@ -16,12 +17,19 @@ class _MatrixArenaController extends GetxController {
 
   Worker? _connectionWorker;
   Worker? _addressWorker;
+  Worker? _chainWorker;
   Worker? _scheduleWorker;
+  Worker? _timelineWorker;
+  int _loadRequest = 0;
 
   @override
   void onInit() {
     super.onInit();
-    _bootstrapArena();
+    final arguments = Get.arguments;
+    final requestedLevel = arguments is Map ? arguments['level'] : null;
+    _bootstrapArena(
+      requestedLevel is num ? requestedLevel.toInt() : null,
+    );
     _connectionWorker = ever<bool>(
       walletService.isConnected,
       (_) => _bootstrapArena(),
@@ -30,11 +38,19 @@ class _MatrixArenaController extends GetxController {
       walletService.currentAddress,
       (_) => _bootstrapArena(),
     );
+    _chainWorker = ever<int?>(
+      walletService.chainId,
+      (_) => _bootstrapArena(),
+    );
     _scheduleWorker = ever<bool>(
-      Get.find<GameRoundsController>().isScheduleReady,
+      roundsController.isScheduleReady,
       (ready) {
         if (ready) _bootstrapArena();
       },
+    );
+    _timelineWorker = ever<List<GameRoundViewState>>(
+      roundsController.timeline,
+      (_) => _handleTimelineUpdate(),
     );
   }
 
@@ -42,7 +58,10 @@ class _MatrixArenaController extends GetxController {
   void onClose() {
     _connectionWorker?.dispose();
     _addressWorker?.dispose();
+    _chainWorker?.dispose();
     _scheduleWorker?.dispose();
+    _timelineWorker?.dispose();
+    _loadRequest++;
     super.onClose();
   }
 
@@ -55,8 +74,14 @@ class _MatrixArenaController extends GetxController {
     await refreshArena();
   }
 
-  Future<void> _bootstrapArena() async {
-    final initialLevel = await _findInitialLevel();
+  Future<void> _bootstrapArena([int? requestedLevel]) async {
+    _syncAvailableLevels();
+    final hasRequestedRound = requestedLevel != null &&
+        requestedLevel >= 1 &&
+        requestedLevel <= easyGameLevelCount &&
+        roundsController.roundForLevel(requestedLevel) != null;
+    final initialLevel =
+        hasRequestedRound ? requestedLevel : await _findInitialLevel();
     selectedLevel.value = initialLevel;
     await refreshArena();
   }
@@ -67,7 +92,6 @@ class _MatrixArenaController extends GetxController {
       return 1;
     }
 
-    final roundsController = Get.find<GameRoundsController>();
     final levels = roundsController.roundsByLevel.keys.toList()
       ..sort((left, right) => right.compareTo(left));
     for (final level in levels) {
@@ -88,70 +112,64 @@ class _MatrixArenaController extends GetxController {
   }
 
   Future<void> refreshArena() async {
+    final request = ++_loadRequest;
     isLoading.value = true;
     errorMessage.value = '';
     try {
-      snapshot.value = await _load(selectedLevel.value);
+      final next = await _load(selectedLevel.value);
+      if (request != _loadRequest) return;
+      snapshot.value = next;
+      _validateSelectedOpponent(next);
     } catch (error) {
-      snapshot.value = _MatrixArenaSnapshot.empty(selectedLevel.value);
+      if (request != _loadRequest) return;
       errorMessage.value = '$error';
     } finally {
-      isLoading.value = false;
+      if (request == _loadRequest) isLoading.value = false;
     }
   }
 
   Future<_MatrixArenaSnapshot> _load(int level) async {
-    final round = Get.find<GameRoundsController>().roundForLevel(level);
+    final round = roundsController.roundForLevel(level);
     if (round == null) return _MatrixArenaSnapshot.empty(level);
     final roundId = BigInt.from(round.schedule.roundId);
-    final stats = await walletService.getRoundMatrixStats(roundId);
+    final baseValues = await Future.wait<Object>([
+      walletService.getRoundMatrixStats(roundId),
+      walletService.getArenaFreezeTokenPriceUsdc(),
+    ]);
+    final stats = baseValues[0] as RoundMatrixStats;
+    final freezeTokenPriceUsdc = baseValues[1] as BigInt;
     RoundPlayerState? playerRound;
     ArenaSkillStatus? playerSkill;
     EasyGamePlayerSummary? player;
-    var settlementClaimable = SettlementClaimable.zero;
     if (walletService.isConnected.value) {
-      playerRound = await walletService.getRoundPlayerState(roundId);
-      player = await walletService.getEasyGamePlayerSummary();
+      final playerValues = await Future.wait<Object>([
+        walletService.getRoundPlayerState(roundId),
+        walletService.getEasyGamePlayerSummary(),
+      ]);
+      playerRound = playerValues[0] as RoundPlayerState;
+      player = playerValues[1] as EasyGamePlayerSummary;
       if (playerRound.active) {
         playerSkill = await walletService.getArenaSkillStatus(roundId);
       }
-      try {
-        settlementClaimable = await settlementService.getClaimable();
-      } catch (_) {}
     }
     final count = math.min(stats.activeCells.toInt(), 15);
-    final participants = <MatrixParticipant>[];
-    for (var cell = 1; cell <= count; cell++) {
-      final node = await walletService.getRoundMatrixNode(
-        roundId,
-        BigInt.from(cell),
-      );
-      final summary = await walletService.getEasyGamePlayerSummary(
-        playerAddress: node.player,
-      );
-      ArenaSkillStatus? skill;
-      try {
-        skill = await walletService.getArenaSkillStatus(
-          roundId,
-          playerAddress: node.player,
-        );
-      } catch (_) {}
-      participants.add(MatrixParticipant(
-        cellId: node.cellId,
-        wallet: node.player,
-        isCurrentPlayer: node.player.toLowerCase() ==
-            walletService.currentAddress.value.toLowerCase(),
-        isInvited: player != null &&
-            summary.inviter.toLowerCase() ==
-                walletService.currentAddress.value.toLowerCase(),
-        skillStatus: skill,
-      ));
-    }
+    final participantResults = await Future.wait([
+      for (var cell = 1; cell <= count; cell++)
+        _loadParticipant(roundId, cell),
+    ]);
+    final participants = participantResults
+        .whereType<MatrixParticipant>()
+        .toList(growable: false);
     final playerWeight = playerRound?.totalWeight ?? BigInt.zero;
     final chanceBps = stats.totalWeight == BigInt.zero
         ? BigInt.zero
         : playerWeight * BigInt.from(10000) ~/ stats.totalWeight;
-    final duration = round.schedule.endsAt.difference(round.schedule.startsAt);
+    final now = clockService.chainTime.value.toUtc();
+    final freezeWindowOpen = round.isConfigurationTrusted &&
+        (round.phase == GameRoundPhase.open ||
+            round.phase == GameRoundPhase.locked) &&
+        !now.isBefore(round.schedule.startsAt.toUtc()) &&
+        now.isBefore(round.schedule.freezeClosesAt.toUtc());
 
     return _MatrixArenaSnapshot(
       level: level,
@@ -169,23 +187,80 @@ class _MatrixArenaController extends GetxController {
       playerWeight: playerWeight,
       chanceBps: chanceBps,
       boxTokens: player?.boxTokens ?? BigInt.zero,
+      maxPlayers: round.schedule.maxPlayers,
+      phase: round.phase,
+      freezeClosesAt: round.schedule.freezeClosesAt,
+      freezeWindowOpen: freezeWindowOpen,
+      freezeTokenPriceUsdc: freezeTokenPriceUsdc,
       skillRules: _MatrixSkillRules.fromArena(
-        prizePoolWei: stats.prizePoolEth,
-        playerFrozen: playerSkill?.frozen ?? false,
         freezeLimit: round.schedule.freezeLimit,
         freezeHitsTaken: playerSkill?.freezeHits ?? 0,
-        roundHours: duration.inHours,
       ),
       participants: participants,
       playerSkillStatus: playerSkill,
-      settlementClaimable: settlementClaimable,
-      canSettle: walletService.isConnected.value &&
-          round.phase == GameRoundPhase.settlementReady,
-      roundSettled: round.phase == GameRoundPhase.settled,
     );
   }
 
+  Future<MatrixParticipant?> _loadParticipant(
+    BigInt roundId,
+    int cell,
+  ) async {
+    try {
+      final node = await walletService.getRoundMatrixNode(
+        roundId,
+        BigInt.from(cell),
+      );
+      if (_isZeroAddress(node.player)) return null;
+      final values = await Future.wait<Object?>([
+        _safePlayerSummary(node.player),
+        _safeSkillStatus(roundId, node.player),
+      ]);
+      final summary = values[0] as EasyGamePlayerSummary?;
+      final skill = values[1] as ArenaSkillStatus?;
+      final current = walletService.currentAddress.value.toLowerCase();
+      return MatrixParticipant(
+        cellId: node.cellId,
+        wallet: node.player,
+        isCurrentPlayer:
+            current.isNotEmpty && node.player.toLowerCase() == current,
+        isInvited: current.isNotEmpty &&
+            summary?.inviter.toLowerCase() == current,
+        skillStatus: skill,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<EasyGamePlayerSummary?> _safePlayerSummary(String player) async {
+    try {
+      return await walletService.getEasyGamePlayerSummary(
+        playerAddress: player,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<ArenaSkillStatus?> _safeSkillStatus(
+    BigInt roundId,
+    String player,
+  ) async {
+    try {
+      return await walletService.getArenaSkillStatus(
+        roundId,
+        playerAddress: player,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> buyFreezeSkill() async {
+    if (!snapshot.value.canUseFreezeSkills) {
+      _showMessage('matrix.freezeSkillTitle'.tr, 'matrix.freezeUnavailable'.tr);
+      return;
+    }
     await _runSkillAction(
       () => walletService.buyArenaFreezeToken(snapshot.value.roundId),
       'matrix.freezeSkillTitle'.tr,
@@ -193,11 +268,23 @@ class _MatrixArenaController extends GetxController {
   }
 
   Future<void> freezeClosestOpponent() async {
+    if (!snapshot.value.canUseFreezeSkills) {
+      _showMessage(
+        'matrix.freezeOpponentTitle'.tr,
+        'matrix.freezeUnavailable'.tr,
+      );
+      return;
+    }
     String? target =
         selectedOpponent.value.isNotEmpty ? selectedOpponent.value : null;
+    final selected = _participantByWallet(target);
+    if (selected?.isCurrentPlayer == true || selected?.skillStatus?.immune == true) {
+      target = null;
+    }
     if (target == null) {
       for (final participant in snapshot.value.participants) {
-        if (!participant.isCurrentPlayer) {
+        if (!participant.isCurrentPlayer &&
+            participant.skillStatus?.immune != true) {
           target = participant.wallet;
           break;
         }
@@ -220,22 +307,67 @@ class _MatrixArenaController extends GetxController {
     );
   }
 
-  Future<void> settleRound() async {
-    await _runSkillAction(
-      () => settlementService.settleRound(snapshot.value.roundId),
-      'matrix.settleRoundTitle'.tr,
-    );
-    await Get.find<GameRoundBlockchainService>().refreshAll();
+  void selectOpponent(String wallet) {
+    final participant = _participantByWallet(wallet);
+    if (participant == null ||
+        participant.isCurrentPlayer ||
+        participant.skillStatus?.immune == true) {
+      return;
+    }
+    selectedOpponent.value = wallet;
   }
 
-  Future<void> claimSettlementPrize() async {
-    await _runSkillAction(
-      settlementService.claimPrize,
-      'matrix.claimSettlementTitle'.tr,
-    );
+  MatrixParticipant? _participantByWallet(String? wallet) {
+    if (wallet == null || wallet.isEmpty) return null;
+    final normalized = wallet.toLowerCase();
+    for (final participant in snapshot.value.participants) {
+      if (participant.wallet.toLowerCase() == normalized) return participant;
+    }
+    return null;
   }
 
-  void selectOpponent(String wallet) => selectedOpponent.value = wallet;
+  void _validateSelectedOpponent(_MatrixArenaSnapshot next) {
+    final normalized = selectedOpponent.value.toLowerCase();
+    if (normalized.isEmpty) return;
+    final valid = next.participants.any(
+      (participant) =>
+          participant.wallet.toLowerCase() == normalized &&
+          !participant.isCurrentPlayer &&
+          participant.skillStatus?.immune != true,
+    );
+    if (!valid) selectedOpponent.value = '';
+  }
+
+  void _syncAvailableLevels() {
+    final levels = roundsController.roundsByLevel.keys.toList()..sort();
+    final unchanged = availableLevels.length == levels.length &&
+        List.generate(levels.length, (index) => index)
+            .every((index) => availableLevels[index] == levels[index]);
+    if (!unchanged) {
+      availableLevels.assignAll(levels);
+    }
+  }
+
+  void _handleTimelineUpdate() {
+    _syncAvailableLevels();
+    final round = roundsController.roundForLevel(selectedLevel.value);
+    final nextRoundId = round?.schedule.roundId ?? 0;
+    final now = clockService.chainTime.value.toUtc();
+    final nextFreezeOpen = round != null &&
+        round.isConfigurationTrusted &&
+        (round.phase == GameRoundPhase.open ||
+            round.phase == GameRoundPhase.locked) &&
+        now.isBefore(round.schedule.freezeClosesAt.toUtc());
+    if (snapshot.value.roundId != BigInt.from(nextRoundId) ||
+        snapshot.value.phase !=
+            (round?.phase ?? GameRoundPhase.uninitialized) ||
+        snapshot.value.freezeWindowOpen != nextFreezeOpen) {
+      refreshArena();
+    }
+  }
+
+  bool _isZeroAddress(String address) =>
+      RegExp(r'^0x0{40}$', caseSensitive: false).hasMatch(address);
 
   Future<void> _runSkillAction(
     Future<String> Function() action,
