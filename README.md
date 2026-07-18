@@ -210,16 +210,22 @@ Second-line inviter weight: +50
 Third-line inviter weight:  +25
 ```
 
-The contract tracks total level weight:
+Every 100 accepted referral-weight units grant one additional on-chain matrix
+ticket. A direct referral grants a position immediately; two second-line or four
+third-line credits accumulate into one position. Extra positions increase the
+chance of occupying a precommitted winning cell. If several eligible winning
+cell owners exist, their capped round weights determine their prize-pool shares.
+
+The contract tracks total round weight:
 
 ```solidity
-totalWeightByLevel[level]
+roundTotalWeight[roundId]
 ```
 
-A player’s weighted chance is calculated conceptually as:
+A player’s weight share is calculated as:
 
 ```text
-player weight in level / total weight in level
+player weight in round / total weight in round
 ```
 
 Example:
@@ -228,7 +234,7 @@ Example:
 Player level weight: 1,000
 Total level weight: 100,000
 
-Player chance = 1,000 / 100,000 = 1%
+Player weight share = 1,000 / 100,000 = 1%
 ```
 
 ---
@@ -261,6 +267,9 @@ The owner cannot withdraw:
 - Player pending prize rewards.
 
 This keeps project revenue separated from player-reserved balances.
+Core and Round Manager system addresses are permanently pinned during deployment
+with `finalizeSystemContracts()`, so the owner cannot later substitute a custom
+settlement contract to redirect prize pools.
 
 ---
 
@@ -293,12 +302,14 @@ Prize pool     = reserved for player rewards
 
 ## Weight and draw safety
 
-Each level tracks player weight and total level weight.
+Each round tracks player weight and total round weight. Winner cells remain
+precommitted through a Merkle root; referral weight also creates extra matrix
+positions, so it now affects the chance of reaching one of those cells.
 
-Conceptual formula:
+Prize-share weight formula:
 
 ```text
-Player chance = playerLevelWeight / totalWeightByLevel
+Player weight share = playerRoundWeight / roundTotalWeight
 ```
 
 The previous block-based pseudo-random draw is disabled because block values are

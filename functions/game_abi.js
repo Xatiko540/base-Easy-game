@@ -5,11 +5,16 @@ const CORE_LINK_ABI = [
   "function roundManager() view returns (address)",
   "function settlementContract() view returns (address)",
   "function usdcToken() view returns (address)",
+  "function systemContractsFinalized() view returns (bool)",
 ];
 
 const ROUND_MANAGER_LINK_ABI = [
   "function gameCore() view returns (address)",
   "function arenaSkills() view returns (address)",
+  "function settlementContract() view returns (address)",
+  "function systemContractsFinalized() view returns (bool)",
+  "function getSeasonState(uint256 seasonId) view returns (tuple(bytes32 configRoot,uint64 firstStartsAt,uint64 lastEndsAt,bool committed))",
+  "function getCommittedRoundHash(uint256 seasonId,uint8 level) view returns (bytes32)",
 ];
 
 const ARENA_SKILLS_LINK_ABI = [

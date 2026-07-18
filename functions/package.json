@@ -6,12 +6,11 @@
     "node": "22"
   },
   "scripts": {
-    "lint": "node --check index.js && node --check game_abi.js && node --check round_merkle.js && node --check test_contract_abi.js && node --check test_auth_source.js",
-    "test": "node test_round_merkle.js && node test_contract_abi.js && node test_auth_source.js",
+    "lint": "node --check index.js && node --check game_abi.js && node --check round_merkle.js && node --check round_season_manifest.js && node --check test_contract_abi.js && node --check test_auth_source.js && node --check test_round_season_manifest.js",
+    "test": "node test_round_merkle.js && node test_round_season_manifest.js && node test_contract_abi.js && node test_auth_source.js",
     "test:emulator": "node test_emulator.js",
     "serve": "npx -y firebase-tools@latest emulators:start --only functions,firestore",
-    "deploy": "npx -y firebase-tools@latest deploy --only functions,firestore",
-    "publish:test-schedule": "node --env-file=../.env publish_base_sepolia_schedule.js"
+    "deploy": "npx -y firebase-tools@latest deploy --only functions,firestore"
   },
   "dependencies": {
     "ethers": "^6.15.0",

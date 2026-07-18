@@ -43,6 +43,12 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         uint256 indexed roundId,
         uint256 totalWeight
     );
+    event ReferralBonusPositionGranted(
+        address indexed player,
+        uint256 indexed roundId,
+        uint256 indexed cellId,
+        uint256 tickets
+    );
 
     function _activateRoundState(
         RoundConfig calldata config,
@@ -183,8 +189,8 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         uint256 roundId,
         uint256 amount,
         uint8 weightType
-    ) internal {
-        if (amount == 0 || !playerRounds[playerAddress][roundId].active) return;
+    ) internal returns (uint256 accepted) {
+        if (amount == 0 || !playerRounds[playerAddress][roundId].active) return 0;
         WeightBreakdown storage breakdown = _roundWeights[playerAddress][roundId];
         PlayerRound storage state = playerRounds[playerAddress][roundId];
         uint256 current;
@@ -202,9 +208,9 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
             current = breakdown.nftWeight;
             cap = MAX_NFT_WEIGHT_PER_LEVEL;
         }
-        uint256 accepted = _acceptedWeight(current, amount, cap);
+        accepted = _acceptedWeight(current, amount, cap);
         accepted = _acceptedWeight(state.totalWeight, accepted, MAX_TOTAL_WEIGHT_PER_LEVEL);
-        if (accepted == 0) return;
+        if (accepted == 0) return 0;
 
         Player storage player = players[playerAddress];
         if (weightType == 0) {
@@ -255,6 +261,7 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         Player storage player = players[playerAddress];
         _creditRoundReferral(
             config.roundId,
+            config.level,
             player.inviter,
             directAmount,
             DIRECT_REF_WEIGHT,
@@ -262,6 +269,7 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         );
         _creditRoundReferral(
             config.roundId,
+            config.level,
             player.secondLine,
             secondAmount,
             SECOND_REF_WEIGHT,
@@ -269,6 +277,7 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         );
         _creditRoundReferral(
             config.roundId,
+            config.level,
             player.thirdLine,
             thirdAmount,
             THIRD_REF_WEIGHT,
@@ -291,6 +300,7 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
 
     function _creditRoundReferral(
         uint256 roundId,
+        uint8 level,
         address inviter,
         uint256 amount,
         uint256 weight,
@@ -303,6 +313,43 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         }
         if (paidWithUsdc) claimableReferralBonusUsdc[inviter] += amount;
         else players[inviter].claimableReferralBonus += amount;
-        _addRoundWeight(inviter, roundId, weight, 1);
+        uint256 accepted = _addRoundWeight(inviter, roundId, weight, 1);
+        _grantReferralBonusPositions(roundId, level, inviter, accepted);
+    }
+
+    /// @dev Every accumulated 100 referral-weight points grant one additional
+    /// deterministic matrix ticket. This makes referrals increase the actual
+    /// probability of occupying a precommitted winning cell, while preserving
+    /// auditable left-to-right placement.
+    function _grantReferralBonusPositions(
+        uint256 roundId,
+        uint8 level,
+        address playerAddress,
+        uint256 acceptedWeight
+    ) private {
+        if (acceptedWeight == 0) return;
+        uint256 accumulated =
+            roundReferralWeightRemainder[playerAddress][roundId] +
+            acceptedWeight;
+        uint256 positions = accumulated / DIRECT_REF_WEIGHT;
+        roundReferralWeightRemainder[playerAddress][roundId] =
+            accumulated % DIRECT_REF_WEIGHT;
+
+        PlayerRound storage state = playerRounds[playerAddress][roundId];
+        for (uint256 i = 0; i < positions; i++) {
+            state.tickets += 1;
+            players[playerAddress].totalTickets += 1;
+            uint256 cellId = _placeRoundPlayer(
+                roundId,
+                level,
+                playerAddress
+            );
+            emit ReferralBonusPositionGranted(
+                playerAddress,
+                roundId,
+                cellId,
+                state.tickets
+            );
+        }
     }
 }

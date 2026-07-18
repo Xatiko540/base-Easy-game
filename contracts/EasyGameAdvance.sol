@@ -50,6 +50,7 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, AdminInterface, RoundGameLog
         bytes calldata signature,
         address inviter
     ) external payable nonReentrant {
+        if (!systemContractsFinalized) revert SystemContractsNotFinalized();
         if (msg.value != config.ethPrice || config.ethPrice == 0) {
             revert IncorrectRoundPayment();
         }
@@ -68,6 +69,7 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, AdminInterface, RoundGameLog
         bytes calldata signature,
         address inviter
     ) external nonReentrant {
+        if (!systemContractsFinalized) revert SystemContractsNotFinalized();
         if (config.usdcPrice == 0) revert RoundUsdcDisabled();
         if (!usdcToken.transferFrom(msg.sender, address(this), config.usdcPrice)) {
             revert TokenTransferFailed();
@@ -203,6 +205,7 @@ contract EasyGameAdvance is EasyGameAdvanceStorage, AdminInterface, RoundGameLog
         nonReentrant
         returns (uint256 ethAmount, uint256 usdcAmount)
     {
+        if (!systemContractsFinalized) revert SystemContractsNotFinalized();
         require(msg.sender == settlementContract, "Only settlement");
         require(
             IEasyGameRoundManager(roundManager).getRoundPhase(roundId) ==

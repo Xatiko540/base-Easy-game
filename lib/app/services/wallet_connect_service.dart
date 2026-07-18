@@ -156,6 +156,8 @@ class WalletConnectService extends GetxService {
   final paymentStatus = PaymentFlowStatus.idle.obs;
   final paymentStatusMessage = ''.obs;
   final lastGasEstimate = Rxn<BigInt>();
+  final isAppKitModalOpen = false.obs;
+  final isOpeningOnRamp = false.obs;
 
   // --- Public derived properties ---
   bool get hasEthereumInjected => false;
@@ -202,6 +204,8 @@ class WalletConnectService extends GetxService {
   AppNetworkConfig get currentNetwork =>
       activeNetwork.value ?? _networkForChainId(chainId.value);
 
+  bool get isFiatOnRampAvailable => targetBaseChainId == baseMainnetChainId;
+
   static const AppNetworkConfig baseMainnet = AppNetworkConfig(
     chainId: baseMainnetChainId,
     chainName: 'Base',
@@ -229,6 +233,7 @@ class WalletConnectService extends GetxService {
   Timer? _balanceRefreshTimer;
   Timer? _receiptPollTimer;
   Future<void>? _wagmiInitialization;
+  StreamSubscription<wagmi.AppKitState>? _appKitStateSubscription;
 
   VoidCallback? _unwatchAccount;
   VoidCallback? _unwatchChainId;
@@ -261,6 +266,7 @@ class WalletConnectService extends GetxService {
     _unwatchAccount?.call();
     _unwatchChainId?.call();
     _unwatchConnections?.call();
+    unawaited(_appKitStateSubscription?.cancel());
     _balanceRefreshTimer?.cancel();
     _receiptPollTimer?.cancel();
     for (final w in _balanceIdentityWorkers) {
@@ -285,7 +291,9 @@ class WalletConnectService extends GetxService {
           wagmi.Chain.baseSepolia.id,
         ],
         enableAnalytics: false,
-        enableOnRamp: false,
+        // Fiat on-ramp purchases real assets and must not be exposed while the
+        // game targets Base Sepolia. Testnet funding uses the Base faucet.
+        enableOnRamp: targetBaseChainId == baseMainnetChainId,
         metadata: wagmi.AppKitMetadata(
           name: 'Easy Game',
           description: 'Easy Game - Decentralized Lottery',
@@ -302,6 +310,15 @@ class WalletConnectService extends GetxService {
         ],
         featuredWalletIds: [],
       );
+
+      await _appKitStateSubscription?.cancel();
+      _appKitStateSubscription = wagmi.AppKit.state.listen((state) {
+        final wasOpen = isAppKitModalOpen.value;
+        isAppKitModalOpen.value = state.open;
+        if (wasOpen && !state.open && isConnected.value) {
+          _scheduleBalanceForCurrentIdentity();
+        }
+      });
 
       await _setupWatchers();
       await _restoreConnection();
@@ -329,6 +346,25 @@ class WalletConnectService extends GetxService {
     });
     _wagmiInitialization = initialization;
     return initialization;
+  }
+
+  Future<void> openEthOnRamp() async {
+    if (isOpeningOnRamp.value) return;
+    if (!isFiatOnRampAvailable) {
+      throw StateError('Fiat on-ramp is available on Base Mainnet only.');
+    }
+    await ensureInitialized();
+    if (!isConnected.value) {
+      await connectWallet();
+    }
+    await ensureBaseNetwork();
+
+    isOpeningOnRamp.value = true;
+    try {
+      await wagmi.AppKit.openBuyCrypto();
+    } finally {
+      isOpeningOnRamp.value = false;
+    }
   }
 
   Future<void> _setupWatchers() async {
@@ -1053,7 +1089,10 @@ class WalletConnectService extends GetxService {
     );
   }
 
-  Future<GameRoundChainState> getEasyGameRoundState(BigInt roundId) async {
+  Future<GameRoundChainState> getEasyGameRoundState(
+    GameRoundSchedule schedule,
+  ) async {
+    final roundId = BigInt.from(schedule.roundId);
     final manager = await resolveRoundManagerAddress();
     final values = await Future.wait<dynamic>([
       _readContract(
@@ -1065,26 +1104,46 @@ class WalletConnectService extends GetxService {
       _readContract(
         artifactName: 'EasyGameRoundManager',
         contractAddress: manager,
-        functionName: 'getRoundConfig',
+        functionName: 'getRoundPhase',
         args: [roundId],
       ),
       _readContract(
         artifactName: 'EasyGameRoundManager',
         contractAddress: manager,
-        functionName: 'getRoundPhase',
-        args: [roundId],
+        functionName: 'getSeasonState',
+        args: [BigInt.from(schedule.seasonId)],
+      ),
+      _readContract(
+        artifactName: 'EasyGameRoundManager',
+        contractAddress: manager,
+        functionName: 'getCommittedRoundHash',
+        args: [
+          BigInt.from(schedule.seasonId),
+          BigInt.from(schedule.level),
+        ],
       ),
     ]);
     final state = values[0];
-    final config = values[1];
-    if (state is List &&
-        state.length >= 8 &&
-        config is List &&
-        config.length >= 12) {
+    final season = values[2];
+    final initialized = state is List && state.length >= 8 && state[4] == true;
+    final config = initialized
+        ? await _readContract(
+            artifactName: 'EasyGameRoundManager',
+            contractAddress: manager,
+            functionName: 'getRoundConfig',
+            args: [roundId],
+          )
+        : null;
+    if (state is List && state.length >= 8) {
       final initializedAtSeconds = state[1] as BigInt? ?? BigInt.zero;
       return GameRoundChainState(
         roundId: roundId,
         configHash: state[0]?.toString() ?? '',
+        committedConfigHash: values[3]?.toString() ?? '',
+        seasonConfigRoot:
+            season is List && season.isNotEmpty ? '${season[0]}' : '',
+        seasonCommitted:
+            season is List && season.length >= 4 && season[3] == true,
         initializedAt: initializedAtSeconds > BigInt.zero
             ? DateTime.fromMillisecondsSinceEpoch(
                 initializedAtSeconds.toInt() * 1000,
@@ -1097,14 +1156,23 @@ class WalletConnectService extends GetxService {
         settled: state[5] as bool? ?? false,
         cancelled: state[6] as bool? ?? false,
         paused: state[7] as bool? ?? false,
-        ethPriceWei: config[10] as BigInt? ?? BigInt.zero,
-        usdcPrice: config[11] as BigInt? ?? BigInt.zero,
-        phase: GameRoundPhase.values[(values[2] as BigInt).toInt()],
+        ethPriceWei: config is List && config.length >= 12
+            ? config[10] as BigInt? ?? BigInt.zero
+            : BigInt.zero,
+        usdcPrice: config is List && config.length >= 12
+            ? config[11] as BigInt? ?? BigInt.zero
+            : BigInt.zero,
+        phase: GameRoundPhase.values[(values[1] as BigInt).toInt()],
       );
     }
     return GameRoundChainState(
       roundId: roundId,
       configHash: '',
+      committedConfigHash: values[3]?.toString() ?? '',
+      seasonConfigRoot:
+          season is List && season.isNotEmpty ? '${season[0]}' : '',
+      seasonCommitted:
+          season is List && season.length >= 4 && season[3] == true,
       initializedAt: null,
       occupiedCells: BigInt.zero,
       winnersRegistered: BigInt.zero,

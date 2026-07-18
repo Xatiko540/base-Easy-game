@@ -28,6 +28,7 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
     uint64 public constant MIN_LEVEL_OPEN_INTERVAL = 5 hours;
     uint64 public constant MIN_ROUND_DURATION = 1 hours;
     uint32 public constant DIRECT_INVITES_PER_LEVEL = 4;
+    uint8 public constant SEASON_LEVEL_COUNT = 17;
     uint256 public constant MAX_ETH_PRICE = 1_000 ether;
     uint256 public constant MAX_USDC_PRICE = 1_000_000_000 * 1e6;
     uint256 private constant _SECP256K1_HALF_ORDER =
@@ -65,6 +66,98 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         uint32 used,
         uint32 capacity
     );
+    event SeasonCommitted(
+        uint256 indexed seasonId,
+        bytes32 indexed configRoot,
+        uint64 firstStartsAt,
+        uint64 lastEndsAt
+    );
+
+    /// @notice Commits the complete, ordered 17-round season before any round
+    /// can be initialized. Firebase may distribute these manifests, but the
+    /// chain independently verifies completeness, signatures, and spacing.
+    function commitSeason(
+        RoundConfig[] calldata configs,
+        bytes[] calldata signatures
+    ) external returns (bytes32 configRoot) {
+        if (!systemContractsFinalized) revert SystemContractsNotFinalized();
+        if (
+            configs.length != SEASON_LEVEL_COUNT ||
+            signatures.length != SEASON_LEVEL_COUNT
+        ) {
+            revert InvalidSeasonRoundCount(
+                configs.length,
+                SEASON_LEVEL_COUNT
+            );
+        }
+
+        uint256 seasonId = configs[0].seasonId;
+        if (_seasonStates[seasonId].committed) {
+            revert SeasonAlreadyCommitted(seasonId);
+        }
+
+        configRoot = keccak256(
+            abi.encodePacked(seasonId, SEASON_LEVEL_COUNT)
+        );
+        uint64 lastEndsAt = configs[0].endsAt;
+        for (uint256 i = 0; i < SEASON_LEVEL_COUNT; i++) {
+            RoundConfig calldata config = configs[i];
+            uint8 expectedLevel = uint8(i + 1);
+            if (config.level != expectedLevel) {
+                revert InvalidSeasonLevel(expectedLevel, config.level);
+            }
+            if (config.seasonId != seasonId) {
+                revert SeasonRoundConfigMismatch(seasonId, expectedLevel);
+            }
+            if (_committedRoundSeason[config.roundId] != 0) {
+                revert DuplicateSeasonRoundId(config.roundId);
+            }
+            _validateRoundConfig(config);
+            if (
+                !allowedScheduleSigners[
+                    _recoverSigner(
+                        roundConfigDigest(config),
+                        signatures[i]
+                    )
+                ]
+            ) {
+                revert InvalidScheduleSignature();
+            }
+            if (
+                i > 0 &&
+                config.startsAt <
+                    configs[i - 1].startsAt + MIN_LEVEL_OPEN_INTERVAL
+            ) {
+                revert LevelOpeningIntervalTooShort(
+                    seasonId,
+                    expectedLevel - 1,
+                    expectedLevel
+                );
+            }
+            bytes32 configHash = hashRoundConfig(config);
+            _committedRoundSeason[config.roundId] = seasonId;
+            _seasonRoundConfigHashes[seasonId][expectedLevel] = configHash;
+            configRoot = keccak256(
+                abi.encodePacked(configRoot, configHash)
+            );
+            if (config.endsAt > lastEndsAt) {
+                lastEndsAt = config.endsAt;
+            }
+        }
+
+        _seasonStates[seasonId] = SeasonState({
+            configRoot: configRoot,
+            firstStartsAt: configs[0].startsAt,
+            lastEndsAt: lastEndsAt,
+            committed: true
+        });
+        emit SeasonCommitted(
+            seasonId,
+            configRoot,
+            configs[0].startsAt,
+            lastEndsAt
+        );
+    }
 
     function domainSeparator() public view returns (bytes32) {
         return keccak256(
@@ -227,6 +320,23 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         return _roundStates[roundId];
     }
 
+    function getSeasonState(uint256 seasonId)
+        external
+        view
+        returns (SeasonState memory)
+    {
+        return _seasonStates[seasonId];
+    }
+
+    function getCommittedRoundHash(uint256 seasonId, uint8 level)
+        external
+        view
+        returns (bytes32)
+    {
+        Validation.validateLevel(level);
+        return _seasonRoundConfigHashes[seasonId][level];
+    }
+
     function getRoundPhase(uint256 roundId) public view returns (RoundPhase) {
         RoundState storage state = _roundStates[roundId];
         if (!state.initialized) return RoundPhase.Uninitialized;
@@ -256,6 +366,18 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         }
 
         configHash = hashRoundConfig(config);
+        if (!_seasonStates[config.seasonId].committed) {
+            revert SeasonNotCommitted(config.seasonId);
+        }
+        if (
+            _seasonRoundConfigHashes[config.seasonId][config.level] !=
+            configHash
+        ) {
+            revert SeasonRoundConfigMismatch(
+                config.seasonId,
+                config.level
+            );
+        }
         RoundState storage state = _roundStates[config.roundId];
         if (state.initialized) {
             if (state.configHash != configHash) {

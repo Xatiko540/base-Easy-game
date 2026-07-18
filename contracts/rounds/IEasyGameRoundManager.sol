@@ -25,6 +25,16 @@ interface IEasyGameRoundManager {
 
     function markRoundSettled(uint256 roundId, uint16 winnersRegistered) external;
 
+    function getSeasonState(uint256 seasonId)
+        external
+        view
+        returns (SeasonState memory);
+
+    function getCommittedRoundHash(uint256 seasonId, uint8 level)
+        external
+        view
+        returns (bytes32);
+
     function getPlayerSeasonProgress(uint256 seasonId, address player)
         external
         view

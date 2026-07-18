@@ -231,7 +231,7 @@ class AppTranslations extends Translations {
           'levelDetail.totalLevelWeightHint': 'Total level rating: @weight',
           'levelDetail.activeCells': 'Active cells',
           'levelDetail.playerWeight': 'Your rating',
-          'levelDetail.chance': 'Chance',
+          'levelDetail.chance': 'Weight share',
           'levelDetail.boxTokens': 'Box tokens',
           'levelDetail.matrixSnapshot': 'Matrix snapshot',
           'levelDetail.binaryPlacement': 'Binary placement',
@@ -313,7 +313,8 @@ class AppTranslations extends Translations {
           'wallet.connectTitle': 'Connect Wallet',
           'wallet.connectSubtitle': 'Choose how to connect your wallet',
           'wallet.appKit': 'WalletConnect / Reown AppKit',
-          'wallet.appKitDesc': 'Connect with any EVM wallet (MetaMask, Coinbase, Trust, WalletConnect & 300+)',
+          'wallet.appKitDesc':
+              'Connect with any EVM wallet (MetaMask, Coinbase, Trust, WalletConnect & 300+)',
           'wallet.usdcPreparing': 'Preparing USDC contract payment.',
           'wallet.usdcApprove': 'Approve USDC spending in your wallet.',
           'wallet.usdcWaitingApproval': 'Waiting for USDC approval.',
@@ -401,6 +402,14 @@ class AppTranslations extends Translations {
               'Direct USDC activation requires a small Base ETH balance for approval and activation gas.',
           'payment.nativeGasRequired':
               'Keep additional Base ETH in the wallet to pay transaction gas.',
+          'payment.buyEth': 'Add ETH on Base',
+          'payment.buyEthHint':
+              'Buy ETH for the connected wallet through an available on-ramp provider on Base Mainnet. The balance updates automatically after the window closes.',
+          'payment.getTestEth': 'Get Base Sepolia ETH',
+          'payment.getTestEthHint':
+              'This is a test round. Test ETH is free and cannot be purchased. Request it from the Base Sepolia faucet, then return here; the balance updates automatically.',
+          'payment.onRampOpening': 'Opening funding options...',
+          'payment.onRampUnavailable': 'Funding is unavailable',
           'payment.alreadyProcessing': 'A payment is already being processed.',
           'payment.usdcConfigurationMismatch':
               'The configured USDC address does not match the EasyGame contract.',
@@ -872,7 +881,7 @@ class AppTranslations extends Translations {
           'levelDetail.totalLevelWeightHint': 'Общий рейтинг уровня: @weight',
           'levelDetail.activeCells': 'Активные ячейки',
           'levelDetail.playerWeight': 'Ваш рейтинг',
-          'levelDetail.chance': 'Шанс',
+          'levelDetail.chance': 'Доля веса',
           'levelDetail.boxTokens': 'Бокс-токены ',
           'levelDetail.matrixSnapshot': 'Снимок матрицы',
           'levelDetail.binaryPlacement': 'Бинарное размещение',
@@ -954,7 +963,8 @@ class AppTranslations extends Translations {
           'wallet.connectTitle': 'Подключить кошелек',
           'wallet.connectSubtitle': 'Выберите способ подключения кошелька',
           'wallet.appKit': 'WalletConnect / Reown AppKit',
-          'wallet.appKitDesc': 'Подключите любой EVM-кошелек (MetaMask, Coinbase, Trust, WalletConnect и 300+)',
+          'wallet.appKitDesc':
+              'Подключите любой EVM-кошелек (MetaMask, Coinbase, Trust, WalletConnect и 300+)',
           'wallet.usdcPreparing': 'Подготовка USDC-платежа в контракт.',
           'wallet.usdcApprove': 'Подтвердите расход USDC в кошельке.',
           'wallet.usdcWaitingApproval': 'Ожидаем подтверждение USDC approval.',
@@ -1045,6 +1055,14 @@ class AppTranslations extends Translations {
               'Для прямой USDC-активации нужен небольшой баланс Base ETH на gas подтверждения и активации.',
           'payment.nativeGasRequired':
               'Оставьте дополнительный Base ETH в кошельке для оплаты gas транзакции.',
+          'payment.buyEth': 'Пополнить ETH в Base',
+          'payment.buyEthHint':
+              'Купите ETH для подключённого кошелька через доступного on-ramp провайдера в Base Mainnet. После закрытия окна баланс обновится автоматически.',
+          'payment.getTestEth': 'Получить Base Sepolia ETH',
+          'payment.getTestEthHint':
+              'Это тестовый раунд. Тестовый ETH бесплатный и не покупается. Запросите его в Base Sepolia faucet и вернитесь сюда — баланс обновится автоматически.',
+          'payment.onRampOpening': 'Открываем способы пополнения...',
+          'payment.onRampUnavailable': 'Пополнение недоступно',
           'payment.alreadyProcessing': 'Платёж уже обрабатывается.',
           'payment.usdcConfigurationMismatch':
               'Настроенный адрес USDC не совпадает с адресом в контракте EasyGame.',

@@ -27,8 +27,9 @@ Firebase
 
 - контракты определяют деньги, участие, матрицу, вес, freeze и выплаты;
 - `block.timestamp` определяет on-chain фазу раунда;
-- подписанный EIP-712 manifest определяет неизменяемую конфигурацию раунда;
-- Firestore публикует manifest, Merkle proofs и индекс данных для быстрого UI;
+- 17 подписанных EIP-712 manifests образуют единый неизменяемый season commitment;
+- Firestore публикует только уже подтвержденный on-chain сезон, Merkle proofs и
+  индекс данных для быстрого UI;
 - GetX хранит только реактивное клиентское представление;
 - локальный таймер Flutter обновляет надпись countdown, но не открывает раунд.
 
@@ -70,6 +71,13 @@ Production-набор состоит из четырех контрактов:
 - один уровень сезона не получает второй активный manifest;
 - будущий manifest нельзя инициализировать раньше `startsAt`;
 - подпись принадлежит allowlist signer.
+
+До инициализации первого раунда любой пользователь может отправить
+`commitSeason(configs, signatures)`, но контракт примет только полный массив из
+17 подписанных конфигураций, упорядоченных от уровня 1 до 17. Контракт сохраняет
+hash каждого уровня и общий `configRoot`. Поэтому отправитель платит gas, но не
+может изменить расписание или подменить конфигурацию. Отдельный Firestore-документ
+не разрешает вход, пока его hash не совпадает с commitment в Round Manager.
 
 Раунд инициализируется лениво первой допустимой транзакцией после `startsAt`.
 Повторная инициализация допустима только с тем же `configHash`.
@@ -187,7 +195,13 @@ baseWeight + referralWeight + matrixWeight + nftWeight
 - box: +10 NFT weight.
 
 Каждый тип и общий вес имеют caps. Реферальный вес начисляется пригласителю
-только если он сам активен в этом раунде.
+только если он сам активен в этом раунде. Каждые принятые 100 единиц
+реферального веса дают игроку дополнительный ticket и новую позицию в бинарной
+матрице. Остатки +50 и +25 переносятся до следующего начисления. Поэтому
+приглашения дают больше попыток занять одну из заранее зафиксированных winning
+cells. Если победителей несколько, их итоговый вес определяет долю prize pool.
+Показатель `playerWeight / totalWeight` в UI называется «доля веса», а не
+гарантированная вероятность победы.
 
 #### Хранение средств
 
@@ -200,6 +214,12 @@ Core хранит раздельные обязательства:
 Owner может вывести только project fee, и перевод идет на `projectWallet`.
 Реферальные бонусы игрок забирает сам. Prize pool может получить только
 Settlement после завершения раунда и очистки recycle queue.
+
+Адреса Round Manager и Settlement в Core, а также Core, Skills и Settlement в
+Round Manager настраиваются при деплое и затем необратимо блокируются через
+`finalizeSystemContracts()`. После финализации owner не может заменить доверенный
+Settlement и перенаправить prize pools. Изменение этой архитектуры требует нового
+деплоя контрактов.
 
 ### 2.3 EasyGameArenaSkills
 
@@ -273,14 +293,15 @@ Firebase ускоряет UI и управляет доверенной публ
 Manager, Skills, Settlement и USDC, signer и environment. Приватные ключи и
 секреты функция не возвращает.
 
-### publishRoundManifest
+### publishSeasonManifest
 
 - доступна только admin;
-- проверяет round constraints и интервал соседних уровней;
-- строит Merkle tree winning cells;
-- проверяет EIP-712 подпись разрешенного schedule signer;
-- неизменно публикует season, round config, signature, config hash и proofs в
-  Firestore.
+- требует ровно 17 упорядоченных раундов;
+- проверяет constraints, интервалы, Merkle roots и все EIP-712 подписи;
+- вычисляет тот же `configRoot`, что и Solidity;
+- читает commitment из Round Manager и сверяет hash каждого уровня;
+- одной Firestore-транзакцией неизменно публикует season, 17 round configs и
+  winning-cell proofs.
 
 Клиент не может писать manifests согласно Firestore rules.
 
@@ -296,6 +317,18 @@ Admin-проверка перед релизом:
 - bytecode существует по всем четырем адресам и адресу USDC;
 - Core, Manager, Skills и Settlement ссылаются друг на друга;
 - все контракты используют один USDC.
+- Core и Manager уже необратимо финализировали системные адреса.
+
+### Публикация сезона
+
+```text
+1. Создать 17 round configs и Merkle winning cells.
+2. Подписать каждый config разрешенным EIP-712 schedule signer.
+3. SEASON_MANIFEST_PATH=... npm run season:commit -- --network baseSepolia
+4. Дождаться подтверждения SeasonCommitted в Base.
+5. Вызвать admin callable publishSeasonManifest с тем же JSON.
+6. Flutter принимает карточки только при совпадении Firestore и on-chain hashes.
+```
 
 ### trackTransaction
 

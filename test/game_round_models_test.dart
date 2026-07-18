@@ -81,6 +81,9 @@ void main() {
     final chainState = GameRoundChainState(
       roundId: BigInt.from(101),
       configHash: '0x${List.filled(32, 'ff').join()}',
+      committedConfigHash: schedule().configHash,
+      seasonConfigRoot: '0x${List.filled(32, 'aa').join()}',
+      seasonCommitted: true,
       initializedAt: startsAt,
       occupiedCells: BigInt.zero,
       winnersRegistered: BigInt.zero,
@@ -94,6 +97,34 @@ void main() {
     );
     final state = GameRoundViewState.fromSchedule(
       schedule(),
+      startsAt,
+      chainState,
+    );
+    expect(state.isConfigurationTrusted, isFalse);
+    expect(state.canEnter, isFalse);
+  });
+
+  test('uncommitted Firebase manifest cannot enable entry', () {
+    final manifest = schedule();
+    final chainState = GameRoundChainState(
+      roundId: BigInt.from(101),
+      configHash: '',
+      committedConfigHash: '',
+      seasonCommitted: false,
+      initializedAt: null,
+      occupiedCells: BigInt.zero,
+      winnersRegistered: BigInt.zero,
+      initialized: false,
+      settled: false,
+      cancelled: false,
+      paused: false,
+      ethPriceWei: BigInt.zero,
+      usdcPrice: BigInt.zero,
+      phase: GameRoundPhase.uninitialized,
+    );
+
+    final state = GameRoundViewState.fromSchedule(
+      manifest,
       startsAt,
       chainState,
     );

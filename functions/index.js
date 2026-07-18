@@ -7,10 +7,8 @@ const { logger } = require("firebase-functions");
 const {
   Contract,
   JsonRpcProvider,
-  TypedDataEncoder,
   getAddress,
   isAddress,
-  verifyTypedData,
 } = require("ethers");
 const {
   createPublicClient,
@@ -25,7 +23,7 @@ const {
   ARENA_SKILLS_LINK_ABI,
   SETTLEMENT_LINK_ABI,
 } = require("./game_abi");
-const { buildWinningCellTree } = require("./round_merkle");
+const { parseSeasonManifest } = require("./round_season_manifest");
 
 initializeApp();
 
@@ -65,25 +63,6 @@ const region = "us-central1";
 const maxDeviceTokensPerWallet = 10;
 const allowedPlatforms = new Set(["web", "android", "ios", "macos", "windows", "linux"]);
 const zeroAddress = "0x0000000000000000000000000000000000000000";
-const roundTypes = {
-  RoundConfig: [
-    { name: "seasonId", type: "uint256" },
-    { name: "roundId", type: "uint256" },
-    { name: "level", type: "uint8" },
-    { name: "startsAt", type: "uint64" },
-    { name: "entriesCloseAt", type: "uint64" },
-    { name: "endsAt", type: "uint64" },
-    { name: "freezeClosesAt", type: "uint64" },
-    { name: "maxPlayers", type: "uint32" },
-    { name: "maxWinners", type: "uint16" },
-    { name: "winningCellsRoot", type: "bytes32" },
-    { name: "ethPrice", type: "uint256" },
-    { name: "usdcPrice", type: "uint256" },
-    { name: "freezeLimit", type: "uint16" },
-    { name: "paymentSplitVersion", type: "uint16" },
-  ],
-};
-
 function walletVerificationClient() {
   const chainId = Number(chainIdParam.value());
   const endpoint = rpcUrl.value();
@@ -575,8 +554,12 @@ exports.contractSmokeTest = onCall({
     coreRoundManager: (await core.roundManager()).toLowerCase() === normalized.roundManager,
     coreSettlement: (await core.settlementContract()).toLowerCase() === normalized.settlement,
     coreUsdc: (await core.usdcToken()).toLowerCase() === normalized.usdc,
+    coreFinalized: await core.systemContractsFinalized(),
     managerCore: (await manager.gameCore()).toLowerCase() === normalized.core,
     managerSkills: (await manager.arenaSkills()).toLowerCase() === normalized.arenaSkills,
+    managerSettlement:
+      (await manager.settlementContract()).toLowerCase() === normalized.settlement,
+    managerFinalized: await manager.systemContractsFinalized(),
     skillsCore: (await skills.gameCore()).toLowerCase() === normalized.core,
     skillsManager: (await skills.roundManager()).toLowerCase() === normalized.roundManager,
     skillsUsdc: (await skills.usdcToken()).toLowerCase() === normalized.usdc,
@@ -598,168 +581,150 @@ exports.contractSmokeTest = onCall({
   return { ok: true, chainId, addresses, links };
 });
 
-exports.publishRoundManifest = onCall({
+exports.publishSeasonManifest = onCall({
   region,
   enforceAppCheck: true,
+  secrets: [rpcUrl],
+  timeoutSeconds: 120,
 }, async (request) => {
   requireApp(request);
   requireAdmin(request);
   const managerAddress = publicOptionalAddress(roundManagerAddressParam);
   const signerAddress = publicOptionalAddress(roundScheduleSignerParam);
   const coreAddress = publicContractAddress();
+  const chainId = Number(chainIdParam.value());
   if (!managerAddress || !signerAddress || !coreAddress) {
     throw new HttpsError("failed-precondition", "Round deployment config is incomplete");
   }
 
-  const source = request.data?.config;
-  const signature = String(request.data?.signature || "");
-  let winningCells;
+  let season;
   try {
-    winningCells = (request.data?.winningCells || []).map((value) => BigInt(value));
-  } catch (_) {
-    throw new HttpsError("invalid-argument", "Invalid winning cells");
-  }
-  if (!source || !/^0x[0-9a-fA-F]{130}$/.test(signature)) {
-    throw new HttpsError("invalid-argument", "Invalid round config or signature");
-  }
-  const integer = (name) => {
-    try {
-      const value = BigInt(source[name]);
-      if (value < 0n) throw new Error("negative");
-      return value;
-    } catch (_) {
-      throw new HttpsError("invalid-argument", `Invalid ${name}`);
-    }
-  };
-  const config = {
-    seasonId: integer("seasonId"),
-    roundId: integer("roundId"),
-    level: integer("level"),
-    startsAt: integer("startsAt"),
-    entriesCloseAt: integer("entriesCloseAt"),
-    endsAt: integer("endsAt"),
-    freezeClosesAt: integer("freezeClosesAt"),
-    maxPlayers: integer("maxPlayers"),
-    maxWinners: integer("maxWinners"),
-    winningCellsRoot: String(source.winningCellsRoot || ""),
-    ethPrice: integer("ethPrice"),
-    usdcPrice: integer("usdcPrice"),
-    freezeLimit: integer("freezeLimit"),
-    paymentSplitVersion: integer("paymentSplitVersion"),
-  };
-  winningCells.sort((left, right) => left < right ? -1 : left > right ? 1 : 0);
-  if (
-    winningCells.length !== Number(config.maxWinners) ||
-    winningCells.some((cell, index) => cell <= 0n || (index > 0 && cell === winningCells[index - 1]))
-  ) {
-    throw new HttpsError("invalid-argument", "Complete unique winning cells are required");
-  }
-  const winningTree = buildWinningCellTree(config.roundId, winningCells);
-  if (
-    config.level < 1n || config.level > 17n ||
-    config.startsAt >= config.entriesCloseAt ||
-    config.entriesCloseAt >= config.endsAt ||
-    config.freezeClosesAt !== config.endsAt ||
-    config.endsAt - config.startsAt < 3600n ||
-    config.maxPlayers === 0n || config.maxWinners === 0n ||
-    config.maxWinners > 8n || config.freezeLimit === 0n ||
-    config.paymentSplitVersion !== 1n ||
-    !/^0x[0-9a-fA-F]{64}$/.test(config.winningCellsRoot) ||
-    winningTree.root.toLowerCase() !== config.winningCellsRoot.toLowerCase()
-  ) {
-    throw new HttpsError("invalid-argument", "Round constraints are invalid");
-  }
-  const domain = {
-    name: "EasyGameAdvance",
-    version: "2",
-    chainId: Number(chainIdParam.value()),
-    verifyingContract: managerAddress,
-  };
-  let recovered;
-  try {
-    recovered = verifyTypedData(domain, roundTypes, config, signature);
-  } catch (_) {
-    throw new HttpsError("invalid-argument", "Malformed EIP-712 signature");
-  }
-  if (getAddress(recovered) !== getAddress(signerAddress)) {
-    throw new HttpsError("permission-denied", "Invalid schedule signer");
+    season = parseSeasonManifest(request.data, {
+      chainId,
+      managerAddress,
+      signerAddress,
+    });
+  } catch (error) {
+    throw new HttpsError("invalid-argument", String(error?.message || error));
   }
 
-  const configHash = TypedDataEncoder.hashStruct("RoundConfig", roundTypes, config);
-  const roundRef = db.collection("rounds").doc(config.roundId.toString());
-  const seasonRef = db.collection("seasons").doc(config.seasonId.toString());
-  await db.runTransaction(async (transaction) => {
-    const [existing, seasonSnapshot] = await Promise.all([
-      transaction.get(roundRef),
-      transaction.get(seasonRef),
+  const provider = new JsonRpcProvider(rpcUrl.value(), chainId);
+  const manager = new Contract(managerAddress, ROUND_MANAGER_LINK_ABI, provider);
+  let chainSeason;
+  let committedHashes;
+  try {
+    [chainSeason, committedHashes] = await Promise.all([
+      manager.getSeasonState(season.seasonId),
+      Promise.all(season.rounds.map((round) =>
+        manager.getCommittedRoundHash(season.seasonId, round.config.level))),
     ]);
-    if (existing.exists) {
-      throw new HttpsError("already-exists", "Round manifest is immutable");
-    }
-    const season = seasonSnapshot.data() || {};
-    const levelStarts = { ...(season.levelStarts || {}) };
-    const roundIdsByLevel = { ...(season.roundIdsByLevel || {}) };
-    const levelKey = config.level.toString();
-    if (roundIdsByLevel[levelKey]) {
-      throw new HttpsError("already-exists", "Season level is already configured");
-    }
-    const minInterval = 5n * 60n * 60n;
-    const lowerStart = levelStarts[(config.level - 1n).toString()];
-    const upperStart = levelStarts[(config.level + 1n).toString()];
-    if (
-      (lowerStart !== undefined && config.startsAt < BigInt(lowerStart) + minInterval) ||
-      (upperStart !== undefined && BigInt(upperStart) < config.startsAt + minInterval)
-    ) {
+  } catch (error) {
+    logger.error("Season commitment check failed", {
+      seasonId: season.seasonId.toString(),
+      error: String(error?.message || error).slice(0, 500),
+    });
+    throw new HttpsError("unavailable", "Unable to verify on-chain season commitment");
+  }
+  if (!chainSeason.committed || chainSeason.configRoot.toLowerCase() !== season.configRoot.toLowerCase()) {
+    throw new HttpsError(
+      "failed-precondition",
+      "Commit the complete signed season on-chain before publishing it",
+    );
+  }
+  for (let index = 0; index < season.rounds.length; index++) {
+    if (committedHashes[index].toLowerCase() !== season.rounds[index].configHash.toLowerCase()) {
       throw new HttpsError(
         "failed-precondition",
-        "Adjacent levels must open at least five hours apart",
+        `On-chain commitment mismatch for level ${index + 1}`,
       );
     }
-    levelStarts[levelKey] = config.startsAt.toString();
-    roundIdsByLevel[levelKey] = config.roundId.toString();
-    transaction.set(seasonRef, {
-      seasonId: config.seasonId.toString(),
-      chainId: Number(chainIdParam.value()),
+  }
+
+  const seasonRef = db.collection("seasons").doc(season.seasonId.toString());
+  const roundRefs = season.rounds.map((round) =>
+    db.collection("rounds").doc(round.config.roundId.toString()));
+  await db.runTransaction(async (transaction) => {
+    const snapshots = await Promise.all([
+      transaction.get(seasonRef),
+      ...roundRefs.map((reference) => transaction.get(reference)),
+    ]);
+    if (snapshots[0].exists) {
+      throw new HttpsError("already-exists", "Season manifest is immutable");
+    }
+    if (snapshots.slice(1).some((snapshot) => snapshot.exists)) {
+      throw new HttpsError("already-exists", "A committed round is already published");
+    }
+
+    const levelStarts = {};
+    const roundIdsByLevel = {};
+    for (const round of season.rounds) {
+      const levelKey = round.config.level.toString();
+      levelStarts[levelKey] = round.config.startsAt.toString();
+      roundIdsByLevel[levelKey] = round.config.roundId.toString();
+    }
+    transaction.create(seasonRef, {
+      seasonId: season.seasonId.toString(),
+      chainId,
       contractAddress: coreAddress.toLowerCase(),
       roundManagerAddress: managerAddress.toLowerCase(),
+      configRoot: season.configRoot,
+      committedOnChain: true,
+      firstStartsAt: Timestamp.fromMillis(Number(season.firstStartsAt) * 1000),
+      lastEndsAt: Timestamp.fromMillis(Number(season.lastEndsAt) * 1000),
       levelStarts,
       roundIdsByLevel,
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    transaction.create(roundRef, {
-      chainId: Number(chainIdParam.value()),
-      contractAddress: coreAddress.toLowerCase(),
-      roundManagerAddress: managerAddress.toLowerCase(),
-      configHash,
-      operatorSignature: signature,
-      schemaVersion: 2,
-      config: {
-        seasonId: config.seasonId.toString(),
-        roundId: config.roundId.toString(),
-        level: Number(config.level),
-        startsAt: Timestamp.fromMillis(Number(config.startsAt) * 1000),
-        entriesCloseAt: Timestamp.fromMillis(Number(config.entriesCloseAt) * 1000),
-        endsAt: Timestamp.fromMillis(Number(config.endsAt) * 1000),
-        freezeClosesAt: Timestamp.fromMillis(Number(config.freezeClosesAt) * 1000),
-        maxPlayers: Number(config.maxPlayers),
-        maxWinners: Number(config.maxWinners),
-        winningCellsRoot: config.winningCellsRoot,
-        ethPriceWei: config.ethPrice.toString(),
-        usdcPrice: config.usdcPrice.toString(),
-        freezeLimit: Number(config.freezeLimit),
-        paymentSplitVersion: Number(config.paymentSplitVersion),
-      },
+      schemaVersion: 3,
       createdAt: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp(),
     });
-    winningCells.forEach((cellId, index) => {
-      transaction.create(roundRef.collection("winningCells").doc(cellId.toString()), {
-        cellId: cellId.toString(),
-        proof: winningTree.proofs[index],
+
+    season.rounds.forEach((round, roundIndex) => {
+      const config = round.config;
+      const roundRef = roundRefs[roundIndex];
+      transaction.create(roundRef, {
+        chainId,
+        contractAddress: coreAddress.toLowerCase(),
+        roundManagerAddress: managerAddress.toLowerCase(),
+        configHash: round.configHash,
+        seasonConfigRoot: season.configRoot,
+        seasonCommittedOnChain: true,
+        operatorSignature: round.signature,
+        schemaVersion: 3,
+        config: {
+          seasonId: config.seasonId.toString(),
+          roundId: config.roundId.toString(),
+          level: Number(config.level),
+          startsAt: Timestamp.fromMillis(Number(config.startsAt) * 1000),
+          entriesCloseAt: Timestamp.fromMillis(Number(config.entriesCloseAt) * 1000),
+          endsAt: Timestamp.fromMillis(Number(config.endsAt) * 1000),
+          freezeClosesAt: Timestamp.fromMillis(Number(config.freezeClosesAt) * 1000),
+          maxPlayers: Number(config.maxPlayers),
+          maxWinners: Number(config.maxWinners),
+          winningCellsRoot: config.winningCellsRoot,
+          ethPriceWei: config.ethPrice.toString(),
+          usdcPrice: config.usdcPrice.toString(),
+          freezeLimit: Number(config.freezeLimit),
+          paymentSplitVersion: Number(config.paymentSplitVersion),
+        },
         createdAt: FieldValue.serverTimestamp(),
+      });
+      round.winningCells.forEach((cellId, cellIndex) => {
+        transaction.create(
+          roundRef.collection("winningCells").doc(cellId.toString()),
+          {
+            cellId: cellId.toString(),
+            proof: round.proofs[cellIndex],
+            createdAt: FieldValue.serverTimestamp(),
+          },
+        );
       });
     });
   });
-  return { roundId: config.roundId.toString(), configHash };
+  return {
+    seasonId: season.seasonId.toString(),
+    configRoot: season.configRoot,
+    roundIds: season.rounds.map((round) => round.config.roundId.toString()),
+  };
 });
 
 exports.getRoundSettlementProofs = onCall({

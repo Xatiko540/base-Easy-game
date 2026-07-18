@@ -237,9 +237,13 @@ class GameRoundViewState {
       GameRoundSchedule schedule, DateTime chainTime,
       [GameRoundChainState? chainState]) {
     final chainInitialized = chainState?.initialized == true;
-    final configMatches = !chainInitialized ||
-        _normalizedHash(chainState!.configHash) ==
+    final committedConfigMatches = chainState?.seasonCommitted == true &&
+        _normalizedHash(chainState!.committedConfigHash) ==
             _normalizedHash(schedule.configHash);
+    final initializedConfigMatches = !chainInitialized ||
+        (chainState != null &&
+            _normalizedHash(chainState.configHash) ==
+                _normalizedHash(schedule.configHash));
     final phase =
         chainInitialized ? chainState!.phase : schedule.phaseAt(chainTime);
     final deadline = schedule.phaseDeadline(phase);
@@ -251,7 +255,8 @@ class GameRoundViewState {
       phase: phase,
       remaining: remaining.isNegative ? Duration.zero : remaining,
       chainState: chainState,
-      isConfigurationTrusted: configMatches,
+      isConfigurationTrusted:
+          committedConfigMatches && initializedConfigMatches,
     );
   }
 

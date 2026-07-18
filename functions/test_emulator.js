@@ -201,7 +201,8 @@ async function main() {
     assert(src.includes('exports.registerDevice'), 'registerDevice function');
     assert(src.includes('exports.trackTransaction'), 'trackTransaction function');
     assert(src.includes('exports.contractSmokeTest'), 'contractSmokeTest function');
-    assert(src.includes('exports.publishRoundManifest'), 'publishRoundManifest function');
+    assert(src.includes('exports.publishSeasonManifest'), 'publishSeasonManifest function');
+    assert(!src.includes('exports.publishRoundManifest'), 'single-round publisher removed');
     assert(src.includes('exports.getRoundSettlementProofs'), 'getRoundSettlementProofs function');
     assert(!/^exports\.syncGameEvents\s*=/m.test(src), 'syncGameEvents worker disabled');
     assert(!/^exports\.confirmTransactions\s*=/m.test(src), 'confirmTransactions worker disabled');

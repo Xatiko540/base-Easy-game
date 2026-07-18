@@ -236,6 +236,24 @@ class ActivateExpressGameScreen extends StatelessWidget {
                             ),
                           ),
                         ],
+                        if (paymentController.needsEthFunding) ...[
+                          const SizedBox(height: 12),
+                          _OnRampButton(
+                            loading: walletService.isOpeningOnRamp.value,
+                            label: paymentController
+                                .fundingButtonTranslationKey.tr,
+                            onPressed: paymentController.openEthFunding,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            paymentController.fundingHintTranslationKey.tr,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white60,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                         const SizedBox(height: 8),
                         _PaymentStateLine(
                           icon: _statusIcon(walletService.paymentStatus.value),
@@ -472,6 +490,58 @@ class ActivateExpressGameScreen extends StatelessWidget {
       return hash;
     }
     return '${hash.substring(0, 8)}...${hash.substring(hash.length - 6)}';
+  }
+}
+
+class _OnRampButton extends StatelessWidget {
+  const _OnRampButton({
+    required this.loading,
+    required this.label,
+    required this.onPressed,
+  });
+
+  final bool loading;
+  final String label;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF8B20D7), Color(0xFF4B69EA), Color(0xFF0EC8BD)],
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: TextButton.icon(
+          onPressed: loading ? null : onPressed,
+          icon: loading
+              ? const SizedBox.square(
+                  dimension: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(CupertinoIcons.creditcard, color: Colors.white),
+          label: Text(
+            loading ? 'payment.onRampOpening'.tr : label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          style: TextButton.styleFrom(
+            minimumSize: const Size(double.infinity, 48),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }
 

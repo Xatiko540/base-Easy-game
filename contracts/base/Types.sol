@@ -83,6 +83,13 @@ struct RoundState {
     bool paused;
 }
 
+struct SeasonState {
+    bytes32 configRoot;
+    uint64 firstStartsAt;
+    uint64 lastEndsAt;
+    bool committed;
+}
+
 struct PlayerRound {
     bool active;
     uint8 level;

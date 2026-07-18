@@ -34,6 +34,7 @@ abstract contract EasyGameAdvanceStorage {
     address public operatorWallet;
     address public roundManager;
     address public settlementContract;
+    bool public systemContractsFinalized;
     IERC20Minimal public usdcToken;
 
     mapping(uint8 => bool) public levelAvailable;
@@ -49,6 +50,7 @@ abstract contract EasyGameAdvanceStorage {
     mapping(uint256 => uint256) public roundPrizePools;
     mapping(uint256 => uint256) public roundPrizePoolsUsdc;
     mapping(address => mapping(uint256 => WeightBreakdown)) internal _roundWeights;
+    mapping(address => mapping(uint256 => uint256)) public roundReferralWeightRemainder;
     mapping(uint256 => mapping(uint256 => address)) internal _roundRecycleQueue;
     mapping(uint256 => uint256) internal _roundRecycleHead;
     mapping(uint256 => uint256) internal _roundRecycleTail;

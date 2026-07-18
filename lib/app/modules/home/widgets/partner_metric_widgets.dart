@@ -32,7 +32,7 @@ class _PartnerMetricGrid extends StatelessWidget {
         value: data.totalWeight == BigInt.zero
             ? '0%'
             : '${((data.referralWeight.toDouble() / data.totalWeight.toDouble()) * 100).clamp(0, 100).toStringAsFixed(0)}%',
-        delta: '+ chance',
+        delta: '+ weight',
         color: Colors.greenAccent,
       ),
       _PartnerMetricCard(

@@ -13,6 +13,7 @@ abstract contract AdminInterface is EasyGameAdvanceStorage {
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event RoundManagerChanged(address indexed oldManager, address indexed newManager);
     event SettlementContractChanged(address indexed oldSettlement, address indexed newSettlement);
+    event SystemContractsFinalized(address indexed roundManager, address indexed settlementContract);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -52,6 +53,7 @@ abstract contract AdminInterface is EasyGameAdvanceStorage {
     }
 
     function setRoundManager(address newManager) external onlyOwner {
+        if (systemContractsFinalized) revert SystemContractsAlreadyFinalized();
         if (newManager == address(0)) revert ZeroAddress();
         address oldManager = roundManager;
         roundManager = newManager;
@@ -59,10 +61,28 @@ abstract contract AdminInterface is EasyGameAdvanceStorage {
     }
 
     function setSettlementContract(address newSettlement) external onlyOwner {
+        if (systemContractsFinalized) revert SystemContractsAlreadyFinalized();
         if (newSettlement == address(0)) revert ZeroAddress();
         address oldSettlement = settlementContract;
         settlementContract = newSettlement;
         emit SettlementContractChanged(oldSettlement, newSettlement);
+    }
+
+    /// @notice Permanently pins the manager and settlement trust boundary.
+    /// A new implementation requires a new deployment; prize pools can no
+    /// longer be redirected by changing an authorized contract address.
+    function finalizeSystemContracts() external onlyOwner {
+        if (systemContractsFinalized) revert SystemContractsAlreadyFinalized();
+        _requireDeployedContract(roundManager);
+        _requireDeployedContract(settlementContract);
+        systemContractsFinalized = true;
+        emit SystemContractsFinalized(roundManager, settlementContract);
+    }
+
+    function _requireDeployedContract(address target) private view {
+        if (target == address(0) || target.code.length == 0) {
+            revert InvalidSystemContract(target);
+        }
     }
 
     function getPlayer(address playerAddress) external view returns (Player memory) {

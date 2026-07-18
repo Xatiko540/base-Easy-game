@@ -24,7 +24,9 @@ describe("EasyGameAdvance", function () {
     const usdc = await MockUSDC.deploy();
     await usdc.waitForDeployment();
 
-    const RoundManager = await ethers.getContractFactory("EasyGameRoundManager");
+    const RoundManager = await ethers.getContractFactory(
+      "EasyGameRoundManagerTestHarness"
+    );
     const roundManager = await RoundManager.deploy(operatorWallet.address);
     await roundManager.waitForDeployment();
 
@@ -59,6 +61,8 @@ describe("EasyGameAdvance", function () {
     await settlement.waitForDeployment();
     await easyGame.setSettlementContract(await settlement.getAddress());
     await roundManager.setSettlementContract(await settlement.getAddress());
+    await easyGame.finalizeSystemContracts();
+    await roundManager.finalizeSystemContracts();
 
     return {
       easyGame,
@@ -192,6 +196,9 @@ describe("EasyGameAdvance", function () {
         roundTypes,
         config
       );
+      if (fixture.roundManager.forceCommitRoundConfig) {
+        await fixture.roundManager.forceCommitRoundConfig(config);
+      }
       return { config, signature, domain };
     }
 
@@ -204,6 +211,12 @@ describe("EasyGameAdvance", function () {
         freezeClosesAt: BigInt(block.timestamp + 3600),
         ...overrides,
       });
+    }
+
+    async function drainRoundWork(easyGame, roundId) {
+      while ((await easyGame.getRoundRecycleQueueState(roundId)).pending > 0n) {
+        await easyGame.processRoundRecycles(roundId, 64);
+      }
     }
 
     it("lazily initializes a signed round and keeps its config immutable", async function () {
@@ -244,7 +257,10 @@ describe("EasyGameAdvance", function () {
       );
       await expect(
         roundManager.initializeRound(changed, changedSignature)
-      ).to.be.revertedWithCustomError(roundManager, "RoundConfigMismatch");
+      ).to.be.revertedWithCustomError(
+        roundManager,
+        "SeasonRoundConfigMismatch"
+      );
     });
 
     it("derives phases from block timestamp at exact boundaries", async function () {
@@ -285,6 +301,7 @@ describe("EasyGameAdvance", function () {
         level: 6,
       });
       const future = await signedRound(fixture, {
+        seasonId: 2n,
         roundId: 1011n,
         level: 6,
         startsAt: BigInt(block.timestamp + 5000),
@@ -474,6 +491,112 @@ describe("EasyGameAdvance", function () {
         .to.be.revertedWithCustomError(easyGame, "UsdcTokenLocked");
     });
 
+    it("permanently pins all contracts that can release prize pools", async function () {
+      const fixture = await deployFixture();
+      const { easyGame, roundManager, outsider } = fixture;
+
+      expect(await easyGame.systemContractsFinalized()).to.equal(true);
+      expect(await roundManager.systemContractsFinalized()).to.equal(true);
+      await expect(easyGame.setSettlementContract(outsider.address))
+        .to.be.revertedWithCustomError(
+          easyGame,
+          "SystemContractsAlreadyFinalized"
+        );
+      await expect(easyGame.setRoundManager(outsider.address))
+        .to.be.revertedWithCustomError(
+          easyGame,
+          "SystemContractsAlreadyFinalized"
+        );
+      await expect(roundManager.setSettlementContract(outsider.address))
+        .to.be.revertedWithCustomError(
+          roundManager,
+          "SystemContractsAlreadyFinalized"
+        );
+      await expect(roundManager.setGameCore(outsider.address))
+        .to.be.revertedWithCustomError(
+          roundManager,
+          "SystemContractsAlreadyFinalized"
+        );
+      await expect(roundManager.setArenaSkills(outsider.address))
+        .to.be.revertedWithCustomError(
+          roundManager,
+          "SystemContractsAlreadyFinalized"
+        );
+    });
+
+    it("commits and validates the complete 17-round season on-chain", async function () {
+      const fixture = await deployFixture();
+      const { roundManager, operatorWallet } = fixture;
+      const block = await ethers.provider.getBlock("latest");
+      const network = await ethers.provider.getNetwork();
+      const domain = {
+        name: "EasyGameAdvance",
+        version: "2",
+        chainId: network.chainId,
+        verifyingContract: await roundManager.getAddress(),
+      };
+      const seasonId = 9901n;
+      const configs = [];
+      const signatures = [];
+      for (let level = 1; level <= 17; level++) {
+        const startsAt = BigInt(block.timestamp + 100 + (level - 1) * 18000);
+        const config = {
+          seasonId,
+          roundId: seasonId * 100n + BigInt(level),
+          level,
+          startsAt,
+          entriesCloseAt: startsAt + 1800n,
+          endsAt: startsAt + 3600n,
+          freezeClosesAt: startsAt + 3600n,
+          maxPlayers: 1024,
+          maxWinners: 1,
+          winningCellsRoot: ethers.keccak256(
+            ethers.toUtf8Bytes(`season-${seasonId}-level-${level}`)
+          ),
+          ethPrice: ethers.parseEther("0.01"),
+          usdcPrice: 10_000n,
+          freezeLimit: 10,
+          paymentSplitVersion: 1,
+        };
+        configs.push(config);
+        signatures.push(
+          await operatorWallet.signTypedData(domain, roundTypes, config)
+        );
+      }
+
+      await expect(roundManager.commitSeason(configs, signatures))
+        .to.emit(roundManager, "SeasonCommitted");
+      const season = await roundManager.getSeasonState(seasonId);
+      expect(season.committed).to.equal(true);
+      expect(season.firstStartsAt).to.equal(configs[0].startsAt);
+      expect(season.lastEndsAt).to.equal(configs[16].endsAt);
+      for (const config of configs) {
+        expect(
+          await roundManager.getCommittedRoundHash(seasonId, config.level)
+        ).to.equal(await roundManager.hashRoundConfig(config));
+      }
+      await expect(roundManager.commitSeason(configs, signatures))
+        .to.be.revertedWithCustomError(roundManager, "SeasonAlreadyCommitted")
+        .withArgs(seasonId);
+
+      const secondSeasonId = seasonId + 1n;
+      const reusedRoundConfigs = configs.map((config) => ({
+        ...config,
+        seasonId: secondSeasonId,
+      }));
+      const reusedRoundSignatures = [];
+      for (const config of reusedRoundConfigs) {
+        reusedRoundSignatures.push(
+          await operatorWallet.signTypedData(domain, roundTypes, config)
+        );
+      }
+      await expect(
+        roundManager.commitSeason(reusedRoundConfigs, reusedRoundSignatures)
+      )
+        .to.be.revertedWithCustomError(roundManager, "DuplicateSeasonRoundId")
+        .withArgs(reusedRoundConfigs[0].roundId);
+    });
+
     it("activates an open ETH round and keeps accounting round-scoped", async function () {
       const fixture = await deployFixture();
       const { easyGame, roundManager, root } = fixture;
@@ -496,6 +619,38 @@ describe("EasyGameAdvance", function () {
       expect(playerRound.totalWeight).to.equal(100);
       expect(stats.prizePoolEth).to.equal((config.ethPrice * 9500n) / 10000n);
       expect(stats.activeCells).to.equal(1);
+    });
+
+    it("turns each accumulated 100 referral weight into a bonus matrix ticket", async function () {
+      const fixture = await deployFixture();
+      const { easyGame, root, first } = fixture;
+      const { config, signature } = await signedOpenRound(fixture, {
+        roundId: 2010n,
+      });
+      await easyGame.connect(root).activateRound(
+        config,
+        signature,
+        ethers.ZeroAddress,
+        { value: config.ethPrice }
+      );
+      await expect(
+        easyGame.connect(first).activateRound(
+          config,
+          signature,
+          root.address,
+          { value: config.ethPrice }
+        )
+      ).to.emit(easyGame, "ReferralBonusPositionGranted");
+
+      const rootRound = await easyGame.getPlayerRound(
+        root.address,
+        config.roundId
+      );
+      expect(rootRound.tickets).to.equal(2);
+      expect(rootRound.cellId).to.equal(3);
+      expect(
+        (await easyGame.getRoundGameStats(config.roundId)).activeCells
+      ).to.equal(3);
     });
 
     it("isolates matrix cells and pools between consecutive rounds of one level", async function () {
@@ -600,9 +755,9 @@ describe("EasyGameAdvance", function () {
       const rootState = await easyGame.getPlayer(root.address);
       expect(rootState.baseWeight).to.equal(100);
       expect(rootState.referralWeight).to.equal(175);
-      expect(rootState.matrixWeight).to.equal(50);
-      expect(rootState.nftWeight).to.equal(10);
-      expect(rootState.totalWeight).to.equal(335);
+      expect(rootState.matrixWeight).to.equal(100);
+      expect(rootState.nftWeight).to.equal(20);
+      expect(rootState.totalWeight).to.equal(395);
 
       for (const player of [root, first, second]) {
         if ((await easyGame.getPlayer(player.address)).claimableReferralBonus > 0) {
@@ -844,21 +999,46 @@ describe("EasyGameAdvance", function () {
         });
       }
       const pool = (await easyGame.getRoundGameStats(roundId)).prizePoolEth;
-      const rootWeight = (await easyGame.getPlayerRound(root.address, roundId))
-        .totalWeight;
-      const secondWeight = (await easyGame.getPlayerRound(second.address, roundId))
-        .totalWeight;
-      const winnerWeight = rootWeight + secondWeight;
-      const secondShare = (pool * secondWeight) / winnerWeight;
-      const rootShare = pool - secondShare;
       await ethers.provider.send("evm_setNextBlockTimestamp", [Number(config.endsAt)]);
       await ethers.provider.send("evm_mine", []);
+      await drainRoundWork(easyGame, roundId);
+      const winners = [];
+      const nextCell = (await easyGame.getRoundGameStats(roundId)).nextCell;
+      for (const cellId of winningCells) {
+        if (cellId >= nextCell) continue;
+        const node = await easyGame.getRoundMatrixNode(roundId, cellId);
+        if (!winners.some(({ address }) => address === node.player)) {
+          winners.push({
+            address: node.player,
+            weight: (await easyGame.getPlayerRound(node.player, roundId))
+              .totalWeight,
+          });
+        }
+      }
+      const totalWinnerWeight = winners.reduce(
+        (sum, winner) => sum + winner.weight,
+        0n
+      );
+      const expectedShares = new Map();
+      let allocated = 0n;
+      for (const winner of winners) {
+        const share = (pool * winner.weight) / totalWinnerWeight;
+        expectedShares.set(winner.address, share);
+        allocated += share;
+      }
+      expectedShares.set(
+        winners[0].address,
+        expectedShares.get(winners[0].address) + pool - allocated
+      );
 
       await expect(settlement.settleRound(roundId, winningCells, tree.proofs))
         .to.emit(settlement, "RoundPrizeAllocated")
-        .withArgs(roundId, config.level, 2, pool, 0);
-      expect(await settlement.claimableEth(root.address)).to.equal(rootShare);
-      expect(await settlement.claimableEth(second.address)).to.equal(secondShare);
+        .withArgs(roundId, config.level, winners.length, pool, 0);
+      for (const player of [root, first, second]) {
+        expect(await settlement.claimableEth(player.address)).to.equal(
+          expectedShares.get(player.address) ?? 0n
+        );
+      }
       expect((await roundManager.getRoundState(roundId)).settled).to.equal(true);
       expect((await easyGame.getRoundGameStats(roundId)).prizePoolEth).to.equal(0);
     });
@@ -896,6 +1076,7 @@ describe("EasyGameAdvance", function () {
       const pool = (await easyGame.getRoundGameStats(roundId)).prizePoolEth;
       await ethers.provider.send("evm_setNextBlockTimestamp", [Number(config.endsAt)]);
       await ethers.provider.send("evm_mine", []);
+      await drainRoundWork(easyGame, roundId);
       await expect(settlement.settleRound(roundId, winningCells, tree.proofs))
         .to.emit(settlement, "FrozenWinnerSkipped")
         .withArgs(roundId, 1, root.address);

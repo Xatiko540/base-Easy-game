@@ -84,6 +84,9 @@ void main() {
     final chainState = GameRoundChainState(
       roundId: BigInt.from(501),
       configHash: manifestRound.schedule.configHash,
+      committedConfigHash: manifestRound.schedule.configHash,
+      seasonConfigRoot: '0x${List.filled(32, 'aa').join()}',
+      seasonCommitted: true,
       initializedAt: startsAt,
       occupiedCells: BigInt.zero,
       winnersRegistered: BigInt.zero,

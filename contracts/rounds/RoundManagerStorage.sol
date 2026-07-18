@@ -17,6 +17,7 @@ abstract contract RoundManagerStorage {
     mapping(address => bool) public allowedScheduleSigners;
     address public gameCore;
     address public arenaSkills;
+    bool public systemContractsFinalized;
 
     mapping(uint256 => RoundConfig) internal _roundConfigs;
     mapping(uint256 => RoundState) internal _roundStates;
@@ -27,4 +28,8 @@ abstract contract RoundManagerStorage {
     mapping(uint256 => mapping(address => bool)) public roundEntryRegistered;
     mapping(uint256 => mapping(address => mapping(address => bool)))
         public directInviteRegistered;
+    mapping(uint256 => SeasonState) internal _seasonStates;
+    mapping(uint256 => mapping(uint8 => bytes32))
+        internal _seasonRoundConfigHashes;
+    mapping(uint256 => uint256) internal _committedRoundSeason;
 }

@@ -7,6 +7,7 @@
     "preflight:base-sepolia": "hardhat run scripts/preflight-base-sepolia.js --network baseSepolia",
     "deploy:base-sepolia": "hardhat run scripts/deploy.js --network baseSepolia",
     "deploy:ganache": "hardhat run scripts/deploy.js --network localhost",
+    "season:commit": "hardhat run scripts/commit-season.js",
     "smoke:ganache": "hardhat run scripts/smoke-ganache.js --network localhost",
     "test:contracts": "hardhat test test/EasyGame.js",
     "serve:web:base": "node scripts/serve-web-with-base-headers.js"

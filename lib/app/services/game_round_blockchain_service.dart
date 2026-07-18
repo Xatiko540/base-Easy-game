@@ -60,9 +60,7 @@ class GameRoundBlockchainService extends GetxService {
         final batch = selected.sublist(offset, end);
         final results = await Future.wait(batch.map((schedule) async {
           try {
-            final state = await _walletService.getEasyGameRoundState(
-              BigInt.from(schedule.roundId),
-            );
+            final state = await _walletService.getEasyGameRoundState(schedule);
             return MapEntry(schedule.roundId, state);
           } catch (error) {
             errors.add('${schedule.roundId}: $error');

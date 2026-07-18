@@ -229,6 +229,14 @@ async function main() {
     "RoundManager.setSettlementContract",
     await roundManager.setSettlementContract(settlementAddress)
   );
+  await recordTransaction(
+    "EasyGameAdvance.finalizeSystemContracts",
+    await easyGame.finalizeSystemContracts()
+  );
+  await recordTransaction(
+    "RoundManager.finalizeSystemContracts",
+    await roundManager.finalizeSystemContracts()
+  );
 
   if (hre.ethers.getAddress(adminOwner) !== hre.ethers.getAddress(deployer.address)) {
     await recordTransaction(

@@ -5,6 +5,7 @@ import 'package:lottery_advance/app/modules/home/controllers/game_rounds_control
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
+import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 
 class RoundPaymentController extends GetxController {
   RoundPaymentController({
@@ -54,6 +55,40 @@ class RoundPaymentController extends GetxController {
     return balance >= amountUnits;
   }
 
+  bool get needsEthFunding {
+    if (!walletService.isConnected.value) return false;
+    final nativeWei = walletService.nativeBalanceWei.value;
+    if (nativeWei == null) return false;
+    if (paysWithUsdc) return nativeWei <= BigInt.zero;
+    return nativeWei <= amountUnits;
+  }
+
+  bool get usesTestnetFaucet => !walletService.isFiatOnRampAvailable;
+
+  String get fundingButtonTranslationKey =>
+      usesTestnetFaucet ? 'payment.getTestEth' : 'payment.buyEth';
+
+  String get fundingHintTranslationKey =>
+      usesTestnetFaucet ? 'payment.getTestEthHint' : 'payment.buyEthHint';
+
+  Future<void> openEthFunding() async {
+    try {
+      if (usesTestnetFaucet) {
+        await UiNavigationService.openExternal(
+          'https://www.ethereum-ecosystem.com/faucets/base-sepolia',
+        );
+        return;
+      }
+      await walletService.openEthOnRamp();
+    } catch (error) {
+      Get.snackbar(
+        'payment.onRampUnavailable'.tr,
+        error.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
   bool get isProcessing => walletService.isPaying.value;
   bool get canSubmit =>
       !isProcessing &&
@@ -85,6 +120,11 @@ class RoundPaymentController extends GetxController {
       ever<int?>(walletService.chainId, (_) => _refreshWalletState()),
       ever<BigInt?>(walletService.nativeBalanceWei, (balance) {
         if (!paysWithUsdc) availableBalanceUnits.value = balance;
+      }),
+      ever<bool>(walletService.isAppKitModalOpen, (isOpen) {
+        if (!isOpen && walletService.isConnected.value) {
+          _refreshWalletState();
+        }
       }),
     ]);
     _refreshRound();

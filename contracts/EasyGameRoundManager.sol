@@ -15,6 +15,11 @@ contract EasyGameRoundManager is RoundScheduleLogic {
     event RoundCancelled(uint256 indexed roundId);
     event SettlementContractChanged(address indexed oldSettlement, address indexed newSettlement);
     event RoundSettled(uint256 indexed roundId, uint16 winnersRegistered);
+    event SystemContractsFinalized(
+        address indexed gameCore,
+        address indexed arenaSkills,
+        address indexed settlementContract
+    );
 
     address public settlementContract;
 
@@ -31,6 +36,7 @@ contract EasyGameRoundManager is RoundScheduleLogic {
     }
 
     function setGameCore(address newCore) external onlyOwner {
+        if (systemContractsFinalized) revert SystemContractsAlreadyFinalized();
         if (newCore == address(0)) revert ZeroAddress();
         address oldCore = gameCore;
         gameCore = newCore;
@@ -38,6 +44,7 @@ contract EasyGameRoundManager is RoundScheduleLogic {
     }
 
     function setArenaSkills(address newSkills) external onlyOwner {
+        if (systemContractsFinalized) revert SystemContractsAlreadyFinalized();
         if (newSkills == address(0)) revert ZeroAddress();
         address oldSkills = arenaSkills;
         arenaSkills = newSkills;
@@ -45,13 +52,32 @@ contract EasyGameRoundManager is RoundScheduleLogic {
     }
 
     function setSettlementContract(address newSettlement) external onlyOwner {
+        if (systemContractsFinalized) revert SystemContractsAlreadyFinalized();
         if (newSettlement == address(0)) revert ZeroAddress();
         address oldSettlement = settlementContract;
         settlementContract = newSettlement;
         emit SettlementContractChanged(oldSettlement, newSettlement);
     }
 
+    /// @notice Permanently pins the contracts that may register entries,
+    /// report freeze state, and settle prize pools.
+    function finalizeSystemContracts() external onlyOwner {
+        if (systemContractsFinalized) revert SystemContractsAlreadyFinalized();
+        _requireDeployedContract(gameCore);
+        _requireDeployedContract(arenaSkills);
+        _requireDeployedContract(settlementContract);
+        systemContractsFinalized = true;
+        emit SystemContractsFinalized(gameCore, arenaSkills, settlementContract);
+    }
+
+    function _requireDeployedContract(address target) private view {
+        if (target == address(0) || target.code.length == 0) {
+            revert InvalidSystemContract(target);
+        }
+    }
+
     function markRoundSettled(uint256 roundId, uint16 winnersRegistered) external {
+        if (!systemContractsFinalized) revert SystemContractsNotFinalized();
         require(msg.sender == settlementContract, "Only settlement");
         RoundState storage state = _roundStates[roundId];
         if (!state.initialized) revert RoundNotInitialized(roundId);

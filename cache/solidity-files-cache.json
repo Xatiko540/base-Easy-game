@@ -2,8 +2,8 @@
   "_format": "hh-sol-cache-2",
   "files": {
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameAdvance.sol": {
-      "lastModificationDate": 1784219285132,
-      "contentHash": "e52410086ed4860660f2f7f3867f2582",
+      "lastModificationDate": 1784407407351,
+      "contentHash": "ff9922d8e395981eb42475db115a2b1e",
       "sourceName": "contracts/EasyGameAdvance.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -46,8 +46,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/Errors.sol": {
-      "lastModificationDate": 1784221771635,
-      "contentHash": "51a225a1f59472405a57ea3ddea4ce4e",
+      "lastModificationDate": 1784407406556,
+      "contentHash": "b9d7e120a92add814973e9511076df41",
       "sourceName": "contracts/base/Errors.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -81,8 +81,8 @@
       "artifacts": []
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/Storage.sol": {
-      "lastModificationDate": 1784221771475,
-      "contentHash": "2cbc0dc0aabef4728abadba15ebcd9de",
+      "lastModificationDate": 1784407406716,
+      "contentHash": "274a2198ded3e3e70de243078809402a",
       "sourceName": "contracts/base/Storage.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -120,8 +120,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/Types.sol": {
-      "lastModificationDate": 1784221771314,
-      "contentHash": "2a8885708d010617a5108496eb0b81f6",
+      "lastModificationDate": 1784407406391,
+      "contentHash": "38d25e2760bb1352db12b6b88df981c1",
       "sourceName": "contracts/base/Types.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -157,8 +157,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/RoundGameLogic.sol": {
-      "lastModificationDate": 1784221771798,
-      "contentHash": "54280d8784f1328d1699f684a5d9fdd6",
+      "lastModificationDate": 1784407503069,
+      "contentHash": "dd183f62fe60c1bb3401c490968bc480",
       "sourceName": "contracts/base/RoundGameLogic.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -200,8 +200,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/AdminInterface.sol": {
-      "lastModificationDate": 1784219246936,
-      "contentHash": "f9f0b1b2229d9d251a5ad662120af8d9",
+      "lastModificationDate": 1784407406876,
+      "contentHash": "01f06341f1984c0b7cdcd5028fcd942a",
       "sourceName": "contracts/base/AdminInterface.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -242,8 +242,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/rounds/IEasyGameRoundManager.sol": {
-      "lastModificationDate": 1784152412624,
-      "contentHash": "54f16ca2eb5beaf2650ba1ea2ddb9a53",
+      "lastModificationDate": 1784407407508,
+      "contentHash": "5b04a0d2263ced5a400b8284924106c8",
       "sourceName": "contracts/rounds/IEasyGameRoundManager.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -398,8 +398,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/rounds/RoundManagerStorage.sol": {
-      "lastModificationDate": 1784152412296,
-      "contentHash": "e69d6531586c5738a44793a58115fb15",
+      "lastModificationDate": 1784409682203,
+      "contentHash": "7b870b2586017bb0e7e54a81ea9a5d4e",
       "sourceName": "contracts/rounds/RoundManagerStorage.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -437,8 +437,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/RoundScheduleLogic.sol": {
-      "lastModificationDate": 1784221771956,
-      "contentHash": "baacbd50783715448062406b38fcd027",
+      "lastModificationDate": 1784409702574,
+      "contentHash": "03a9f72ae5ba7d7cd21716112f6566c5",
       "sourceName": "contracts/base/RoundScheduleLogic.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -480,8 +480,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameRoundManager.sol": {
-      "lastModificationDate": 1784152412946,
-      "contentHash": "5ce707c30bff6794a9aca8107528ecc0",
+      "lastModificationDate": 1784407503232,
+      "contentHash": "4cd2e83e24d88e52f317225c2b27a465",
       "sourceName": "contracts/EasyGameRoundManager.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -562,46 +562,6 @@
         "IEasyGameSettlementCore"
       ]
     },
-    "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameBasePayGateway.sol": {
-      "lastModificationDate": 1784133381306,
-      "contentHash": "fbbee306b45cb8f28ecf70880131790b",
-      "sourceName": "contracts/EasyGameBasePayGateway.sol",
-      "solcConfig": {
-        "version": "0.8.24",
-        "settings": {
-          "viaIR": true,
-          "optimizer": {
-            "enabled": true,
-            "runs": 1
-          },
-          "evmVersion": "paris",
-          "outputSelection": {
-            "*": {
-              "*": [
-                "abi",
-                "evm.bytecode",
-                "evm.deployedBytecode",
-                "evm.methodIdentifiers",
-                "metadata"
-              ],
-              "": [
-                "ast"
-              ]
-            }
-          }
-        }
-      },
-      "imports": [
-        "./base/Types.sol"
-      ],
-      "versionPragmas": [
-        "^0.8.24"
-      ],
-      "artifacts": [
-        "EasyGameBasePayGateway",
-        "IEasyGameBasePayCore"
-      ]
-    },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameArenaSkills.sol": {
       "lastModificationDate": 1784138187402,
       "contentHash": "f4d20739fe85e8f69c5cf46f536f45f4",
@@ -678,6 +638,45 @@
       ],
       "artifacts": [
         "MockUSDC"
+      ]
+    },
+    "/Users/xatiko/StudioProjects/base-Easy-game/contracts/test/EasyGameRoundManagerTestHarness.sol": {
+      "lastModificationDate": 1784407529304,
+      "contentHash": "effa5509d77285da248a52398b63ca7b",
+      "sourceName": "contracts/test/EasyGameRoundManagerTestHarness.sol",
+      "solcConfig": {
+        "version": "0.8.24",
+        "settings": {
+          "viaIR": true,
+          "optimizer": {
+            "enabled": true,
+            "runs": 1
+          },
+          "evmVersion": "paris",
+          "outputSelection": {
+            "*": {
+              "*": [
+                "abi",
+                "evm.bytecode",
+                "evm.deployedBytecode",
+                "evm.methodIdentifiers",
+                "metadata"
+              ],
+              "": [
+                "ast"
+              ]
+            }
+          }
+        }
+      },
+      "imports": [
+        "../EasyGameRoundManager.sol"
+      ],
+      "versionPragmas": [
+        "^0.8.24"
+      ],
+      "artifacts": [
+        "EasyGameRoundManagerTestHarness"
       ]
     }
   }
