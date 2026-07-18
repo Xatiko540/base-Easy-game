@@ -380,9 +380,8 @@ Current Flutter/Web3 behavior:
 - After confirmed activation, the app returns to the levels screen and refreshes state.
 - Payment value is read from and verified against the signed round manifest.
 - Native-token payment is used instead of floating-point ETH conversion.
-- Level activation supports native ETH through `activateRound`, USDC through
-  `activateRoundWithUSDC` after ERC-20 approval, and verified Base Pay through
-  `EasyGameBasePayGateway`.
+- Level activation supports native ETH through `activateRound` and direct USDC
+  through `activateRoundWithUSDC` after ERC-20 approval.
 - Optional Base Builder Code attribution can be appended to calldata through `BASE_BUILDER_DATA_SUFFIX`.
 
 ---

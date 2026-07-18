@@ -6,7 +6,6 @@ const REQUIRED_ROLE_NAMES = [
   "OPERATOR_WALLET",
   "ADMIN_OWNER_ADDRESS",
   "SCHEDULE_SIGNER_ADDRESS",
-  "BASE_PAY_FULFILLER_ADDRESS",
   "SKILL_TREASURY_ADDRESS",
 ];
 
@@ -32,12 +31,6 @@ async function main() {
   const roles = Object.fromEntries(
     REQUIRED_ROLE_NAMES.map((name) => [name, requiredAddress(name)])
   );
-  if (roles.ADMIN_OWNER_ADDRESS === roles.BASE_PAY_FULFILLER_ADDRESS) {
-    throw new Error(
-      "ADMIN_OWNER_ADDRESS and BASE_PAY_FULFILLER_ADDRESS must be different."
-    );
-  }
-
   const usdcAddress = requiredAddress("USDC_ADDRESS");
   const usdcCode = await hre.ethers.provider.getCode(usdcAddress);
   if (usdcCode === "0x") {

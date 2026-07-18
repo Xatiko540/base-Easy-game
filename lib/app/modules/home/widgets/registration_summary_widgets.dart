@@ -4,13 +4,11 @@ class _PaymentSummary extends StatelessWidget {
   final BigInt amount;
   final bool paysWithUsdc;
   final String currencySymbol;
-  final EasyGamePaymentAsset paymentAsset;
 
   const _PaymentSummary({
     required this.amount,
     required this.paysWithUsdc,
     required this.currencySymbol,
-    required this.paymentAsset,
   });
 
   @override
@@ -68,9 +66,7 @@ class _PaymentSummary extends StatelessWidget {
           ),
           _SummaryRow(
             title: 'registration.networkFee'.tr,
-            value: paymentAsset == EasyGamePaymentAsset.basePay
-                ? 'registration.networkFeeSponsored'.tr
-                : 'registration.networkGasExtra'.tr,
+            value: 'registration.networkGasExtra'.tr,
           ),
         ],
       ),

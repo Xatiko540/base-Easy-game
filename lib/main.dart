@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/services/app_config_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
-import 'package:lottery_advance/app/services/wallet_session_store.dart';
 import 'package:lottery_advance/app/services/notifications_service.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
-import 'package:lottery_advance/app/services/base_pay_service.dart';
 import 'package:lottery_advance/app/services/language_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/game_clock_service.dart';
@@ -17,6 +15,7 @@ import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
 import 'package:lottery_advance/app/repositories/game_user_repository.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/controllers/notifications_controller.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/modules/home/views/start_page.dart';
 import 'package:lottery_advance/app/translations/app_translations.dart';
 import 'package:lottery_advance/utils/theme.dart';
@@ -40,24 +39,14 @@ void main() async {
       print("[DEBUG] main: GetStorage initialized.");
     }
 
-    Get.put(WalletSessionStore(), permanent: true);
-
-    if (kDebugMode) {
-      print("[DEBUG] main: Registering WalletConnectService...");
-    }
-    Get.lazyPut<WalletConnectService>(() => WalletConnectService(),
-        fenix: true);
-    if (kDebugMode) {
-      print("[DEBUG] main: WalletConnectService lazyPut completed.");
-    }
-
     final languageService = Get.put(LanguageService(), permanent: true);
     languageService.load();
 
     Get.put(AppConfigService(), permanent: true);
     Get.put(NotificationsService(), permanent: true);
+    Get.put(WalletConnectService(), permanent: true);
     Get.put(FirebaseBackendService(), permanent: true);
-    Get.put(BasePayService(), permanent: true);
+    Get.put(WalletAuthController(), permanent: true);
     Get.put(GameClockService(), permanent: true);
     Get.put(GameScheduleService(), permanent: true);
     Get.put(GameRoundBlockchainService().bind(), permanent: true);

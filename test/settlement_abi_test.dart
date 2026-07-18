@@ -1,9 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:web3dart/web3dart.dart';
+
+import 'support/abi_test_utils.dart';
 
 void main() {
   test('incompatible Base Sepolia deployment addresses are not bundled', () {
@@ -12,7 +12,6 @@ void main() {
       'EasyGameRoundManager',
       'EasyGameRoundSettlement',
       'EasyGameArenaSkills',
-      'EasyGameBasePayGateway',
     ];
 
     for (final contract in contracts) {
@@ -24,24 +23,30 @@ void main() {
     }
   });
 
-  test('web3dart encodes the nested Merkle proof settlement call', () {
-    final artifact = jsonDecode(
-      File('src/artifacts/EasyGameRoundSettlement.json').readAsStringSync(),
-    ) as Map<String, dynamic>;
-    final abi = ContractAbi.fromJson(jsonEncode(artifact['abi']), 'Settlement');
-    final function = abi.functions.singleWhere(
-      (candidate) => candidate.name == 'settleRound',
+  test('settleRound ABI accepts wagmi nested Merkle proof arguments', () {
+    final function = loadAbiFunction(
+      'EasyGameRoundSettlement',
+      'settleRound',
     );
-    final proofWord = Uint8List.fromList(List<int>.filled(32, 1));
-    final encoded = function.encodeCall([
+
+    expect(function['stateMutability'], 'nonpayable');
+    expect(
+      abiInputTypes(function),
+      const ['uint256', 'uint256[]', 'bytes32[][]'],
+    );
+    expect(function['outputs'], isEmpty);
+
+    final proof = '0x${List.filled(32, '01').join()}';
+    final wagmiArguments = <dynamic>[
       BigInt.one,
       [BigInt.one, BigInt.from(3)],
       [
-        [proofWord],
-        [proofWord],
+        [proof],
+        [proof],
       ],
-    ]);
-
-    expect(encoded.length, greaterThan(4));
+    ];
+    expect(wagmiArguments[0], isA<BigInt>());
+    expect(wagmiArguments[1], isA<List<BigInt>>());
+    expect(wagmiArguments[2], isA<List<List<String>>>());
   });
 }

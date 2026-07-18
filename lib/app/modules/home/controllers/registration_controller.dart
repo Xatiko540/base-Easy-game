@@ -7,7 +7,7 @@ import 'package:lottery_advance/app/modules/home/controllers/game_rounds_control
 import 'package:lottery_advance/app/modules/home/views/activate_express_game_screen.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
-import 'package:lottery_advance/app/services/base_pay_service.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 
 class RegistrationController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
@@ -133,25 +133,9 @@ class RegistrationController extends GetxController {
       await walletService.ensureBaseNetwork();
       await _requireOpenRound();
       final price = priceForLevel(selectedLevel.value);
-      if (paymentAsset.value == EasyGamePaymentAsset.basePay) {
-        final basePay = Get.find<BasePayService>();
-        if (!basePay.isAvailable) {
-          throw StateError('payment.basePayUnavailable'.tr);
-        }
-        balanceChecked.value = true;
-        balanceMessage.value = '';
-        selectedPriceUnits.value = price;
-        Get.snackbar(
-          'registration.balanceOk'.tr,
-          'payment.basePayBalanceHint'.tr,
-          snackPosition: SnackPosition.BOTTOM,
-        );
-        return;
-      }
-      final balance = paymentAsset.value == EasyGamePaymentAsset.usdc
-          ? await walletService.getUsdcBalance()
-          : await walletService.refreshNativeBalance();
-      final hasEnoughBalance = balance >= price;
+      final hasEnoughBalance = paymentAsset.value == EasyGamePaymentAsset.usdc
+          ? (await walletService.getUsdcBalanceWei()) >= price
+          : (walletService.nativeBalanceWei.value ?? BigInt.zero) >= price;
       balanceChecked.value = hasEnoughBalance;
       balanceMessage.value = hasEnoughBalance
           ? ''
@@ -163,7 +147,7 @@ class RegistrationController extends GetxController {
             : 'registration.balanceLow'.tr,
         hasEnoughBalance
             ? '${'common.level'.tr} ${selectedLevel.value}: ${'registration.balanceOk'.tr}'
-            : '${formatAssetAmount(price)} $currencySymbol / ${formatAssetAmount(balance)} $currencySymbol',
+            : '${formatAssetAmount(price)} $currencySymbol / ${walletService.nativeBalance}',
         snackPosition: SnackPosition.BOTTOM,
       );
     } catch (e) {
@@ -210,9 +194,7 @@ class RegistrationController extends GetxController {
 
   Future<void> continueToPayment() async {
     try {
-      if (!walletService.isConnected.value) {
-        await walletService.connectBaseAccount();
-      }
+      await Get.find<WalletAuthController>().ensureAuthenticated();
       await walletService.ensureBaseNetwork();
 
       final entered = uplineController.text.trim();

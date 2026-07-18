@@ -12,6 +12,7 @@ import 'package:lottery_advance/app/modules/home/widgets/neon_honeycomb.dart';
 
 import '../models/levels_models.dart';
 import '../controllers/landing_controller.dart';
+import '../controllers/wallet_auth_controller.dart';
 part '../models/landing_models.dart';
 part '../widgets/landing_widgets.dart';
 part '../widgets/landing_topbar_widgets.dart';
@@ -22,7 +23,7 @@ part '../widgets/landing_preview_widgets.dart';
 part '../widgets/landing_floating_widgets.dart';
 
 class ExpressGameScreen extends StatelessWidget {
-  const ExpressGameScreen({Key? key}) : super(key: key);
+  const ExpressGameScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +91,7 @@ class ExpressGameScreen extends StatelessWidget {
 }
 
 class WalletScreen extends StatelessWidget {
-  const WalletScreen({Key? key}) : super(key: key);
+  const WalletScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +108,7 @@ class WalletScreen extends StatelessWidget {
 }
 
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({Key? key}) : super(key: key);
+  const SettingsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

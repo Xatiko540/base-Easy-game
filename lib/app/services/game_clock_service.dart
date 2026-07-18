@@ -1,16 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
-import 'package:http/http.dart' as http;
-import 'package:lottery_advance/app/services/app_config_service.dart';
-import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:wagmi_web/wagmi_web.dart' as wagmi;
 
 class GameClockService extends GetxService with WidgetsBindingObserver {
-  final WalletConnectService _walletService = Get.find<WalletConnectService>();
-
+  static const Duration chainResyncInterval = Duration(minutes: 2);
   final Rx<DateTime> chainTime = DateTime.now().toUtc().obs;
   final RxBool isSynchronized = false.obs;
   final RxString errorMessage = ''.obs;
@@ -25,7 +21,7 @@ class GameClockService extends GetxService with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     _ticker ??= Timer.periodic(const Duration(seconds: 1), (_) => _tick());
     _resyncTimer ??= Timer.periodic(
-      const Duration(seconds: 30),
+      chainResyncInterval,
       (_) => synchronize(),
     );
     await synchronize();
@@ -68,37 +64,17 @@ class GameClockService extends GetxService with WidgetsBindingObserver {
   }
 
   Future<DateTime> _fetchLatestBlockTimestamp() async {
-    final response = await http.post(
-      Uri.parse(_rpcUrl),
-      headers: const {'content-type': 'application/json'},
-      body: jsonEncode({
-        'jsonrpc': '2.0',
-        'id': 1,
-        'method': 'eth_getBlockByNumber',
-        'params': ['latest', false],
-      }),
+    final block = await wagmi.Core.getBlock(
+      wagmi.GetBlockParameters(blockTag: const wagmi.BlockTag.latest()),
     );
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('RPC clock request failed: HTTP ${response.statusCode}');
-    }
-    final payload = jsonDecode(response.body) as Map<String, dynamic>;
-    if (payload['error'] != null) {
-      throw Exception('RPC clock request failed: ${payload['error']}');
-    }
-    final result = payload['result'] as Map<String, dynamic>?;
-    final timestampHex = result?['timestamp'] as String?;
-    if (timestampHex == null) {
+    final timestamp = block.timestamp;
+    if (timestamp == null) {
       throw const FormatException('Latest block has no timestamp');
     }
-    final seconds = int.parse(timestampHex.substring(2), radix: 16);
-    return DateTime.fromMillisecondsSinceEpoch(seconds * 1000, isUtc: true);
-  }
-
-  String get _rpcUrl {
-    final configured = Get.find<AppConfigService>().get('web3PublicRpcUrl');
-    return configured.isNotEmpty
-        ? configured
-        : _walletService.currentNetwork.rpcUrl;
+    return DateTime.fromMillisecondsSinceEpoch(
+      timestamp.toInt() * 1000,
+      isUtc: true,
+    );
   }
 
   @override

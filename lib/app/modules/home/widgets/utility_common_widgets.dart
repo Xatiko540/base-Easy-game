@@ -8,13 +8,12 @@ class _UtilityScaffold extends StatelessWidget {
   final List<Widget> children;
 
   const _UtilityScaffold({
-    Key? key,
     required this.title,
     this.activeSection,
     required this.icon,
     this.onRefresh,
     required this.children,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

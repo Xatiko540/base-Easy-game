@@ -3,13 +3,11 @@ part of '../views/registrationlevel.dart';
 class _PaymentAssetSelector extends StatelessWidget {
   final EasyGamePaymentAsset selected;
   final String nativeSymbol;
-  final bool basePayAvailable;
   final ValueChanged<EasyGamePaymentAsset> onChanged;
 
   const _PaymentAssetSelector({
     required this.selected,
     required this.nativeSymbol,
-    required this.basePayAvailable,
     required this.onChanged,
   });
 
@@ -37,16 +35,6 @@ class _PaymentAssetSelector extends StatelessWidget {
               label: 'USDC',
               selected: selected == EasyGamePaymentAsset.usdc,
               onTap: () => onChanged(EasyGamePaymentAsset.usdc),
-            ),
-          ),
-          const SizedBox(width: 6),
-          Expanded(
-            child: _AssetOption(
-              label: 'Base Pay',
-              selected: selected == EasyGamePaymentAsset.basePay,
-              onTap: basePayAvailable
-                  ? () => onChanged(EasyGamePaymentAsset.basePay)
-                  : null,
             ),
           ),
         ],

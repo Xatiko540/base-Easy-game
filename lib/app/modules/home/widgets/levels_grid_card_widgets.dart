@@ -7,12 +7,12 @@ class LevelCard extends StatelessWidget {
   final GameRoundViewState round;
 
   const LevelCard({
-    Key? key,
+    super.key,
     required this.data,
     required this.roundId,
     required this.currencySymbol,
     required this.round,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -154,11 +154,11 @@ class MissedLevelCard extends StatelessWidget {
   final VoidCallback onTap;
 
   const MissedLevelCard({
-    Key? key,
+    super.key,
     required this.level,
     required this.priceWei,
     required this.onTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -219,12 +219,12 @@ class ActivateCard extends StatelessWidget {
   final GameRoundViewState? round;
 
   const ActivateCard({
-    Key? key,
+    super.key,
     required this.level,
     required this.priceWei,
     required this.currencySymbol,
     this.round,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -290,7 +290,7 @@ class StatusCard extends StatelessWidget {
   final bool showTimer;
 
   const StatusCard({
-    Key? key,
+    super.key,
     required this.level,
     required this.priceWei,
     required this.currencySymbol,
@@ -301,7 +301,7 @@ class StatusCard extends StatelessWidget {
     this.onTap,
     this.round,
     this.showTimer = false,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

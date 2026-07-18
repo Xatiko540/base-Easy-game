@@ -11,6 +11,7 @@ import 'package:get/get.dart';
 import 'package:lottery_advance/firebase_options.dart';
 
 import '../models/game_transaction_model.dart';
+import '../models/wallet_auth_models.dart';
 import 'app_config_service.dart';
 import 'notifications_service.dart';
 import 'wallet_connect_service.dart';
@@ -21,7 +22,7 @@ class FirebaseBackendService extends GetxService {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
   final NotificationsService notifications = Get.find<NotificationsService>();
   final RxBool isReady = false.obs;
-  final RxBool walletLinked = false.obs;
+  final Rxn<WalletAuthSession> session = Rxn<WalletAuthSession>();
   final RxString errorMessage = ''.obs;
 
   String _recaptchaSiteKey = '';
@@ -30,8 +31,10 @@ class FirebaseBackendService extends GetxService {
   FirebaseFunctions? _functions;
   Future<void>? _initialization;
   StreamSubscription<RemoteMessage>? _messageSubscription;
+  StreamSubscription<User?>? _authSubscription;
   Worker? _paymentWorker;
-  Worker? _walletWorker;
+
+  bool get isAuthenticated => session.value != null;
 
   Future<void> init() {
     return _initialization ??= _initialize();
@@ -57,6 +60,10 @@ class FirebaseBackendService extends GetxService {
       );
     }
 
+    if (kIsWeb) {
+      await FirebaseAuth.instance.setPersistence(Persistence.LOCAL);
+    }
+
     _functions = FirebaseFunctions.instanceFor(region: _region);
     await _fetchConfig();
 
@@ -70,26 +77,17 @@ class FirebaseBackendService extends GetxService {
       );
     }
 
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
-    }
+    _authSubscription = FirebaseAuth.instance.authStateChanges().listen(
+          (user) => unawaited(_restoreWalletSession(user)),
+        );
+    await _ensureBootstrapSession();
+    await _restoreWalletSession(FirebaseAuth.instance.currentUser);
 
     await _configureMessaging();
-    await _loadWalletLink();
     _paymentWorker = ever<String>(walletService.lastPaymentTxHash, (hash) {
       if (hash.isEmpty) return;
       unawaited(trackTransaction(hash).catchError((Object error) {
         debugPrint('Firebase transaction tracking skipped: $error');
-      }));
-    });
-    _walletWorker = ever<String>(walletService.currentAddress, (address) {
-      if (address.isEmpty) {
-        walletLinked.value = false;
-        return;
-      }
-      unawaited(_loadWalletLink().catchError((Object error) {
-        walletLinked.value = false;
-        debugPrint('Firebase wallet link restore skipped: $error');
       }));
     });
   }
@@ -112,7 +110,8 @@ class FirebaseBackendService extends GetxService {
       _recaptchaSiteKey = config.get('recaptchaSiteKey');
       _vapidKey = config.get('vapidKey');
     } catch (e) {
-      debugPrint('Firebase config fetch failed (non-critical): $e');
+      debugPrint('Firebase config fetch failed: $e');
+      rethrow;
     }
   }
 
@@ -131,71 +130,77 @@ class FirebaseBackendService extends GetxService {
     });
   }
 
-  Future<void> _loadWalletLink() async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    final snapshot = await FirebaseFirestore.instance
-        .collection('walletLinks')
-        .doc(uid)
-        .get();
-    walletLinked.value = snapshot.exists &&
-        snapshot.data()?['wallet']?.toString().toLowerCase() ==
-            walletService.currentAddress.value.toLowerCase();
-  }
-
-  Future<void> linkCurrentWallet() async {
+  Future<void> authenticateWallet({
+    required String address,
+    required int chainId,
+    required Future<String> Function(String message) signMessage,
+  }) async {
     _requireReady();
-    if (!walletService.isConnected.value) {
-      await walletService.connectBaseAccount();
+    await _prepareAuthenticationSession(address, chainId);
+    if (session.value?.matches(address, chainId) == true) return;
+    final configuredOrigin = Get.find<AppConfigService>().get('appPublicUrl');
+    final origin = kIsWeb
+        ? Uri.base.origin
+        : configuredOrigin.isNotEmpty
+            ? configuredOrigin
+            : 'https://lottery-advance.web.app';
+    final challenge = await _functions!
+        .httpsCallable('requestSiweNonce')
+        .call(<String, dynamic>{
+      'wallet': address,
+      'chainId': chainId,
+      'origin': origin,
+    });
+    final challengeData = Map<String, dynamic>.from(challenge.data as Map);
+    final message = challengeData['message']?.toString() ?? '';
+    if (message.isEmpty) {
+      throw StateError('SIWE challenge is missing.');
     }
-    final wallet = walletService.currentAddress.value;
-    if (walletService.isBaseAccountSession.value) {
-      await _functions!
-          .httpsCallable('verifyBaseAccountSession')
-          .call(<String, dynamic>{
-        'address': wallet,
-        'message': walletService.baseAccountMessage.value,
-        'signature': walletService.baseAccountSignature.value,
-        'nonce': walletService.baseAccountNonce.value,
-      });
-      walletLinked.value = true;
-      await registerDevice();
-      return;
-    }
-
-    final nonceResult = await _functions!
-        .httpsCallable('requestWalletNonce')
-        .call(<String, dynamic>{'wallet': wallet});
-    final message =
-        Map<String, dynamic>.from(nonceResult.data as Map)['message']
-            .toString();
-    final signature = await walletService.signMessage(message);
-    await _functions!.httpsCallable('linkWallet').call(<String, dynamic>{
+    final signature = await signMessage(message);
+    final authentication = await _functions!
+        .httpsCallable('authenticateWallet')
+        .call(<String, dynamic>{
+      'address': address,
+      'message': message,
       'signature': signature,
     });
-    walletLinked.value = true;
+    final data = Map<String, dynamic>.from(authentication.data as Map);
+    final customToken = data['customToken']?.toString() ?? '';
+    if (customToken.isEmpty) {
+      throw StateError('Firebase custom token is missing.');
+    }
+    final credential =
+        await FirebaseAuth.instance.signInWithCustomToken(customToken);
+    await _restoreWalletSession(credential.user);
+    if (session.value?.matches(address, chainId) != true) {
+      throw StateError('Authenticated wallet does not match the connection.');
+    }
     await registerDevice();
   }
 
-  Future<void> ensureCurrentWalletLinked() async {
+  Future<void> ensureAuthenticated() async {
     _requireReady();
-    await _loadWalletLink();
-    if (walletLinked.value) {
-      await registerDevice();
-      return;
+    final activeSession = session.value;
+    if (activeSession == null ||
+        !activeSession.matches(
+          walletService.currentAddress.value,
+          walletService.chainId.value,
+        )) {
+      throw StateError('Authenticate the connected wallet first.');
     }
-    await linkCurrentWallet();
+    await registerDevice();
   }
 
-  void ensureCurrentWalletLinkedInBackground() {
-    unawaited(ensureCurrentWalletLinked().catchError((Object error) {
-      debugPrint('Firebase wallet verification skipped: $error');
-    }));
+  Future<void> signOutWalletSession() async {
+    if (Firebase.apps.isEmpty) return;
+    session.value = null;
+    await FirebaseAuth.instance.signOut();
+    if (isReady.value) await _ensureBootstrapSession();
   }
 
   Future<void> registerDevice() async {
     _requireReady();
-    if (!walletLinked.value) return;
+    if (!isAuthenticated) return;
     final token = await FirebaseMessaging.instance.getToken(
       vapidKey: kIsWeb && _vapidKey.isNotEmpty ? _vapidKey : null,
     );
@@ -208,31 +213,17 @@ class FirebaseBackendService extends GetxService {
 
   Future<void> trackTransaction(String transactionHash) async {
     _requireReady();
+    final activeSession = session.value;
+    if (activeSession == null ||
+        !activeSession.matches(
+          walletService.currentAddress.value,
+          walletService.chainId.value,
+        )) {
+      return;
+    }
     await _functions!.httpsCallable('trackTransaction').call(<String, dynamic>{
       'transactionHash': transactionHash,
     });
-  }
-
-  Future<String> fulfillBasePayRound({
-    required String paymentId,
-    required int roundId,
-    required String inviter,
-  }) async {
-    _requireReady();
-    await ensureCurrentWalletLinked();
-    final result = await _functions!
-        .httpsCallable('fulfillBasePayRound')
-        .call(<String, dynamic>{
-      'paymentId': paymentId,
-      'roundId': roundId.toString(),
-      'inviter': inviter,
-    });
-    final data = Map<String, dynamic>.from(result.data as Map);
-    final transactionHash = data['transactionHash']?.toString() ?? '';
-    if (transactionHash.isEmpty) {
-      throw StateError('Base Pay fulfillment transaction is missing.');
-    }
-    return transactionHash;
   }
 
   Stream<DocumentSnapshot<Map<String, dynamic>>> watchTransaction(
@@ -322,11 +313,56 @@ class FirebaseBackendService extends GetxService {
     }
   }
 
+  Future<void> _ensureBootstrapSession() async {
+    if (FirebaseAuth.instance.currentUser == null) {
+      await FirebaseAuth.instance.signInAnonymously();
+    }
+  }
+
+  Future<void> _prepareAuthenticationSession(
+    String address,
+    int chainId,
+  ) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null && !currentUser.isAnonymous) {
+      if (session.value?.matches(address, chainId) == true) return;
+      session.value = null;
+      await FirebaseAuth.instance.signOut();
+    }
+    await _ensureBootstrapSession();
+  }
+
+  Future<void> _restoreWalletSession(User? user) async {
+    if (user == null || user.isAnonymous) {
+      session.value = null;
+      return;
+    }
+    try {
+      final token = await user.getIdTokenResult();
+      final claims = token.claims ?? const <String, dynamic>{};
+      final wallet = claims['wallet']?.toString() ?? '';
+      final chainId = int.tryParse(claims['chainId']?.toString() ?? '');
+      final authProvider = claims['authProvider']?.toString() ?? '';
+      if (wallet.isEmpty || chainId == null || authProvider != 'siwe') {
+        session.value = null;
+        return;
+      }
+      session.value = WalletAuthSession(
+        wallet: wallet,
+        chainId: chainId,
+        firebaseUid: user.uid,
+      );
+    } catch (error) {
+      session.value = null;
+      debugPrint('Firebase wallet session restore failed: $error');
+    }
+  }
+
   @override
   void onClose() {
     _messageSubscription?.cancel();
+    _authSubscription?.cancel();
     _paymentWorker?.dispose();
-    _walletWorker?.dispose();
     super.onClose();
   }
 }

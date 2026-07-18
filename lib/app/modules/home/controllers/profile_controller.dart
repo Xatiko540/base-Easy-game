@@ -4,7 +4,9 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
 import 'package:lottery_advance/app/models/game_transaction_model.dart';
+import 'package:lottery_advance/app/models/wallet_auth_models.dart';
 import 'package:lottery_advance/app/modules/home/models/profile_models.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
 import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
 import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
@@ -16,6 +18,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 class ProfileController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final WalletAuthController authController = Get.find<WalletAuthController>();
   final RoundLevelsRepository _roundLevels = Get.find<RoundLevelsRepository>();
   final GameRoundsRepository _rounds = Get.find<GameRoundsRepository>();
   final GameSettlementService _settlement = Get.find<GameSettlementService>();
@@ -25,6 +28,7 @@ class ProfileController extends GetxController {
   final isLoading = false.obs;
   final isClaimingPrize = false.obs;
   final isClaimingReferral = false.obs;
+  final isClaimingReferralUsdc = false.obs;
   final errorMessage = ''.obs;
   final transactionsError = ''.obs;
 
@@ -32,9 +36,7 @@ class ProfileController extends GetxController {
   StreamSubscription<List<GameTransaction>>? _transactionsSubscription;
   int _refreshRun = 0;
 
-  bool get isWalletConnected =>
-      walletService.isConnected.value &&
-      walletService.currentAddress.value.isNotEmpty;
+  bool get isWalletConnected => authController.isAuthenticated;
 
   bool get isGameRegistered => dashboard.value.player?.exists == true;
 
@@ -60,6 +62,8 @@ class ProfileController extends GetxController {
       ever<String>(
           walletService.currentAddress, (_) => _handleIdentityChange()),
       ever<int?>(walletService.chainId, (_) => _handleIdentityChange()),
+      ever<WalletAuthPhase>(
+          authController.phase, (_) => _handleIdentityChange()),
       ever<Map<int, int>>(_rounds.selectedRoundIds, (_) => refreshDashboard()),
       ever<bool>(_backend.isReady, (ready) {
         if (ready) _subscribeToTransactions();
@@ -192,6 +196,7 @@ class ProfileController extends GetxController {
     }
     isClaimingPrize.value = true;
     try {
+      await authController.ensureAuthenticated();
       await _settlement.claimPrize();
       Get.snackbar('common.ready'.tr, 'profile.claimConfirmed'.tr);
       await refreshDashboard();
@@ -213,6 +218,7 @@ class ProfileController extends GetxController {
     }
     isClaimingReferral.value = true;
     try {
+      await authController.ensureAuthenticated();
       await walletService.claimEasyGameReferralBonus();
       Get.snackbar('common.ready'.tr, 'profile.claimConfirmed'.tr);
       await refreshDashboard();
@@ -223,13 +229,39 @@ class ProfileController extends GetxController {
     }
   }
 
+  Future<void> claimReferralBonusUSDC() async {
+    if (!isWalletConnected) {
+      _showWalletRequired();
+      return;
+    }
+    if (dashboard.value.referralBonusUsdc <= BigInt.zero) {
+      Get.snackbar('profile.claimReferral'.tr, 'profile.nothingToClaim'.tr);
+      return;
+    }
+    isClaimingReferralUsdc.value = true;
+    try {
+      await authController.ensureAuthenticated();
+      await walletService.claimEasyGameReferralBonusUSDC();
+      Get.snackbar('common.ready'.tr, 'profile.claimConfirmed'.tr);
+      await refreshDashboard();
+    } catch (error) {
+      Get.snackbar('common.error'.tr, error.toString());
+    } finally {
+      isClaimingReferralUsdc.value = false;
+    }
+  }
+
   Future<ProfileDashboardSnapshot> _loadDashboard() async {
     final values = await Future.wait<Object?>([
       _safeLoad(walletService.resolveEasyGameAddress),
       isWalletConnected
-          ? _safeLoad(walletService.getEasyGamePlayerSummary)
+          ? _safeLoad<EasyGamePlayerSummary?>(
+              () => walletService.getEasyGamePlayerSummary())
           : Future<Object?>.value(null),
-      _safeLoad(() => _roundLevels.loadCards()),
+      _safeLoad(() => _roundLevels.loadCards(
+            playerAddress:
+                isWalletConnected ? walletService.currentAddress.value : null,
+          )),
       isWalletConnected
           ? _safeLoad(_settlement.getClaimable)
           : Future<Object?>.value(SettlementClaimable.zero),
@@ -265,7 +297,6 @@ class ProfileController extends GetxController {
       transactions: dashboard.value.transactions,
       activeCount: activeCount,
       frozenCount: frozenCount,
-      totalEarnedWei: settlement.ethAmount,
       totalPrizePoolWei: totalPrizePoolWei,
       totalActiveCells: totalActiveCells,
       totalWeight: totalWeight,

@@ -34,6 +34,20 @@
 /lib/utils/secret.dart
 
 # Web related
+web/*.map
+
+# Local agent/Codex state
+.agents/
+.artifacts/
+
+# Generated Solidity deployment output. Application ABIs live in src/artifacts.
+/artifacts/
+/cache/
+/deployments/
+
+# IDE/package-manager generated state
+android/.settings/
+ios/Runner.xcworkspace/xcshareddata/swiftpm/
 
 # Symbolication related
 app.*.symbols

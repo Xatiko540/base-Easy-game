@@ -1,12 +1,15 @@
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/models/wallet_auth_models.dart';
 import 'package:lottery_advance/app/modules/home/models/partner_bonus_models.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 class PartnerBonusController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final WalletAuthController authController = Get.find<WalletAuthController>();
 
   PartnerBonusController();
 
@@ -14,6 +17,7 @@ class PartnerBonusController extends GetxController {
   final isLoading = false.obs;
   Worker? _connectionWorker;
   Worker? _addressWorker;
+  Worker? _authWorker;
 
   @override
   void onInit() {
@@ -27,12 +31,17 @@ class PartnerBonusController extends GetxController {
       walletService.currentAddress,
       (_) => refreshSnapshot(),
     );
+    _authWorker = ever<WalletAuthPhase>(
+      authController.phase,
+      (_) => refreshSnapshot(),
+    );
   }
 
   @override
   void onClose() {
     _connectionWorker?.dispose();
     _addressWorker?.dispose();
+    _authWorker?.dispose();
     super.onClose();
   }
 
@@ -46,7 +55,7 @@ class PartnerBonusController extends GetxController {
   }
 
   Future<PartnerArenaSnapshot> _loadSnapshot() async {
-    if (!walletService.isConnected.value) {
+    if (!authController.isAuthenticated) {
       return PartnerArenaSnapshot.empty();
     }
     try {
@@ -62,6 +71,7 @@ class PartnerBonusController extends GetxController {
       );
 
   Future<void> copyReferralLink() async {
+    await authController.ensureAuthenticated();
     final link = referralLink;
     await Clipboard.setData(ClipboardData(text: link));
     Get.snackbar(
@@ -71,12 +81,14 @@ class PartnerBonusController extends GetxController {
     );
   }
 
-  void shareReferralLink() {
+  Future<void> shareReferralLink() async {
+    await authController.ensureAuthenticated();
     UiNavigationService.openExternal(referralLink);
   }
 
   Future<void> claimReferralBonus() async {
     try {
+      await authController.ensureAuthenticated();
       final txHash = await walletService.claimEasyGameReferralBonus();
       Get.snackbar(
         'partner.claimSent'.tr,

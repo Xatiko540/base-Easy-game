@@ -9,6 +9,7 @@ class AppTranslations extends Translations {
           'common.share': 'Share',
           'common.refresh': 'Refresh',
           'common.close': 'Close',
+          'common.cancel': 'Cancel',
           'common.search': 'Search',
           'common.menu': 'Menu',
           'common.logout': 'Logout',
@@ -183,7 +184,6 @@ class AppTranslations extends Translations {
               'Transaction history is temporarily unavailable.',
           'levels.operation.activateRound': 'Level activation',
           'levels.operation.activateRoundWithUSDC': 'USDC activation',
-          'levels.operation.basePay': 'Base Pay activation',
           'levels.operation.onChain': 'Onchain operation',
           'levels.txStatus.submitted': 'Submitted',
           'levels.txStatus.pending': 'Pending',
@@ -310,8 +310,10 @@ class AppTranslations extends Translations {
           'matrix.freezeSkillTitle': 'Freeze Skill',
           'matrix.freezeOpponentTitle': 'Freeze Opponent',
           'matrix.unfreezeSkillTitle': 'Unfreeze Skill',
-          'wallet.baseCoopError':
-              'Base Account popup is blocked by Cross-Origin-Opener-Policy. Serve the app with Cross-Origin-Opener-Policy: same-origin-allow-popups.',
+          'wallet.connectTitle': 'Connect Wallet',
+          'wallet.connectSubtitle': 'Choose how to connect your wallet',
+          'wallet.appKit': 'WalletConnect / Reown AppKit',
+          'wallet.appKitDesc': 'Connect with any EVM wallet (MetaMask, Coinbase, Trust, WalletConnect & 300+)',
           'wallet.usdcPreparing': 'Preparing USDC contract payment.',
           'wallet.usdcApprove': 'Approve USDC spending in your wallet.',
           'wallet.usdcWaitingApproval': 'Waiting for USDC approval.',
@@ -348,7 +350,6 @@ class AppTranslations extends Translations {
           'registration.gameFeesIncluded':
               'The 75.5% / 9.5% / 6% / 4% / 5% split is included in this total.',
           'registration.networkGasExtra': 'network gas calculated at signing',
-          'registration.networkFeeSponsored': 'Sponsored by Base Pay',
           'registration.networkFee': 'Network fee',
           'registration.matrixPrizePool': 'Matrix prize pool',
           'registration.directReferral': 'Direct referral',
@@ -397,32 +398,17 @@ class AppTranslations extends Translations {
           'payment.levelEmergencyPausedHint':
               'This level is paused in the EasyGame contract. Payment is blocked until the contract owner enables it.',
           'payment.usdcGasRequired':
-              'Direct USDC activation requires a small Base ETH balance for approval and activation gas. Use Base Pay for sponsored payment gas.',
+              'Direct USDC activation requires a small Base ETH balance for approval and activation gas.',
           'payment.nativeGasRequired':
               'Keep additional Base ETH in the wallet to pay transaction gas.',
           'payment.alreadyProcessing': 'A payment is already being processed.',
           'payment.usdcConfigurationMismatch':
               'The configured USDC address does not match the EasyGame contract.',
-          'payment.basePayConfigurationMismatch':
-              'The configured Base Pay gateway does not match the EasyGame contract.',
           'payment.contractPriceMismatch':
               'The signed round price does not match the on-chain level price. Refresh the round before paying.',
           'payment.gasEstimate': 'Gas estimate',
           'payment.transaction': 'Transaction',
           'payment.pay': 'Pay @amount @currency',
-          'payment.payBasePay': 'Pay @amount USDC with Base Pay',
-          'payment.basePayProcessing': 'Base Pay is processing',
-          'payment.basePaySponsored':
-              'One-tap USDC payment. Base Pay sponsors the payment gas.',
-          'payment.basePayOpening': 'Opening Base Pay.',
-          'payment.basePayVerifying': 'Verifying Base Pay transaction.',
-          'payment.basePayFulfilling': 'Creating your matrix position.',
-          'payment.basePayActivated': 'Base Pay ticket activated onchain.',
-          'payment.basePayTimeout': 'Base Pay confirmation timed out.',
-          'payment.basePayUnavailable':
-              'Base Pay is not configured for this deployment.',
-          'payment.basePayBalanceHint':
-              'Base Pay will verify available USDC in the payment window.',
           'payment.confirmed': 'Payment confirmed',
           'payment.unavailable': 'Payment unavailable',
           'profile.walletProfile': 'Wallet profile',
@@ -454,9 +440,9 @@ class AppTranslations extends Translations {
               'Smart-contract game with passive yields in ETH. 17 levels, unlimited matrix cycles. All rewards go directly to your wallet.',
           'profile.claimRefShort': 'Claim ref',
           'profile.contractsTitle': 'Smart Games Contracts',
-          'profile.membersTotal': 'Members total',
-          'profile.transactionsMade': 'Transactions made',
-          'profile.turnover': 'Turnover, @currency',
+          'profile.occupiedCells': 'Occupied cells',
+          'profile.activations': 'Activations',
+          'profile.prizePoolShort': 'Prize pool, @currency',
           'profile.recentTransactions': 'Recent transactions',
           'profile.onChainState': 'On-chain state',
           'profile.totalWeight': 'Total rating',
@@ -465,9 +451,10 @@ class AppTranslations extends Translations {
               '17 rating-matrix levels connected to EasyGameAdvance state.',
           'profile.activeCells': 'Active cells',
           'profile.boxTokens': 'Box tokens',
+          'profile.usdcReferralLabel': 'USDC referral',
           'profile.weightModel': 'Rating model',
           'profile.weightHint':
-              'Player rating combines base, referral, matrix, loyalty, and NFT/box points.',
+              'Player rating combines base, referral, matrix, and NFT/box points.',
           'profile.baseWeight': 'Base',
           'profile.referralWeight': 'Referral',
           'profile.matrixWeight': 'Matrix',
@@ -658,6 +645,7 @@ class AppTranslations extends Translations {
           'common.share': 'Поделиться',
           'common.refresh': 'Обновить',
           'common.close': 'Закрыть',
+          'common.cancel': 'Отмена',
           'common.search': 'Поиск',
           'common.menu': 'Меню',
           'common.logout': 'Выход',
@@ -836,7 +824,6 @@ class AppTranslations extends Translations {
               'История транзакций временно недоступна.',
           'levels.operation.activateRound': 'Активация уровня',
           'levels.operation.activateRoundWithUSDC': 'Активация за USDC',
-          'levels.operation.basePay': 'Активация через Base Pay',
           'levels.operation.onChain': 'Операция в сети',
           'levels.txStatus.submitted': 'Отправлена',
           'levels.txStatus.pending': 'Ожидает',
@@ -964,8 +951,10 @@ class AppTranslations extends Translations {
           'matrix.freezeSkillTitle': 'Заморозка',
           'matrix.freezeOpponentTitle': 'Заморозить оппонента',
           'matrix.unfreezeSkillTitle': 'Разморозка',
-          'wallet.baseCoopError':
-              'Popup Base Account заблокирован Cross-Origin-Opener-Policy. Запустите приложение с Cross-Origin-Opener-Policy: same-origin-allow-popups.',
+          'wallet.connectTitle': 'Подключить кошелек',
+          'wallet.connectSubtitle': 'Выберите способ подключения кошелька',
+          'wallet.appKit': 'WalletConnect / Reown AppKit',
+          'wallet.appKitDesc': 'Подключите любой EVM-кошелек (MetaMask, Coinbase, Trust, WalletConnect и 300+)',
           'wallet.usdcPreparing': 'Подготовка USDC-платежа в контракт.',
           'wallet.usdcApprove': 'Подтвердите расход USDC в кошельке.',
           'wallet.usdcWaitingApproval': 'Ожидаем подтверждение USDC approval.',
@@ -1004,7 +993,6 @@ class AppTranslations extends Translations {
               'Распределение 75,5% / 9,5% / 6% / 4% / 5% уже включено в эту сумму.',
           'registration.networkGasExtra':
               'gas сети, рассчитанный при подписании',
-          'registration.networkFeeSponsored': 'Оплачивается Base Pay',
           'registration.networkFee': 'Комиссия сети',
           'registration.matrixPrizePool': 'Призовой пул матрицы',
           'registration.directReferral': 'Прямой реферальный бонус',
@@ -1054,33 +1042,17 @@ class AppTranslations extends Translations {
           'payment.levelEmergencyPausedHint':
               'Этот уровень приостановлен в контракте EasyGame. Оплата заблокирована, пока владелец контракта не включит уровень.',
           'payment.usdcGasRequired':
-              'Для прямой USDC-активации нужен небольшой баланс Base ETH на gas подтверждения и активации. В Base Pay gas платежа спонсируется.',
+              'Для прямой USDC-активации нужен небольшой баланс Base ETH на gas подтверждения и активации.',
           'payment.nativeGasRequired':
               'Оставьте дополнительный Base ETH в кошельке для оплаты gas транзакции.',
           'payment.alreadyProcessing': 'Платёж уже обрабатывается.',
           'payment.usdcConfigurationMismatch':
               'Настроенный адрес USDC не совпадает с адресом в контракте EasyGame.',
-          'payment.basePayConfigurationMismatch':
-              'Настроенный Base Pay gateway не совпадает с адресом в контракте EasyGame.',
           'payment.contractPriceMismatch':
               'Цена подписанного раунда не совпадает с ценой уровня в контракте. Обновите раунд перед оплатой.',
           'payment.gasEstimate': 'Оценка газа',
           'payment.transaction': 'Транзакция',
           'payment.pay': 'Оплатить @amount @currency',
-          'payment.payBasePay': 'Оплатить @amount USDC через Base Pay',
-          'payment.basePayProcessing': 'Base Pay обрабатывает платёж',
-          'payment.basePaySponsored':
-              'USDC-платёж в одно касание. Gas платежа спонсирует Base Pay.',
-          'payment.basePayOpening': 'Открываем Base Pay.',
-          'payment.basePayVerifying': 'Проверяем транзакцию Base Pay.',
-          'payment.basePayFulfilling': 'Создаём позицию в матрице.',
-          'payment.basePayActivated': 'Билет Base Pay активирован в блокчейне.',
-          'payment.basePayTimeout':
-              'Истекло время ожидания подтверждения Base Pay.',
-          'payment.basePayUnavailable':
-              'Base Pay не настроен для этого развертывания.',
-          'payment.basePayBalanceHint':
-              'Base Pay проверит доступный USDC в окне оплаты.',
           'payment.confirmed': 'Оплата подтверждена',
           'payment.unavailable': 'Оплата недоступна',
           'profile.walletProfile': 'Профиль кошелька',
@@ -1112,9 +1084,9 @@ class AppTranslations extends Translations {
               'Смарт-контрактная игра с пассивной доходностью в ETH. 17 уровней, неограниченные циклы матрицы. Все награды идут прямо на ваш кошелек.',
           'profile.claimRefShort': 'Забрать ref',
           'profile.contractsTitle': 'Контракты Smart Game',
-          'profile.membersTotal': 'Всего участников',
-          'profile.transactionsMade': 'Транзакций',
-          'profile.turnover': 'Оборот, @currency',
+          'profile.occupiedCells': 'Занятых ячеек',
+          'profile.activations': 'Активаций',
+          'profile.prizePoolShort': 'Призовой пул, @currency',
           'profile.recentTransactions': 'Последние транзакции',
           'profile.onChainState': 'On-chain состояние',
           'profile.totalWeight': 'Общий рейтинг',
@@ -1122,10 +1094,11 @@ class AppTranslations extends Translations {
           'profile.matrixSubtitle':
               '17 уровней рейтинговой матрицы подключены к состоянию EasyGameAdvance.',
           'profile.activeCells': 'Активные ячейки',
-          'profile.boxTokens': 'Бокс-токены ',
+          'profile.boxTokens': 'Бокс-токены',
+          'profile.usdcReferralLabel': 'USDC реферальный',
           'profile.weightModel': 'Модель рейтинга',
           'profile.weightHint':
-              'Рейтинг игрока складывается из базовых, реферальных, матричных, loyalty- и NFT/box-очков.',
+              'Рейтинг игрока складывается из базовых, реферальных, матричных и NFT/box-очков.',
           'profile.baseWeight': 'База',
           'profile.referralWeight': 'Рефералы',
           'profile.matrixWeight': 'Матрица',

@@ -6,6 +6,7 @@ class _BonusTable extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final walletService = Get.find<WalletConnectService>();
+    final authController = Get.find<WalletAuthController>();
     return _PartnerAccordionPanel(
       icon: CupertinoIcons.list_bullet,
       title: 'partner.rewards'.tr,
@@ -18,7 +19,7 @@ class _BonusTable extends StatelessWidget {
             () => _BonusRow(
               date: 'common.waitingEvents'.tr,
               level: '-',
-              wallet: walletService.isConnected.value
+              wallet: authController.isAuthenticated
                   ? walletService.shortAddress
                   : 'common.notConnected'.tr,
               amount: '0 ${walletService.nativeSymbol}',

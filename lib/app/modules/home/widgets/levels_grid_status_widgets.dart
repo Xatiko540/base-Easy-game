@@ -40,11 +40,11 @@ class BottomTableSection extends StatelessWidget {
   final String errorMessage;
 
   const BottomTableSection({
-    Key? key,
+    super.key,
     required this.transactions,
     required this.isLoading,
     required this.errorMessage,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -549,8 +549,6 @@ String _transactionOperation(String operation) {
       return 'levels.operation.activateRound'.tr;
     case 'activateRoundWithUSDC':
       return 'levels.operation.activateRoundWithUSDC'.tr;
-    case 'basePayFulfillment':
-      return 'levels.operation.basePay'.tr;
     default:
       return 'levels.operation.onChain'.tr;
   }

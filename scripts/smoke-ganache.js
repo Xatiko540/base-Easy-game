@@ -41,7 +41,7 @@ async function expectRevert(action, label) {
 
 async function main() {
   const { ethers } = hre;
-  const [owner, root, referral, basePayPlayer] = await ethers.getSigners();
+  const [owner, root, referral, secondUsdcPlayer] = await ethers.getSigners();
   const network = await ethers.provider.getNetwork();
   const chainId = Number(network.chainId);
 
@@ -61,13 +61,9 @@ async function main() {
     "EasyGameRoundSettlement",
     deployedAddress("EasyGameRoundSettlement", chainId),
   );
-  const basePayGateway = await ethers.getContractAt(
-    "EasyGameBasePayGateway",
-    deployedAddress("EasyGameBasePayGateway", chainId),
-  );
   const usdc = await ethers.getContractAt("MockUSDC", await easyGame.usdcToken());
 
-  for (const contract of [easyGame, roundManager, arenaSkills, settlement, basePayGateway]) {
+  for (const contract of [easyGame, roundManager, arenaSkills, settlement]) {
     if (await ethers.provider.getCode(await contract.getAddress()) === "0x") {
       throw new Error(`Missing bytecode at ${await contract.getAddress()}`);
     }
@@ -132,25 +128,19 @@ async function main() {
   await (await easyGame.connect(root).claimReferralBonusUSDC()).wait();
   console.log(`PASS USDC activation and referral claim (${usdcActivation.gasUsed} gas)`);
 
-  await (await usdc.connect(basePayPlayer).transfer(
-    await basePayGateway.getAddress(),
-    config.usdcPrice,
-  )).wait();
-  const paymentId = ethers.keccak256(
-    ethers.toUtf8Bytes(`local-base-pay-${roundId}`),
-  );
   await (
-    await basePayGateway.connect(owner).fulfillRound(
-      paymentId,
-      config,
-      signature,
-      basePayPlayer.address,
-      root.address,
-    )
+    await usdc
+      .connect(secondUsdcPlayer)
+      .approve(await easyGame.getAddress(), config.usdcPrice)
   ).wait();
-  console.log("PASS Base Pay gateway fulfillment");
+  await (
+    await easyGame
+      .connect(secondUsdcPlayer)
+      .activateRoundWithUSDC(config, signature, root.address)
+  ).wait();
+  console.log("PASS second direct USDC activation");
 
-  const participants = [root, referral, basePayPlayer];
+  const participants = [root, referral, secondUsdcPlayer];
   for (let index = 0; index < participants.length; index += 1) {
     const state = await easyGame.getPlayerRound(participants[index].address, roundId);
     if (!state.active || state.cellId < 1n) {
@@ -182,17 +172,6 @@ async function main() {
     () => easyGame.connect(referral).withdrawProjectFees(),
     "only owner can withdraw project fees",
   );
-  await expectRevert(
-    () => basePayGateway.connect(referral).fulfillRound(
-      ethers.keccak256(ethers.toUtf8Bytes("unauthorized-payment")),
-      config,
-      signature,
-      referral.address,
-      ethers.ZeroAddress,
-    ),
-    "only the configured fulfiller can complete Base Pay",
-  );
-
   await ethers.provider.send("evm_setNextBlockTimestamp", [Number(config.endsAt)]);
   await ethers.provider.send("evm_mine", []);
   await (

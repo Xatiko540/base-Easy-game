@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/models/wallet_auth_models.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/modules/home/views/language_selector.dart';
 import 'package:lottery_advance/app/services/ui_navigation_service.dart';
-import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/utils/theme.dart';
 import 'package:lottery_advance/utils/wallet_balance_formatter.dart';
@@ -19,13 +20,13 @@ class ExpressAppShell extends StatelessWidget {
   final String? activeSection;
 
   ExpressAppShell({
-    Key? key,
+    super.key,
     required this.child,
     required this.title,
     this.breadcrumb,
     this.onRefresh,
     this.activeSection,
-  }) : super(key: key);
+  });
 
   final WalletConnectService walletService = Get.find<WalletConnectService>();
 
@@ -185,6 +186,7 @@ class _ExpressTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final walletService = Get.find<WalletConnectService>();
+    final authController = Get.find<WalletAuthController>();
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 22, 0),
       child: LayoutBuilder(
@@ -226,10 +228,11 @@ class _ExpressTopBar extends StatelessWidget {
                         Obx(
                           () => _TopChip(
                             icon: CupertinoIcons.creditcard,
-                            label: walletService.isConnected.value
-                                ? walletService.shortAddress
-                                : 'Base',
-                            emphasized: !walletService.isConnected.value,
+                            label: _walletAuthLabel(
+                              authController,
+                              walletService,
+                            ),
+                            emphasized: !authController.isAuthenticated,
                             onTap: () => _handleWalletChipTap(
                               context,
                               walletService,
@@ -269,8 +272,8 @@ class _ExpressTopBar extends StatelessWidget {
                         _RoundIconButton(
                           icon: CupertinoIcons.square_arrow_left,
                           tooltip: 'common.logout'.tr,
-                          onTap: () {
-                            walletService.disconnectWallet();
+                          onTap: () async {
+                            await Get.find<WalletAuthController>().logout();
                             Get.offAllNamed('/home');
                           },
                         ),
@@ -290,19 +293,13 @@ class _ExpressTopBar extends StatelessWidget {
     BuildContext context,
     WalletConnectService walletService,
   ) async {
-    if (walletService.isConnected.value) {
-      return;
-    }
+    final auth = Get.find<WalletAuthController>();
+    if (auth.isAuthenticated) return;
 
     try {
-      await walletService.connectBaseAccount();
-      if (Get.isRegistered<FirebaseBackendService>()) {
-        final backend = Get.find<FirebaseBackendService>();
-        if (backend.isReady.value) {
-          backend.ensureCurrentWalletLinkedInBackground();
-        }
-      }
+      await auth.connectAndAuthenticate();
     } catch (e) {
+      if (WalletConnectService.isUserRejection(e)) return;
       Get.snackbar(
         'common.error'.tr,
         e.toString(),
@@ -325,6 +322,7 @@ class _MobileTopBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authController = Get.find<WalletAuthController>();
     return Row(
       children: [
         _RoundIconButton(
@@ -352,15 +350,15 @@ class _MobileTopBar extends StatelessWidget {
         const SizedBox(width: 6),
         Obx(
           () => _TopChip(
-            icon: walletService.isConnected.value
+            icon: authController.isAuthenticated
                 ? CupertinoIcons.money_dollar
                 : CupertinoIcons.hexagon,
-            label: walletService.isConnected.value
+            label: authController.isAuthenticated
                 ? walletService.nativeBalanceWei.value == null
                     ? '... ${walletService.nativeSymbol}'
                     : '${formatNativeBalanceWei(walletService.nativeBalanceWei.value!)} ${walletService.nativeSymbol}'
-                : 'Base',
-            emphasized: !walletService.isConnected.value,
+                : _walletAuthLabel(authController, walletService),
+            emphasized: !authController.isAuthenticated,
             onTap: () => _handleMobileWalletTap(context, walletService),
           ),
         ),
@@ -385,22 +383,37 @@ class _MobileTopBar extends StatelessWidget {
   }
 }
 
+String _walletAuthLabel(
+  WalletAuthController authController,
+  WalletConnectService walletService,
+) {
+  if (authController.isAuthenticated) return walletService.shortAddress;
+  switch (authController.phase.value) {
+    case WalletAuthPhase.connecting:
+    case WalletAuthPhase.authenticating:
+      return 'top.signingIn'.tr;
+    case WalletAuthPhase.initializing:
+    case WalletAuthPhase.disconnected:
+    case WalletAuthPhase.connected:
+    case WalletAuthPhase.error:
+      return 'Base';
+    case WalletAuthPhase.authenticated:
+      return walletService.shortAddress;
+  }
+}
+
 Future<void> _handleMobileWalletTap(
   BuildContext context,
   WalletConnectService walletService,
 ) async {
   if (walletService.isConnected.value) {
-    return;
+    final auth = Get.find<WalletAuthController>();
+    if (auth.isAuthenticated) return;
   }
   try {
-    await walletService.connectBaseAccount();
-    if (Get.isRegistered<FirebaseBackendService>()) {
-      final backend = Get.find<FirebaseBackendService>();
-      if (backend.isReady.value) {
-        backend.ensureCurrentWalletLinkedInBackground();
-      }
-    }
+    await Get.find<WalletAuthController>().connectAndAuthenticate();
   } catch (error) {
+    if (WalletConnectService.isUserRejection(error)) return;
     Get.snackbar(
       'common.error'.tr,
       error.toString(),
@@ -535,9 +548,9 @@ class _MobileShellMenu extends StatelessWidget {
                 fontWeight: FontWeight.w800,
               ),
             ),
-            onTap: () {
+            onTap: () async {
               Get.back<void>();
-              walletService.disconnectWallet();
+              await Get.find<WalletAuthController>().logout();
               Get.offAllNamed('/home');
             },
           ),

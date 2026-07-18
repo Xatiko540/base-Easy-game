@@ -2,6 +2,7 @@ part of '../views/utility_screens.dart';
 
 class _StatisticsController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final WalletAuthController authController = Get.find<WalletAuthController>();
   final GameRoundsRepository _rounds = Get.find<GameRoundsRepository>();
 
   final snapshot = Rxn<_StatisticsSnapshot>();
@@ -19,6 +20,7 @@ class _StatisticsController extends GetxController {
       ever<bool>(walletService.isConnected, (_) => refreshStats()),
       ever<String>(walletService.currentAddress, (_) => refreshStats()),
       ever<int?>(walletService.chainId, (_) => refreshStats()),
+      ever<WalletAuthPhase>(authController.phase, (_) => refreshStats()),
     ]);
     refreshStats();
   }
@@ -83,7 +85,7 @@ class _StatisticsController extends GetxController {
     }
     rows.sort((left, right) => right.level.compareTo(left.level));
 
-    final rewards = walletService.isConnected.value
+    final rewards = authController.isAuthenticated
         ? await walletService.getSettlementClaimable()
         : SettlementClaimable.zero;
     return _StatisticsSnapshot(
@@ -106,7 +108,7 @@ class _StatisticsController extends GetxController {
     final roundId = BigInt.from(round.schedule.roundId);
     RoundMatrixStats matrix;
     try {
-      matrix = await walletService.getRoundMatrixStats(roundId);
+      matrix = (await walletService.getRoundMatrixStats(roundId))!;
     } catch (_) {
       matrix = RoundMatrixStats(
         prizePoolEth: BigInt.zero,
@@ -120,14 +122,14 @@ class _StatisticsController extends GetxController {
 
     var playerActive = false;
     var playerFrozen = false;
-    if (walletService.isConnected.value &&
+    if (authController.isAuthenticated &&
         walletService.currentAddress.value.isNotEmpty) {
       try {
         final player = await walletService.getRoundPlayerState(roundId);
-        playerActive = player.active;
-        if (player.active) {
+        playerActive = player?.active ?? false;
+        if (player?.active == true) {
           final status = await walletService.getArenaSkillStatus(roundId);
-          playerFrozen = status.frozen;
+          playerFrozen = status?.frozen ?? false;
         }
       } catch (_) {
         // Global round statistics remain useful if a player-specific getter is

@@ -3,8 +3,8 @@ import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/player_progression_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
-import 'package:lottery_advance/app/services/base_pay_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 
 class RoundPaymentController extends GetxController {
   RoundPaymentController({
@@ -20,7 +20,6 @@ class RoundPaymentController extends GetxController {
   final Rx<GameRoundViewState> round;
 
   final WalletConnectService walletService = Get.find<WalletConnectService>();
-  final BasePayService basePayService = Get.find<BasePayService>();
   final GameRoundsController _rounds = Get.find<GameRoundsController>();
 
   final Rxn<BigInt> availableBalanceUnits = Rxn<BigInt>();
@@ -33,8 +32,7 @@ class RoundPaymentController extends GetxController {
   final List<Worker> _workers = [];
   int _balanceRequestId = 0;
 
-  bool get paysWithUsdc => paymentAsset != EasyGamePaymentAsset.native;
-  bool get usesBasePay => paymentAsset == EasyGamePaymentAsset.basePay;
+  bool get paysWithUsdc => paymentAsset == EasyGamePaymentAsset.usdc;
   String get currency => paysWithUsdc ? 'USDC' : walletService.nativeSymbol;
   BigInt get amountUnits =>
       paysWithUsdc ? round.value.usdcPrice : round.value.ethPriceWei;
@@ -52,12 +50,11 @@ class RoundPaymentController extends GetxController {
 
   bool? get hasEnoughBalance {
     final balance = availableBalanceUnits.value;
-    if (balance == null || usesBasePay) return null;
+    if (balance == null) return null;
     return balance >= amountUnits;
   }
 
-  bool get isProcessing =>
-      usesBasePay ? basePayService.isProcessing : walletService.isPaying.value;
+  bool get isProcessing => walletService.isPaying.value;
   bool get canSubmit =>
       !isProcessing &&
       !isPreflightLoading.value &&
@@ -65,7 +62,7 @@ class RoundPaymentController extends GetxController {
       _isSelectedRoundCurrent &&
       contractLevelAvailable.value == true &&
       preflightError.value.isEmpty &&
-      (usesBasePay || hasEnoughBalance != false);
+      hasEnoughBalance != false;
 
   bool get _isSelectedRoundCurrent {
     final latest = _rounds.roundForLevel(level);
@@ -120,11 +117,16 @@ class RoundPaymentController extends GetxController {
     balanceError.value = '';
     try {
       await walletService.ensureBaseNetwork();
-      final balance = paysWithUsdc
-          ? await walletService.getUsdcBalance()
-          : await walletService.refreshNativeBalance();
-      if (requestId == _balanceRequestId) {
-        availableBalanceUnits.value = balance;
+      if (paysWithUsdc) {
+        final usdcWei = await walletService.getUsdcBalanceWei();
+        if (requestId == _balanceRequestId) {
+          availableBalanceUnits.value = usdcWei;
+        }
+      } else {
+        await walletService.refreshNativeBalance();
+        if (requestId == _balanceRequestId) {
+          availableBalanceUnits.value = walletService.nativeBalanceWei.value;
+        }
       }
     } catch (error) {
       if (requestId == _balanceRequestId) {
@@ -144,19 +146,12 @@ class RoundPaymentController extends GetxController {
     if (!current.canEnter) {
       throw StateError('round.actionsUnavailable'.tr);
     }
-    if (!walletService.isConnected.value) {
-      await walletService.connectBaseAccount();
-    }
+    await Get.find<WalletAuthController>().ensureAuthenticated();
     await refreshBalance();
     await refreshPaymentReadiness(throwOnFailure: true);
 
     final String txHash;
-    if (usesBasePay) {
-      txHash = await basePayService.payRound(
-        round: current.schedule,
-        inviter: inviter,
-      );
-    } else if (paymentAsset == EasyGamePaymentAsset.usdc) {
+    if (paymentAsset == EasyGamePaymentAsset.usdc) {
       txHash = await walletService.activateEasyGameRoundWithUSDC(
         round: current.schedule,
         inviter: inviter,
@@ -207,14 +202,15 @@ class RoundPaymentController extends GetxController {
         await _verifyProgressionEligibility(latest);
       }
 
-      if (!usesBasePay && walletService.isConnected.value) {
+      if (walletService.isConnected.value) {
         final balance = availableBalanceUnits.value;
         if (balance == null || balance < amountUnits) {
           throw StateError('payment.insufficientBalance'.tr);
         }
         if (paymentAsset == EasyGamePaymentAsset.usdc) {
-          final nativeBalance = await walletService.refreshNativeBalance();
-          if (nativeBalance <= BigInt.zero) {
+          await walletService.refreshNativeBalance();
+          final nativeWei = walletService.nativeBalanceWei.value;
+          if (nativeWei == null || nativeWei <= BigInt.zero) {
             throw StateError('payment.usdcGasRequired'.tr);
           }
         } else if (balance <= amountUnits) {

@@ -5,12 +5,14 @@ class _AboutContractsRow extends StatelessWidget {
   final ProfileDashboardSnapshot data;
   final bool isClaimingPrize;
   final bool isClaimingReferral;
+  final bool isClaimingReferralUsdc;
 
   const _AboutContractsRow({
     required this.controller,
     required this.data,
     required this.isClaimingPrize,
     required this.isClaimingReferral,
+    required this.isClaimingReferralUsdc,
   });
 
   @override
@@ -23,6 +25,7 @@ class _AboutContractsRow extends StatelessWidget {
           data: data,
           isClaimingPrize: isClaimingPrize,
           isClaimingReferral: isClaimingReferral,
+          isClaimingReferralUsdc: isClaimingReferralUsdc,
         );
         final contracts = _ContractsStatsPanel(
           onCopyContract: controller.copyContractAddress,
@@ -59,12 +62,14 @@ class _AboutEasyGamePanel extends StatelessWidget {
   final ProfileDashboardSnapshot data;
   final bool isClaimingPrize;
   final bool isClaimingReferral;
+  final bool isClaimingReferralUsdc;
 
   const _AboutEasyGamePanel({
     required this.controller,
     required this.data,
     required this.isClaimingPrize,
     required this.isClaimingReferral,
+    required this.isClaimingReferralUsdc,
   });
 
   @override
@@ -123,6 +128,21 @@ class _AboutEasyGamePanel extends StatelessWidget {
                       ? isClaimingReferral
                           ? null
                           : controller.claimReferralBonus
+                      : null,
+                ),
+                _ClaimMiniCard(
+                  icon: CupertinoIcons.money_dollar,
+                  value:
+                      '${formatUsdc(data.referralBonusUsdc)} USDC',
+                  label: 'profile.usdcReferralLabel'.tr,
+                  action: isClaimingReferralUsdc
+                      ? 'common.loading'.tr
+                      : 'profile.claimRefShort'.tr,
+                  accent: const Color(0xFF2775CA),
+                  onTap: data.referralBonusUsdc > BigInt.zero
+                      ? isClaimingReferralUsdc
+                          ? null
+                          : controller.claimReferralBonusUSDC
                       : null,
                 ),
                 _ClaimMiniCard(
@@ -343,19 +363,19 @@ class _ContractsStatsPanel extends StatelessWidget {
           ),
           const SizedBox(height: 22),
           _ContractMetric(
-            label: 'profile.membersTotal'.tr,
+            label: 'profile.occupiedCells'.tr,
             value: data.totalActiveCells.toString(),
             delta: '+ ${data.activeCount}',
           ),
           const SizedBox(height: 18),
           _ContractMetric(
-            label: 'profile.transactionsMade'.tr,
+            label: 'profile.activations'.tr,
             value: data.tickets.toString(),
             delta: '+ ${data.recycleCount}',
           ),
           const SizedBox(height: 18),
           _ContractMetric(
-            label: 'profile.turnover'.trParams({'currency': currency}),
+            label: 'profile.prizePoolShort'.trParams({'currency': currency}),
             value: '${formatWeiToEth(data.totalPrizePoolWei)} $currency',
             delta: '+ ${formatWeiToEth(data.claimableWei)} $currency',
           ),

@@ -108,10 +108,10 @@ class _ProfileTransactionsError extends StatelessWidget {
   final VoidCallback onRefresh;
 
   const _ProfileTransactionsError({
-    Key? key,
+    super.key,
     required this.message,
     required this.onRefresh,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -440,8 +440,6 @@ String _profileTransactionOperation(String operation) {
       return 'levels.operation.activateRound'.tr;
     case 'activateRoundWithUSDC':
       return 'levels.operation.activateRoundWithUSDC'.tr;
-    case 'basePayFulfillment':
-      return 'levels.operation.basePay'.tr;
     default:
       return 'levels.operation.onChain'.tr;
   }

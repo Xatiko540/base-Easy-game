@@ -1,4 +1,5 @@
 const { initializeApp } = require("firebase-admin/app");
+const { getAuth } = require("firebase-admin/auth");
 const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const { defineSecret, defineString } = require("firebase-functions/params");
@@ -6,11 +7,9 @@ const { logger } = require("firebase-functions");
 const {
   Contract,
   JsonRpcProvider,
-  Wallet,
   TypedDataEncoder,
   getAddress,
   isAddress,
-  parseUnits,
   verifyTypedData,
 } = require("ethers");
 const {
@@ -19,14 +18,12 @@ const {
   getAddress: getViemAddress,
   http,
 } = require("viem");
-const { getPaymentStatus } = require("@base-org/account");
 const crypto = require("crypto");
 const {
   CORE_LINK_ABI,
   ROUND_MANAGER_LINK_ABI,
   ARENA_SKILLS_LINK_ABI,
   SETTLEMENT_LINK_ABI,
-  BASE_PAY_GATEWAY_LINK_ABI,
 } = require("./game_abi");
 const { buildWinningCellTree } = require("./round_merkle");
 
@@ -49,10 +46,6 @@ const arenaSkillsAddressParam = defineString("EASY_GAME_ARENA_SKILLS_ADDRESS", {
 const roundSettlementAddressParam = defineString("EASY_GAME_ROUND_SETTLEMENT_ADDRESS", {
   default: "",
 });
-const basePayGatewayAddressParam = defineString("EASY_GAME_BASE_PAY_GATEWAY_ADDRESS", {
-  default: "",
-});
-const basePayFulfillerKey = defineSecret("BASE_PAY_FULFILLER_PRIVATE_KEY");
 const chainIdParam = defineString("EASY_GAME_CHAIN_ID", { default: "8453" });
 const confirmationsParam = defineString("EASY_GAME_CONFIRMATIONS", { default: "5" });
 const appPublicUrlParam = defineString("APP_PUBLIC_URL", { default: "https://easygame.io" });
@@ -65,9 +58,7 @@ const baseBuilderDataSuffixParam = defineString("BASE_BUILDER_DATA_SUFFIX", {
   default: "0x62635f68336c356a6c69790b0080218021802180218021802180218021",
 });
 const allowLocalChainsParam = defineString("EASY_GAME_ALLOW_LOCAL_CHAINS", { default: "false" });
-const baseAccountAppNameParam = defineString("BASE_ACCOUNT_APP_NAME", { default: "Easy Game" });
-const baseAccountAppLogoUrlParam = defineString("BASE_ACCOUNT_APP_LOGO_URL", { default: "" });
-const baseAccountAllowedOriginsParam = defineString("BASE_ACCOUNT_ALLOWED_ORIGINS", {
+const siweAllowedOriginsParam = defineString("SIWE_ALLOWED_ORIGINS", {
   default: "https://lottery-advance.web.app,https://lottery-advance.firebaseapp.com,https://easygame.io",
 });
 const region = "us-central1";
@@ -92,11 +83,6 @@ const roundTypes = {
     { name: "paymentSplitVersion", type: "uint16" },
   ],
 };
-const basePayGatewayAbi = [
-  "function fulfillRound(bytes32 paymentId,(uint256 seasonId,uint256 roundId,uint8 level,uint64 startsAt,uint64 entriesCloseAt,uint64 endsAt,uint64 freezeClosesAt,uint32 maxPlayers,uint16 maxWinners,bytes32 winningCellsRoot,uint256 ethPrice,uint256 usdcPrice,uint16 freezeLimit,uint16 paymentSplitVersion) config,bytes signature,address player,address inviter)",
-  "function processedPayments(bytes32 paymentId) view returns (bool)",
-  "function fulfiller() view returns (address)",
-];
 
 function walletVerificationClient() {
   const chainId = Number(chainIdParam.value());
@@ -131,7 +117,25 @@ function siweField(message, name) {
   return message.match(new RegExp(`^${escaped}:\\s*(.+)$`, "mi"))?.[1]?.trim() || "";
 }
 
-function validateBaseAccountSiwe({ address, message, nonce }) {
+function allowedSiweOrigin(value) {
+  let uri;
+  try {
+    uri = new URL(String(value || ""));
+  } catch (_) {
+    throw new HttpsError("invalid-argument", "Valid SIWE origin required");
+  }
+  const allowedOrigins = new Set(
+    siweAllowedOriginsParam.value().split(",").map((item) => item.trim()).filter(Boolean),
+  );
+  const localOrigin = environmentParam.value() !== "production" &&
+    (uri.hostname === "localhost" || uri.hostname === "127.0.0.1");
+  if (!localOrigin && !allowedOrigins.has(uri.origin)) {
+    throw new HttpsError("permission-denied", "SIWE origin is not allowed");
+  }
+  return uri.origin;
+}
+
+function validateSiwe({ address, message, nonce, origin }) {
   if (typeof message !== "string" || message.length < 80 || message.length > 4096) {
     throw new HttpsError("invalid-argument", "Valid SIWE message required");
   }
@@ -151,9 +155,16 @@ function validateBaseAccountSiwe({ address, message, nonce }) {
   }
 
   const issuedAt = Date.parse(siweField(message, "Issued At"));
+  const expirationTime = Date.parse(siweField(message, "Expiration Time"));
   const now = Date.now();
   if (!Number.isFinite(issuedAt) || issuedAt > now + 2 * 60 * 1000 || issuedAt < now - 15 * 60 * 1000) {
     throw new HttpsError("deadline-exceeded", "SIWE message expired");
+  }
+  if (!Number.isFinite(expirationTime) || expirationTime <= now || expirationTime > issuedAt + 15 * 60 * 1000) {
+    throw new HttpsError("deadline-exceeded", "SIWE challenge expired");
+  }
+  if (siweField(message, "Version") !== "1") {
+    throw new HttpsError("invalid-argument", "Unsupported SIWE version");
   }
 
   let uri;
@@ -166,49 +177,70 @@ function validateBaseAccountSiwe({ address, message, nonce }) {
   if (domain !== uri.host) {
     throw new HttpsError("permission-denied", "SIWE domain mismatch");
   }
-  const allowedOrigins = new Set(
-    baseAccountAllowedOriginsParam.value().split(",").map((value) => value.trim()).filter(Boolean),
-  );
-  const localOrigin = environmentParam.value() === "local" &&
-    (uri.hostname === "localhost" || uri.hostname === "127.0.0.1");
-  if (!localOrigin && !allowedOrigins.has(uri.origin)) {
-    throw new HttpsError("permission-denied", "SIWE origin is not allowed");
+  if (uri.origin !== allowedSiweOrigin(origin)) {
+    throw new HttpsError("permission-denied", "SIWE URI mismatch");
   }
 }
 
-async function storeVerifiedWalletLink({ uid, playerAddress, nonceRef }) {
+function walletFirebaseUid(playerAddress) {
+  return `wallet_${hashId(`${chainIdParam.value()}:${playerAddress}`).slice(0, 64)}`;
+}
+
+async function storeAuthenticatedWallet({
+  bootstrapUid,
+  uid,
+  playerAddress,
+  challengeRef,
+  message,
+  nonce,
+  origin,
+}) {
   await db.runTransaction(async (transaction) => {
-    if (nonceRef) {
-      const nonceSnapshot = await transaction.get(nonceRef);
-      if (nonceSnapshot.exists) {
-        throw new HttpsError("already-exists", "SIWE nonce already used");
-      }
-      transaction.create(nonceRef, {
-        uid,
-        wallet: playerAddress,
-        usedAt: FieldValue.serverTimestamp(),
-      });
+    const challengeSnapshot = await transaction.get(challengeRef);
+    const userRef = db.collection("users").doc(
+      `${chainIdParam.value()}_${playerAddress}`,
+    );
+    const userSnapshot = await transaction.get(userRef);
+    if (!challengeSnapshot.exists) {
+      throw new HttpsError("failed-precondition", "Request SIWE nonce first");
     }
+    const challenge = challengeSnapshot.data();
+    if (
+      challenge.bootstrapUid !== bootstrapUid ||
+      challenge.wallet !== playerAddress ||
+      challenge.message !== message ||
+      challenge.nonce !== nonce ||
+      challenge.origin !== origin
+    ) {
+      throw new HttpsError("permission-denied", "SIWE challenge changed");
+    }
+    if (challenge.used || challenge.expiresAt.toMillis() <= Date.now()) {
+      throw new HttpsError("deadline-exceeded", "SIWE challenge expired or already used");
+    }
+    transaction.update(challengeRef, {
+      used: true,
+      usedAt: FieldValue.serverTimestamp(),
+      authenticatedUid: uid,
+    });
     transaction.set(db.collection("walletLinks").doc(uid), {
       uid,
       wallet: playerAddress,
       chainId: Number(chainIdParam.value()),
       verifiedAt: FieldValue.serverTimestamp(),
-      authProvider: nonceRef ? "base_account_siwe" : "wallet_signature",
+      authProvider: "siwe",
     });
-    transaction.set(
-      db.collection("users").doc(`${chainIdParam.value()}_${playerAddress}`),
-      {
-        wallet: playerAddress,
-        chainId: Number(chainIdParam.value()),
-        exists: true,
-        walletVerified: true,
-        profileVersion: 1,
-        registeredAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
+    const userData = {
+      wallet: playerAddress,
+      chainId: Number(chainIdParam.value()),
+      exists: true,
+      walletVerified: true,
+      profileVersion: 1,
+      updatedAt: FieldValue.serverTimestamp(),
+    };
+    if (!userSnapshot.exists) {
+      userData.registeredAt = FieldValue.serverTimestamp();
+    }
+    transaction.set(userRef, userData, { merge: true });
   });
 }
 
@@ -266,8 +298,27 @@ function roundConfigFromDocument(round) {
 }
 
 function requireUser(request) {
-  if (!request.auth) throw new HttpsError("unauthenticated", "Anonymous Firebase session required");
+  if (!request.auth) throw new HttpsError("unauthenticated", "Firebase session required");
   return request.auth.uid;
+}
+
+function requireWalletUser(request) {
+  const uid = requireUser(request);
+  const claims = request.auth?.token || {};
+  const playerAddress = wallet(claims.wallet);
+  const expectedChainId = Number(chainIdParam.value());
+  if (
+    claims.authProvider !== "siwe" ||
+    !playerAddress ||
+    Number(claims.chainId) !== expectedChainId ||
+    uid !== walletFirebaseUid(playerAddress)
+  ) {
+    throw new HttpsError(
+      "permission-denied",
+      "Verified wallet session required",
+    );
+  }
+  return { uid, playerAddress };
 }
 
 function requireAdmin(request) {
@@ -309,121 +360,112 @@ async function enforceRateLimit(name, subject, max, windowSeconds) {
   });
 }
 
-exports.verifyBaseAccountSession = onCall({
-  region,
-  enforceAppCheck: true,
-  secrets: [rpcUrl],
-}, async (request) => {
+exports.requestSiweNonce = onCall({ region, enforceAppCheck: true }, async (request) => {
   requireApp(request);
-  const uid = requireUser(request);
-  await enforceRateLimit("verifyBaseAccountSession", uid, 10, 10 * 60);
-
-  const playerAddress = wallet(request.data?.address);
-  const message = request.data?.message;
-  const signature = request.data?.signature;
-  const nonce = request.data?.nonce;
-  if (!playerAddress) throw new HttpsError("invalid-argument", "Valid wallet required");
-  if (typeof signature !== "string" || signature.length < 20 || signature.length > 1024) {
-    throw new HttpsError("invalid-argument", "Valid Base Account signature required");
-  }
-
-  validateBaseAccountSiwe({ address: playerAddress, message, nonce });
-  const verified = await verifyWalletSignature(playerAddress, message, signature);
-  if (!verified) throw new HttpsError("permission-denied", "Invalid Base Account signature");
-
-  const nonceRef = db.collection("walletAuthNonces").doc(
-    hashId(`${chainIdParam.value()}:${nonce}`),
-  );
-  await storeVerifiedWalletLink({ uid, playerAddress, nonceRef });
-  return { wallet: playerAddress, verified: true, provider: "base_account" };
-});
-
-exports.requestWalletNonce = onCall({ region, enforceAppCheck: true }, async (request) => {
-  requireApp(request);
-  const uid = requireUser(request);
-  await enforceRateLimit("requestWalletNonce", uid, 5, 60);
+  const bootstrapUid = requireUser(request);
+  await enforceRateLimit("requestSiweNonce", bootstrapUid, 5, 60);
   const playerAddress = wallet(request.data?.wallet);
   if (!playerAddress) throw new HttpsError("invalid-argument", "Valid wallet required");
-  await enforceRateLimit("requestWalletNonceWallet", playerAddress, 20, 60 * 60);
+  if (Number(request.data?.chainId) !== Number(chainIdParam.value())) {
+    throw new HttpsError("failed-precondition", "Switch to the configured Base network");
+  }
+  await enforceRateLimit("requestSiweNonceWallet", playerAddress, 20, 60 * 60);
+  const origin = allowedSiweOrigin(request.data?.origin);
+  const uri = new URL(origin);
   const nonce = crypto.randomBytes(24).toString("hex");
+  const issuedAt = new Date();
   const expiresAt = Timestamp.fromMillis(Date.now() + 10 * 60 * 1000);
   const message = [
-    "Easy Game wallet verification",
-    `Wallet: ${playerAddress}`,
+    `${uri.host} wants you to sign in with your Ethereum account:`,
+    playerAddress,
+    "",
+    "Sign in to Easy Games.",
+    "",
+    `URI: ${origin}`,
+    "Version: 1",
     `Chain ID: ${chainIdParam.value()}`,
-    `Firebase UID: ${uid}`,
     `Nonce: ${nonce}`,
-    `Expires: ${expiresAt.toDate().toISOString()}`,
+    `Issued At: ${issuedAt.toISOString()}`,
+    `Expiration Time: ${expiresAt.toDate().toISOString()}`,
+    `Request ID: ${bootstrapUid}`,
   ].join("\n");
-  await db.collection("walletNonces").doc(uid).set({ uid, wallet: playerAddress, nonce, message, expiresAt, used: false });
+  await db.collection("walletAuthChallenges").doc(bootstrapUid).set({
+    bootstrapUid,
+    wallet: playerAddress,
+    chainId: Number(chainIdParam.value()),
+    nonce,
+    origin,
+    message,
+    issuedAt: Timestamp.fromDate(issuedAt),
+    expiresAt,
+    used: false,
+  });
   return { message, expiresAt: expiresAt.toMillis() };
 });
 
-exports.linkWallet = onCall({
+exports.authenticateWallet = onCall({
   region,
   enforceAppCheck: true,
   secrets: [rpcUrl],
 }, async (request) => {
   requireApp(request);
-  const uid = requireUser(request);
-  await enforceRateLimit("linkWallet", uid, 10, 10 * 60);
+  const bootstrapUid = requireUser(request);
+  await enforceRateLimit("authenticateWallet", bootstrapUid, 10, 10 * 60);
+  const playerAddress = wallet(request.data?.address);
+  const message = request.data?.message;
   const signature = request.data?.signature;
+  if (!playerAddress || typeof message !== "string") {
+    throw new HttpsError("invalid-argument", "Valid SIWE payload required");
+  }
   if (typeof signature !== "string" || signature.length < 20 || signature.length > 1024) {
     throw new HttpsError("invalid-argument", "Valid wallet signature required");
   }
-  const nonceDoc = await db.collection("walletNonces").doc(uid).get();
-  if (!nonceDoc.exists) throw new HttpsError("failed-precondition", "Request nonce first");
-  const nonce = nonceDoc.data();
-  if (nonce.used || nonce.expiresAt.toMillis() < Date.now()) throw new HttpsError("deadline-exceeded", "Nonce expired");
-  const verified = await verifyWalletSignature(
-    nonce.wallet,
-    nonce.message,
-    signature,
-  );
-  if (!verified) {
-    throw new HttpsError("invalid-argument", "Invalid wallet signature");
+  const challengeRef = db.collection("walletAuthChallenges").doc(bootstrapUid);
+  const challengeSnapshot = await challengeRef.get();
+  if (!challengeSnapshot.exists) throw new HttpsError("failed-precondition", "Request SIWE nonce first");
+  const challenge = challengeSnapshot.data();
+  if (challenge.used || challenge.expiresAt.toMillis() <= Date.now()) {
+    throw new HttpsError("deadline-exceeded", "SIWE challenge expired or already used");
   }
-  const recovered = nonce.wallet;
-  await db.runTransaction(async (transaction) => {
-    const freshNonceDoc = await transaction.get(nonceDoc.ref);
-    if (!freshNonceDoc.exists) throw new HttpsError("failed-precondition", "Request nonce first");
-    const freshNonce = freshNonceDoc.data();
-    if (freshNonce.used || freshNonce.expiresAt.toMillis() < Date.now()) {
-      throw new HttpsError("deadline-exceeded", "Nonce expired");
-    }
-    if (freshNonce.wallet !== recovered || freshNonce.message !== nonce.message) {
-      throw new HttpsError("permission-denied", "Nonce no longer matches wallet");
-    }
-    transaction.set(db.collection("walletLinks").doc(uid), {
-      uid,
-      wallet: recovered,
-      chainId: Number(chainIdParam.value()),
-      verifiedAt: FieldValue.serverTimestamp(),
-    });
-    transaction.set(
-      db.collection("users").doc(`${chainIdParam.value()}_${recovered}`),
-      {
-        wallet: recovered,
-        chainId: Number(chainIdParam.value()),
-        exists: true,
-        walletVerified: true,
-        profileVersion: 1,
-        registeredAt: FieldValue.serverTimestamp(),
-        updatedAt: FieldValue.serverTimestamp(),
-      },
-      { merge: true },
-    );
-    transaction.update(nonceDoc.ref, { used: true, usedAt: FieldValue.serverTimestamp() });
+  if (challenge.wallet !== playerAddress || challenge.message !== message) {
+    throw new HttpsError("permission-denied", "SIWE challenge mismatch");
+  }
+  validateSiwe({
+    address: playerAddress,
+    message,
+    nonce: challenge.nonce,
+    origin: challenge.origin,
   });
-  return { wallet: recovered, verified: true };
+  const verified = await verifyWalletSignature(playerAddress, message, signature);
+  if (!verified) {
+    throw new HttpsError("permission-denied", "Invalid wallet signature");
+  }
+  const uid = walletFirebaseUid(playerAddress);
+  await storeAuthenticatedWallet({
+    bootstrapUid,
+    uid,
+    playerAddress,
+    challengeRef,
+    message,
+    nonce: challenge.nonce,
+    origin: challenge.origin,
+  });
+  const customToken = await getAuth().createCustomToken(uid, {
+    wallet: playerAddress,
+    chainId: Number(chainIdParam.value()),
+    authProvider: "siwe",
+  });
+  return { wallet: playerAddress, uid, customToken, verified: true };
 });
 
 exports.registerDevice = onCall({ region, enforceAppCheck: true }, async (request) => {
   requireApp(request);
-  const uid = requireUser(request);
+  const { uid, playerAddress } = requireWalletUser(request);
   await enforceRateLimit("registerDevice", uid, 10, 60 * 60);
   const link = await db.collection("walletLinks").doc(uid).get();
-  if (!link.exists) throw new HttpsError("failed-precondition", "Link wallet first");
+  if (!link.exists || wallet(link.get("wallet")) !== playerAddress) {
+    throw new HttpsError("failed-precondition", "Link wallet first");
+  }
   const token = request.data?.token;
   if (typeof token !== "string" || token.length < 20 || token.length > 4096 || !/^[A-Za-z0-9_:\-]+$/.test(token)) {
     throw new HttpsError("invalid-argument", "Valid FCM token required");
@@ -449,17 +491,19 @@ exports.registerDevice = onCall({ region, enforceAppCheck: true }, async (reques
 
 exports.trackTransaction = onCall({ region, enforceAppCheck: true }, async (request) => {
   requireApp(request);
-  const uid = requireUser(request);
+  const { uid, playerAddress } = requireWalletUser(request);
   await enforceRateLimit("trackTransaction", uid, 20, 60 * 60);
   const hash = request.data?.transactionHash;
   if (typeof hash !== "string" || !/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new HttpsError("invalid-argument", "Valid transaction hash required");
   const link = await db.collection("walletLinks").doc(uid).get();
-  if (!link.exists) throw new HttpsError("failed-precondition", "Link wallet first");
+  if (!link.exists || wallet(link.get("wallet")) !== playerAddress) {
+    throw new HttpsError("failed-precondition", "Link wallet first");
+  }
   await db.collection("transactions").doc(`${chainIdParam.value()}_${hash.toLowerCase()}`).set({
     chainId: Number(chainIdParam.value()),
     transactionHash: hash.toLowerCase(),
     uid,
-    wallet: link.get("wallet"),
+    wallet: playerAddress,
     status: "submitted",
     createdAt: FieldValue.serverTimestamp(),
   }, { merge: true });
@@ -481,7 +525,6 @@ exports.contractSmokeTest = onCall({
     roundManager: publicOptionalAddress(roundManagerAddressParam),
     arenaSkills: publicOptionalAddress(arenaSkillsAddressParam),
     settlement: publicOptionalAddress(roundSettlementAddressParam),
-    basePayGateway: publicOptionalAddress(basePayGatewayAddressParam),
     usdc: publicOptionalAddress(usdcTokenAddressParam),
   };
   const missingConfig = Object.entries(addresses)
@@ -525,18 +568,12 @@ exports.contractSmokeTest = onCall({
     SETTLEMENT_LINK_ABI,
     provider,
   );
-  const gateway = new Contract(
-    addresses.basePayGateway,
-    BASE_PAY_GATEWAY_LINK_ABI,
-    provider,
-  );
   const normalized = Object.fromEntries(
     Object.entries(addresses).map(([name, address]) => [name, address.toLowerCase()]),
   );
   const links = {
     coreRoundManager: (await core.roundManager()).toLowerCase() === normalized.roundManager,
     coreSettlement: (await core.settlementContract()).toLowerCase() === normalized.settlement,
-    coreGateway: (await core.basePayGateway()).toLowerCase() === normalized.basePayGateway,
     coreUsdc: (await core.usdcToken()).toLowerCase() === normalized.usdc,
     managerCore: (await manager.gameCore()).toLowerCase() === normalized.core,
     managerSkills: (await manager.arenaSkills()).toLowerCase() === normalized.arenaSkills,
@@ -547,9 +584,6 @@ exports.contractSmokeTest = onCall({
     settlementManager: (await settlement.roundManager()).toLowerCase() === normalized.roundManager,
     settlementSkills: (await settlement.arenaSkills()).toLowerCase() === normalized.arenaSkills,
     settlementUsdc: (await settlement.usdcToken()).toLowerCase() === normalized.usdc,
-    gatewayCore: (await gateway.gameCore()).toLowerCase() === normalized.core,
-    gatewayUsdc: (await gateway.usdcToken()).toLowerCase() === normalized.usdc,
-    gatewayFulfiller: (await gateway.fulfiller()).toLowerCase() !== zeroAddress,
   };
   const brokenLinks = Object.entries(links)
     .filter(([, linked]) => !linked)
@@ -753,194 +787,6 @@ exports.getRoundSettlementProofs = onCall({
   return { roundId, cells };
 });
 
-exports.fulfillBasePayRound = onCall({
-  region,
-  enforceAppCheck: true,
-  secrets: [rpcUrl, basePayFulfillerKey],
-  timeoutSeconds: 120,
-}, async (request) => {
-  requireApp(request);
-  const uid = requireUser(request);
-  await enforceRateLimit("fulfillBasePayRound", uid, 10, 60 * 60);
-
-  const paymentId = String(request.data?.paymentId || "");
-  const roundId = String(request.data?.roundId || "");
-  const inviter = wallet(request.data?.inviter) || zeroAddress;
-  if (!/^0x[0-9a-fA-F]{64}$/.test(paymentId) || !/^\d+$/.test(roundId)) {
-    throw new HttpsError("invalid-argument", "Valid payment and round IDs are required");
-  }
-
-  const gatewayAddress = publicOptionalAddress(basePayGatewayAddressParam);
-  if (!gatewayAddress) {
-    throw new HttpsError("failed-precondition", "Base Pay gateway is not configured");
-  }
-  const link = await db.collection("walletLinks").doc(uid).get();
-  const player = link.exists ? wallet(link.get("wallet")) : null;
-  if (!player || Number(link.get("chainId")) !== Number(chainIdParam.value())) {
-    throw new HttpsError("failed-precondition", "Link the current Base wallet first");
-  }
-
-  const round = await db.collection("rounds").doc(roundId).get();
-  if (!round.exists) throw new HttpsError("not-found", "Round not found");
-  if (
-    Number(round.get("chainId")) !== Number(chainIdParam.value()) ||
-    String(round.get("contractAddress") || "").toLowerCase() !== publicContractAddress().toLowerCase()
-  ) {
-    throw new HttpsError("failed-precondition", "Round deployment does not match Base Pay config");
-  }
-  const config = roundConfigFromDocument(round);
-  if (config.roundId.toString() !== roundId || config.usdcPrice <= 0n) {
-    throw new HttpsError("failed-precondition", "Round does not accept USDC");
-  }
-  const now = BigInt(Math.floor(Date.now() / 1000));
-  if (now < config.startsAt || now >= config.entriesCloseAt) {
-    throw new HttpsError("failed-precondition", "Round entries are closed");
-  }
-
-  const testnet = Number(chainIdParam.value()) === 84532;
-  let payment;
-  try {
-    payment = await getPaymentStatus({ id: paymentId, testnet });
-  } catch (error) {
-    logger.error("Base Pay status lookup failed", error);
-    throw new HttpsError("unavailable", "Unable to verify Base Pay transaction");
-  }
-  if (payment.status !== "completed") {
-    throw new HttpsError("failed-precondition", `Base Pay status is ${payment.status}`);
-  }
-  const sender = wallet(payment.sender);
-  const recipient = wallet(payment.recipient);
-  let paidAmount;
-  try {
-    paidAmount = parseUnits(String(payment.amount), 6);
-  } catch (_) {
-    throw new HttpsError("data-loss", "Base Pay returned an invalid amount");
-  }
-  if (sender !== player) throw new HttpsError("permission-denied", "Base Pay sender mismatch");
-  if (recipient !== gatewayAddress.toLowerCase()) {
-    throw new HttpsError("permission-denied", "Base Pay recipient mismatch");
-  }
-  if (paidAmount !== config.usdcPrice) {
-    throw new HttpsError("permission-denied", "Base Pay amount mismatch");
-  }
-
-  const paymentRef = db.collection("basePayPayments").doc(
-    `${chainIdParam.value()}_${paymentId.toLowerCase()}`,
-  );
-  const existing = await paymentRef.get();
-  if (existing.exists) {
-    if (existing.get("uid") !== uid || existing.get("wallet") !== player) {
-      throw new HttpsError("already-exists", "Base Pay transaction already belongs to another order");
-    }
-    if (existing.get("status") === "fulfilled") {
-      return {
-        paymentId,
-        transactionHash: existing.get("fulfillmentTransactionHash"),
-        status: "fulfilled",
-      };
-    }
-    if (["submitted", "submitted_unknown"].includes(existing.get("status"))) {
-      const submittedHash = String(existing.get("fulfillmentTransactionHash") || "");
-      if (/^0x[0-9a-fA-F]{64}$/.test(submittedHash)) {
-        const provider = new JsonRpcProvider(rpcUrl.value(), Number(chainIdParam.value()));
-        const receipt = await provider.getTransactionReceipt(submittedHash);
-        if (receipt?.status === 1) {
-          await paymentRef.set({
-            status: "fulfilled",
-            fulfillmentBlockNumber: receipt.blockNumber,
-            fulfilledAt: FieldValue.serverTimestamp(),
-            updatedAt: FieldValue.serverTimestamp(),
-          }, { merge: true });
-          return { paymentId, transactionHash: submittedHash, status: "fulfilled" };
-        }
-        if (!receipt) {
-          throw new HttpsError("aborted", "Base Pay fulfillment is awaiting confirmation");
-        }
-        await paymentRef.set({
-          status: "failed",
-          error: "Previous fulfillment transaction reverted",
-          updatedAt: FieldValue.serverTimestamp(),
-        }, { merge: true });
-      }
-    }
-    if (existing.get("status") === "processing") {
-      const updatedAt = existing.get("updatedAt");
-      if (updatedAt instanceof Timestamp && Date.now() - updatedAt.toMillis() < 5 * 60 * 1000) {
-        throw new HttpsError("aborted", "Base Pay fulfillment is already processing");
-      }
-      await paymentRef.set({
-        status: "failed",
-        error: "Stale fulfillment lock recovered",
-        updatedAt: FieldValue.serverTimestamp(),
-      }, { merge: true });
-    }
-  }
-
-  await db.runTransaction(async (transaction) => {
-    const fresh = await transaction.get(paymentRef);
-    if (fresh.exists && fresh.get("status") !== "failed") {
-      throw new HttpsError("already-exists", "Base Pay transaction is already processing");
-    }
-    transaction.set(paymentRef, {
-      uid,
-      wallet: player,
-      chainId: Number(chainIdParam.value()),
-      paymentId: paymentId.toLowerCase(),
-      roundId,
-      inviter,
-      recipient: gatewayAddress.toLowerCase(),
-      amountUsdc: config.usdcPrice.toString(),
-      status: "processing",
-      verifiedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    });
-  });
-
-  let fulfillmentHash = "";
-  try {
-    const provider = new JsonRpcProvider(rpcUrl.value(), Number(chainIdParam.value()));
-    const signer = new Wallet(basePayFulfillerKey.value(), provider);
-    const gateway = new Contract(gatewayAddress, basePayGatewayAbi, signer);
-    if (getAddress(await gateway.fulfiller()) !== signer.address) {
-      throw new Error("Firebase fulfiller does not match the Base Pay gateway");
-    }
-    const signature = String(round.get("operatorSignature") || "");
-    if (!/^0x[0-9a-fA-F]{130}$/.test(signature)) {
-      throw new Error("Round operator signature is invalid");
-    }
-    const transaction = await gateway.fulfillRound(
-      paymentId,
-      config,
-      signature,
-      player,
-      inviter,
-    );
-    fulfillmentHash = transaction.hash;
-    await paymentRef.set({
-      fulfillmentTransactionHash: fulfillmentHash,
-      status: "submitted",
-      submittedAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    const receipt = await transaction.wait(Number(confirmationsParam.value()));
-    if (!receipt || receipt.status !== 1) throw new Error("Base Pay fulfillment reverted");
-    await paymentRef.set({
-      status: "fulfilled",
-      fulfillmentBlockNumber: receipt.blockNumber,
-      fulfilledAt: FieldValue.serverTimestamp(),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    return { paymentId, transactionHash: fulfillmentHash, status: "fulfilled" };
-  } catch (error) {
-    logger.error("Base Pay fulfillment failed", { paymentId, roundId, fulfillmentHash, error });
-    await paymentRef.set({
-      status: fulfillmentHash ? "submitted_unknown" : "failed",
-      error: String(error?.message || error).slice(0, 500),
-      updatedAt: FieldValue.serverTimestamp(),
-    }, { merge: true });
-    throw new HttpsError("internal", "Base Pay was verified but round fulfillment failed");
-  }
-});
 
 exports.getAppConfig = onCall({
   region,
@@ -964,14 +810,11 @@ exports.getAppConfig = onCall({
     roundScheduleSigner: publicOptionalAddress(roundScheduleSignerParam),
     arenaSkillsAddress: publicOptionalAddress(arenaSkillsAddressParam),
     roundSettlementAddress: publicOptionalAddress(roundSettlementAddressParam),
-    basePayGatewayAddress: publicOptionalAddress(basePayGatewayAddressParam),
     usdcTokenAddress,
     easyGameInviter: publicOptionalAddress(easyGameInviterParam),
     paymentReceiver: publicOptionalAddress(paymentReceiverParam),
     baseBuilderDataSuffix: baseBuilderDataSuffixParam.value(),
     allowLocalChains: allowLocalChainsParam.value(),
-    baseAccountAppName: baseAccountAppNameParam.value(),
-    baseAccountAppLogoUrl: baseAccountAppLogoUrlParam.value(),
     environment: environmentParam.value(),
   };
 });
@@ -988,7 +831,6 @@ exports.health = onRequest({
     roundManager: publicOptionalAddress(roundManagerAddressParam),
     arenaSkills: publicOptionalAddress(arenaSkillsAddressParam),
     settlement: publicOptionalAddress(roundSettlementAddressParam),
-    basePayGateway: publicOptionalAddress(basePayGatewayAddressParam),
     usdc: publicOptionalAddress(usdcTokenAddressParam),
   };
   const missingConfig = Object.entries(addresses)

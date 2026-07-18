@@ -6,6 +6,13 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function verifiedWallet() {
+      return signedIn()
+        && request.auth.token.authProvider == 'siwe'
+        && request.auth.token.wallet is string
+        && request.auth.token.chainId is int;
+    }
+
     // Public levels — read without auth, write only via Admin SDK
     match /levels/{levelId} {
       allow read: if true;
@@ -61,20 +68,13 @@ service cloud.firestore {
 
     // Transactions — only own uid
     match /transactions/{transactionId} {
-      allow read: if signedIn() && resource.data.uid == request.auth.uid;
-      allow write: if false;
-    }
-
-    // Verified Base Pay orders. Only the linked Firebase user can inspect its
-    // fulfillment status; all writes are performed through Admin SDK.
-    match /basePayPayments/{paymentId} {
-      allow read: if signedIn() && resource.data.uid == request.auth.uid;
+      allow read: if verifiedWallet() && resource.data.uid == request.auth.uid;
       allow write: if false;
     }
 
     // Wallet links — only own uid
     match /walletLinks/{uid} {
-      allow read: if signedIn() && request.auth.uid == uid;
+      allow read: if verifiedWallet() && request.auth.uid == uid;
       allow write: if false;
     }
 

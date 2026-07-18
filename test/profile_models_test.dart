@@ -6,7 +6,7 @@ void main() {
     test('reports disconnected without a wallet session', () {
       expect(
         resolveProfileSessionStatus(
-          walletConnected: false,
+          walletAuthenticated: false,
           playerExists: true,
         ),
         ProfileSessionStatus.disconnected,
@@ -16,7 +16,7 @@ void main() {
     test('keeps connected wallet separate from game registration', () {
       expect(
         resolveProfileSessionStatus(
-          walletConnected: true,
+          walletAuthenticated: true,
           playerExists: false,
         ),
         ProfileSessionStatus.connected,
@@ -26,7 +26,7 @@ void main() {
     test('reports registered only after on-chain player creation', () {
       expect(
         resolveProfileSessionStatus(
-          walletConnected: true,
+          walletAuthenticated: true,
           playerExists: true,
         ),
         ProfileSessionStatus.registered,

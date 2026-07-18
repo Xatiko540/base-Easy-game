@@ -31,9 +31,10 @@ class _ClaimableReferralPanel extends StatelessWidget {
             ),
             Obx(() {
               final isPaying = controller.walletService.isPaying.value;
-              final connectedNow = controller.walletService.isConnected.value;
+              final authenticatedNow =
+                  Get.find<WalletAuthController>().isAuthenticated;
               final disabled =
-                  !connectedNow || claimable == BigInt.zero || isPaying;
+                  !authenticatedNow || claimable == BigInt.zero || isPaying;
 
               return ElevatedButton(
                 onPressed: disabled ? null : controller.claimReferralBonus,

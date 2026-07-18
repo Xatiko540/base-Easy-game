@@ -35,13 +35,19 @@ class RoundPlayerState {
 class RoundMatrixNode {
   final BigInt cellId;
   final String player;
+  final int level;
   final BigInt parentCellId;
+  final BigInt leftChildCellId;
+  final BigInt rightChildCellId;
   final bool closed;
 
   const RoundMatrixNode({
     required this.cellId,
     required this.player,
+    required this.level,
     required this.parentCellId,
+    required this.leftChildCellId,
+    required this.rightChildCellId,
     required this.closed,
   });
 }

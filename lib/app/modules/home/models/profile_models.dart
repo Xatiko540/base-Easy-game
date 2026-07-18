@@ -9,7 +9,6 @@ class ProfileDashboardSnapshot {
   final List<GameTransaction> transactions;
   final int activeCount;
   final int frozenCount;
-  final BigInt totalEarnedWei;
   final BigInt totalPrizePoolWei;
   final BigInt totalActiveCells;
   final BigInt totalWeight;
@@ -23,7 +22,6 @@ class ProfileDashboardSnapshot {
     required this.transactions,
     required this.activeCount,
     required this.frozenCount,
-    required this.totalEarnedWei,
     required this.totalPrizePoolWei,
     required this.totalActiveCells,
     required this.totalWeight,
@@ -39,7 +37,6 @@ class ProfileDashboardSnapshot {
       transactions: [],
       activeCount: 0,
       frozenCount: 0,
-      totalEarnedWei: BigInt.zero,
       totalPrizePoolWei: BigInt.zero,
       totalActiveCells: BigInt.zero,
       totalWeight: BigInt.zero,
@@ -55,7 +52,6 @@ class ProfileDashboardSnapshot {
     List<GameTransaction>? transactions,
     int? activeCount,
     int? frozenCount,
-    BigInt? totalEarnedWei,
     BigInt? totalPrizePoolWei,
     BigInt? totalActiveCells,
     BigInt? totalWeight,
@@ -69,7 +65,6 @@ class ProfileDashboardSnapshot {
       transactions: transactions ?? this.transactions,
       activeCount: activeCount ?? this.activeCount,
       frozenCount: frozenCount ?? this.frozenCount,
-      totalEarnedWei: totalEarnedWei ?? this.totalEarnedWei,
       totalPrizePoolWei: totalPrizePoolWei ?? this.totalPrizePoolWei,
       totalActiveCells: totalActiveCells ?? this.totalActiveCells,
       totalWeight: totalWeight ?? this.totalWeight,
@@ -83,7 +78,8 @@ class ProfileDashboardSnapshot {
   BigInt get claimablePrizeWei => settlementPrizeWei;
   BigInt get referralBonusWei =>
       player?.claimableReferralBonusWei ?? BigInt.zero;
-  BigInt get pendingWei => player?.pendingPrizeWei ?? BigInt.zero;
+  BigInt get referralBonusUsdc =>
+      player?.claimableReferralBonusUsdc ?? BigInt.zero;
   BigInt get tickets => player?.totalTickets ?? BigInt.zero;
   BigInt get boxTokens => player?.boxTokens ?? BigInt.zero;
   BigInt get recycleCount => player?.recycleCount ?? BigInt.zero;

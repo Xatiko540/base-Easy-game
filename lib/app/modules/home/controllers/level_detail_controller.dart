@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/models/game_transaction_model.dart';
+import 'package:lottery_advance/app/models/wallet_auth_models.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
 import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
@@ -15,6 +17,7 @@ import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 class LevelDetailController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final WalletAuthController authController = Get.find<WalletAuthController>();
   final RoundLevelsRepository _levels = Get.find<RoundLevelsRepository>();
   final GameRoundsController _rounds = Get.find<GameRoundsController>();
   final GameSettlementService _settlement = Get.find<GameSettlementService>();
@@ -45,6 +48,7 @@ class LevelDetailController extends GetxController {
       ever<bool>(walletService.isConnected, (_) => _handleWalletChange()),
       ever<String>(walletService.currentAddress, (_) => _handleWalletChange()),
       ever<int?>(walletService.chainId, (_) => _handleWalletChange()),
+      ever<WalletAuthPhase>(authController.phase, (_) => _handleWalletChange()),
       ever(_roundChain.states, (_) => refreshDetail()),
     ]);
     if (Get.isRegistered<FirebaseBackendService>()) {
@@ -88,7 +92,7 @@ class LevelDetailController extends GetxController {
     _transactionsSubscription?.cancel();
     transactions.clear();
     transactionsError.value = '';
-    if (!walletService.isConnected.value ||
+    if (!authController.isAuthenticated ||
         walletService.currentAddress.value.isEmpty ||
         !Get.isRegistered<FirebaseBackendService>()) {
       isTransactionsLoading.value = false;
@@ -136,21 +140,21 @@ class LevelDetailController extends GetxController {
         _levels.loadPlayerLevel(
           level: level,
           round: selectedRound,
-          playerAddress: walletService.isConnected.value
+          playerAddress: authController.isAuthenticated
               ? walletService.currentAddress.value
               : null,
         ),
-        if (walletService.isConnected.value)
+        if (authController.isAuthenticated)
           walletService.getEasyGamePlayerSummary(),
-        if (walletService.isConnected.value) _settlement.getClaimable(),
+        if (authController.isAuthenticated) _settlement.getClaimable(),
       ]);
       if (isClosed || run != _refreshRun) return;
       final card = values[0];
       if (card.hasError) throw StateError(card.errorMessage!);
       snapshot.value = LevelDetailSnapshot(
         card: card,
-        player: walletService.isConnected.value ? values[1] : null,
-        settlement: walletService.isConnected.value
+        player: authController.isAuthenticated ? values[1] : null,
+        settlement: authController.isAuthenticated
             ? values.last as SettlementClaimable
             : SettlementClaimable.zero,
       );
@@ -172,6 +176,7 @@ class LevelDetailController extends GetxController {
     isActionBusy.value = true;
     actionError.value = '';
     try {
+      await Get.find<WalletAuthController>().ensureAuthenticated();
       final transactionHash = await action();
       await refreshDetail();
       return transactionHash;

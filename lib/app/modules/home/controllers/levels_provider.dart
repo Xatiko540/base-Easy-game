@@ -7,6 +7,8 @@ import 'package:lottery_advance/app/models/game_round_chain_models.dart';
 import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
 import 'package:lottery_advance/app/models/game_transaction_model.dart';
 import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
+import 'package:lottery_advance/app/models/wallet_auth_models.dart';
 import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
 import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
@@ -15,7 +17,9 @@ import 'package:lottery_advance/app/services/game_settlement_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 class LevelsProvider extends GetxController {
+  static const Duration backgroundRefreshInterval = Duration(minutes: 2);
   final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final WalletAuthController authController = Get.find<WalletAuthController>();
   final RoundLevelsRepository _roundLevels = Get.find<RoundLevelsRepository>();
   final GameSettlementService _settlement = Get.find<GameSettlementService>();
   final GameRoundBlockchainService _roundChain =
@@ -57,6 +61,7 @@ class LevelsProvider extends GetxController {
       ever<bool>(walletService.isConnected, (_) => _handleWalletChange()),
       ever<String>(walletService.currentAddress, (_) => _handleWalletChange()),
       ever<int?>(walletService.chainId, (_) => _handleWalletChange()),
+      ever<WalletAuthPhase>(authController.phase, (_) => _handleWalletChange()),
       ever<Map<int, int>>(_rounds.selectedRoundIds, (_) => _queueFetchLevels()),
       ever<Map<int, GameRoundChainState>>(
         _roundChain.states,
@@ -65,7 +70,7 @@ class LevelsProvider extends GetxController {
     ]);
 
     _autoRefreshTimer = Timer.periodic(
-      const Duration(seconds: 30),
+      backgroundRefreshInterval,
       (_) => _queueFetchLevels(),
     );
 
@@ -102,7 +107,7 @@ class LevelsProvider extends GetxController {
 
   void _subscribeToTransactions(FirebaseBackendService backend) {
     _transactionsSub?.cancel();
-    if (playerAddress != null || !walletService.isConnected.value) {
+    if (playerAddress != null || !authController.isAuthenticated) {
       transactions.clear();
       transactionsError.value = '';
       isTransactionsLoading.value = false;
@@ -163,13 +168,16 @@ class LevelsProvider extends GetxController {
     try {
       final results = await Future.wait<dynamic>([
         _roundLevels.loadCards(
-          playerAddress: playerAddress,
+          playerAddress: playerAddress ??
+              (authController.isAuthenticated
+                  ? walletService.currentAddress.value
+                  : null),
           onBatch: (batch) {
             if (isClosed || run != _refreshRun) return;
             _applyCardBatch(batch);
           },
         ),
-        if (walletService.isConnected.value && playerAddress == null)
+        if (authController.isAuthenticated && playerAddress == null)
           _loadSettlementClaimable(),
       ]);
       if (isClosed || run != _refreshRun) return;

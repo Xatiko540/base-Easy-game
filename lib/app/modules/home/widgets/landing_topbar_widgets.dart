@@ -10,6 +10,7 @@ class _LandingTopBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final walletService = Get.find<WalletConnectService>();
+    final authController = Get.find<WalletAuthController>();
     return Row(
       children: [
         const _EasyLogo(),
@@ -24,13 +25,11 @@ class _LandingTopBar extends StatelessWidget {
         Obx(
           () => _TopPill(
             icon: CupertinoIcons.creditcard,
-            label: walletService.isConnected.value
+            label: authController.isAuthenticated
                 ? walletService.shortAddress
                 : 'start.connectWallet'.tr,
-            gradient: !walletService.isConnected.value,
-            onTap: walletService.isConnected.value
-                ? walletService.refreshNativeBalanceSilently
-                : onConnect,
+            gradient: !authController.isAuthenticated,
+            onTap: authController.isAuthenticated ? null : onConnect,
           ),
         ),
       ],

@@ -13,7 +13,6 @@ abstract contract AdminInterface is EasyGameAdvanceStorage {
     event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
     event RoundManagerChanged(address indexed oldManager, address indexed newManager);
     event SettlementContractChanged(address indexed oldSettlement, address indexed newSettlement);
-    event BasePayGatewayChanged(address indexed oldGateway, address indexed newGateway);
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner");
@@ -66,20 +65,13 @@ abstract contract AdminInterface is EasyGameAdvanceStorage {
         emit SettlementContractChanged(oldSettlement, newSettlement);
     }
 
-    function setBasePayGateway(address newGateway) external onlyOwner {
-        if (newGateway == address(0)) revert ZeroAddress();
-        address oldGateway = basePayGateway;
-        basePayGateway = newGateway;
-        emit BasePayGatewayChanged(oldGateway, newGateway);
-    }
-
     function getPlayer(address playerAddress) external view returns (Player memory) {
         return players[playerAddress];
     }
 
-    /// @notice USDC is shared with immutable gateway, skills and settlement
-    /// contracts. Changing only the core token would split accounting between
-    /// different assets, so token migration requires a coordinated redeploy.
+    /// @notice USDC is shared with immutable skills and settlement contracts.
+    /// Changing only the core token would split accounting between different
+    /// assets, so token migration requires a coordinated redeploy.
     function setUsdcToken(address) external view onlyOwner {
         revert UsdcTokenLocked();
     }

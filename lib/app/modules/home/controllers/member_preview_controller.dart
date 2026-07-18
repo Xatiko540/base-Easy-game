@@ -79,18 +79,11 @@ class _MemberPreviewController extends GetxController {
   ) async {
     final roundId = BigInt.from(round.schedule.roundId);
     try {
-      final player = await walletService.getRoundPlayerState(
-        roundId,
-        playerAddress: playerAddress,
-      );
-      if (!player.active) return const _MemberPreviewRoundState();
+      final player = await walletService.getRoundPlayerState(roundId);
+      if (player == null || !player.active) return const _MemberPreviewRoundState();
       var frozen = false;
       try {
-        frozen = (await walletService.getArenaSkillStatus(
-          roundId,
-          playerAddress: playerAddress,
-        ))
-            .frozen;
+        frozen = (await walletService.getArenaSkillStatus(roundId))?.frozen ?? false;
       } catch (_) {}
       return _MemberPreviewRoundState(active: true, frozen: frozen);
     } catch (_) {

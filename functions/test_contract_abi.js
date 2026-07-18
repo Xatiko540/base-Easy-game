@@ -7,7 +7,6 @@ const {
   ROUND_MANAGER_LINK_ABI,
   ARENA_SKILLS_LINK_ABI,
   SETTLEMENT_LINK_ABI,
-  BASE_PAY_GATEWAY_LINK_ABI,
 } = require("./game_abi");
 
 const artifactRoot = path.join(__dirname, "..", "src", "artifacts");
@@ -61,12 +60,6 @@ assertAbiMatchesArtifact(
   SETTLEMENT_LINK_ABI,
   "EasyGameRoundSettlement.json",
 );
-assertAbiMatchesArtifact(
-  "basePayGateway",
-  BASE_PAY_GATEWAY_LINK_ABI,
-  "EasyGameBasePayGateway.json",
-);
-
 const functionsSource = fs.readFileSync(path.join(__dirname, "index.js"), "utf8");
 const forbiddenLegacySymbols = [
   "getPlayerLevelFull",

@@ -2,7 +2,9 @@ part of '../views/utility_screens.dart';
 
 class _MatrixArenaController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
-  final GameRoundsController roundsController = Get.find<GameRoundsController>();
+  final WalletAuthController authController = Get.find<WalletAuthController>();
+  final GameRoundsController roundsController =
+      Get.find<GameRoundsController>();
   final GameClockService clockService = Get.find<GameClockService>();
 
   _MatrixArenaController();
@@ -20,6 +22,7 @@ class _MatrixArenaController extends GetxController {
   Worker? _chainWorker;
   Worker? _scheduleWorker;
   Worker? _timelineWorker;
+  Worker? _authWorker;
   int _loadRequest = 0;
 
   @override
@@ -52,6 +55,10 @@ class _MatrixArenaController extends GetxController {
       roundsController.timeline,
       (_) => _handleTimelineUpdate(),
     );
+    _authWorker = ever<WalletAuthPhase>(
+      authController.phase,
+      (_) => _bootstrapArena(),
+    );
   }
 
   @override
@@ -61,6 +68,7 @@ class _MatrixArenaController extends GetxController {
     _chainWorker?.dispose();
     _scheduleWorker?.dispose();
     _timelineWorker?.dispose();
+    _authWorker?.dispose();
     _loadRequest++;
     super.onClose();
   }
@@ -87,7 +95,7 @@ class _MatrixArenaController extends GetxController {
   }
 
   Future<int> _findInitialLevel() async {
-    if (!walletService.isConnected.value ||
+    if (!authController.isAuthenticated ||
         walletService.currentAddress.value.isEmpty) {
       return 1;
     }
@@ -101,7 +109,7 @@ class _MatrixArenaController extends GetxController {
         final state = await walletService.getRoundPlayerState(
           BigInt.from(round.schedule.roundId),
         );
-        if (state.active) {
+        if (state?.active ?? false) {
           return level;
         }
       } catch (_) {
@@ -132,7 +140,7 @@ class _MatrixArenaController extends GetxController {
     final round = roundsController.roundForLevel(level);
     if (round == null) return _MatrixArenaSnapshot.empty(level);
     final roundId = BigInt.from(round.schedule.roundId);
-    final baseValues = await Future.wait<Object>([
+    final baseValues = await Future.wait<Object?>([
       walletService.getRoundMatrixStats(roundId),
       walletService.getArenaFreezeTokenPriceUsdc(),
     ]);
@@ -141,8 +149,8 @@ class _MatrixArenaController extends GetxController {
     RoundPlayerState? playerRound;
     ArenaSkillStatus? playerSkill;
     EasyGamePlayerSummary? player;
-    if (walletService.isConnected.value) {
-      final playerValues = await Future.wait<Object>([
+    if (authController.isAuthenticated) {
+      final playerValues = await Future.wait<Object?>([
         walletService.getRoundPlayerState(roundId),
         walletService.getEasyGamePlayerSummary(),
       ]);
@@ -154,8 +162,7 @@ class _MatrixArenaController extends GetxController {
     }
     final count = math.min(stats.activeCells.toInt(), 15);
     final participantResults = await Future.wait([
-      for (var cell = 1; cell <= count; cell++)
-        _loadParticipant(roundId, cell),
+      for (var cell = 1; cell <= count; cell++) _loadParticipant(roundId, cell),
     ]);
     final participants = participantResults
         .whereType<MatrixParticipant>()
@@ -208,9 +215,11 @@ class _MatrixArenaController extends GetxController {
     try {
       final node = await walletService.getRoundMatrixNode(
         roundId,
-        BigInt.from(cell),
+        cell,
       );
-      if (_isZeroAddress(node.player)) return null;
+      if (node == null || node.cellId == BigInt.zero || node.player.isEmpty) {
+        return null;
+      }
       final values = await Future.wait<Object?>([
         _safePlayerSummary(node.player),
         _safeSkillStatus(roundId, node.player),
@@ -223,8 +232,8 @@ class _MatrixArenaController extends GetxController {
         wallet: node.player,
         isCurrentPlayer:
             current.isNotEmpty && node.player.toLowerCase() == current,
-        isInvited: current.isNotEmpty &&
-            summary?.inviter.toLowerCase() == current,
+        isInvited:
+            current.isNotEmpty && summary?.inviter.toLowerCase() == current,
         skillStatus: skill,
       );
     } catch (_) {
@@ -235,7 +244,7 @@ class _MatrixArenaController extends GetxController {
   Future<EasyGamePlayerSummary?> _safePlayerSummary(String player) async {
     try {
       return await walletService.getEasyGamePlayerSummary(
-        playerAddress: player,
+        address: player,
       );
     } catch (_) {
       return null;
@@ -278,7 +287,8 @@ class _MatrixArenaController extends GetxController {
     String? target =
         selectedOpponent.value.isNotEmpty ? selectedOpponent.value : null;
     final selected = _participantByWallet(target);
-    if (selected?.isCurrentPlayer == true || selected?.skillStatus?.immune == true) {
+    if (selected?.isCurrentPlayer == true ||
+        selected?.skillStatus?.immune == true) {
       target = null;
     }
     if (target == null) {
@@ -366,9 +376,6 @@ class _MatrixArenaController extends GetxController {
     }
   }
 
-  bool _isZeroAddress(String address) =>
-      RegExp(r'^0x0{40}$', caseSensitive: false).hasMatch(address);
-
   Future<void> _runSkillAction(
     Future<String> Function() action,
     String title,
@@ -376,6 +383,7 @@ class _MatrixArenaController extends GetxController {
     if (snapshot.value.roundId == BigInt.zero) return;
     isSkillActionRunning.value = true;
     try {
+      await Get.find<WalletAuthController>().ensureAuthenticated();
       final hash = await action();
       _showMessage(title, hash);
       await refreshArena();

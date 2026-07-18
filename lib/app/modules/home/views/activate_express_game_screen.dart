@@ -4,7 +4,6 @@ import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/controllers/round_payment_controller.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
-import 'package:lottery_advance/app/services/base_pay_service.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 
 class ActivateExpressGameScreen extends StatelessWidget {
@@ -14,15 +13,14 @@ class ActivateExpressGameScreen extends StatelessWidget {
   final GameRoundViewState initialRound;
 
   ActivateExpressGameScreen({
-    Key? key,
+    super.key,
     this.level = 4,
     this.inviter = '',
     this.paymentAsset = EasyGamePaymentAsset.native,
     required this.initialRound,
-  }) : super(key: key);
+  });
 
   final WalletConnectService walletService = Get.find<WalletConnectService>();
-  final BasePayService basePayService = Get.find<BasePayService>();
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +44,6 @@ class ActivateExpressGameScreen extends StatelessWidget {
         final currency = paymentController.currency;
         final amountLabel = paymentController.amountLabel;
         final networkOk = walletService.isOnSupportedNetwork;
-        final usesBasePay = paymentController.usesBasePay;
         final isProcessing = paymentController.isProcessing;
 
         return ExpressAppShell(
@@ -162,9 +159,8 @@ class ActivateExpressGameScreen extends StatelessWidget {
                           icon: CupertinoIcons.doc_text_fill,
                           color: Colors.tealAccent,
                           label: 'registration.totalContractCharge'.tr,
-                          value: usesBasePay
-                              ? '$amountLabel $currency'
-                              : '$amountLabel $currency + ${'registration.networkGasExtra'.tr}',
+                          value:
+                              '$amountLabel $currency + ${'registration.networkGasExtra'.tr}',
                         ),
                         const SizedBox(height: 8),
                         _PaymentStateLine(
@@ -242,23 +238,13 @@ class ActivateExpressGameScreen extends StatelessWidget {
                         ],
                         const SizedBox(height: 8),
                         _PaymentStateLine(
-                          icon: usesBasePay
-                              ? CupertinoIcons.creditcard_fill
-                              : _statusIcon(walletService.paymentStatus.value),
-                          color: usesBasePay
-                              ? const Color(0xFF0052FF)
-                              : _statusColor(walletService.paymentStatus.value),
-                          label: usesBasePay
-                              ? 'Base Pay'
-                              : walletService.paymentStatusLabel,
-                          value: usesBasePay
-                              ? (basePayService.statusMessage.value.isEmpty
-                                  ? 'payment.basePaySponsored'.tr
-                                  : basePayService.statusMessage.value)
-                              : walletService.paymentStatusMessage.value,
+                          icon: _statusIcon(walletService.paymentStatus.value),
+                          color:
+                              _statusColor(walletService.paymentStatus.value),
+                          label: walletService.paymentStatusLabel,
+                          value: walletService.paymentStatusMessage.value,
                         ),
-                        if (!usesBasePay &&
-                            walletService.lastGasEstimate.value != null) ...[
+                        if (walletService.lastGasEstimate.value != null) ...[
                           const SizedBox(height: 8),
                           _PaymentStateLine(
                             icon: CupertinoIcons.bolt_fill,
@@ -304,17 +290,11 @@ class ActivateExpressGameScreen extends StatelessWidget {
                           child: Center(
                             child: Text(
                               isProcessing
-                                  ? (usesBasePay
-                                      ? 'payment.basePayProcessing'.tr
-                                      : walletService.paymentStatusLabel)
-                                  : usesBasePay
-                                      ? 'payment.payBasePay'.trParams({
-                                          'amount': amountLabel,
-                                        })
-                                      : 'payment.pay'.trParams({
-                                          'amount': amountLabel,
-                                          'currency': currency,
-                                        }),
+                                  ? walletService.paymentStatusLabel
+                                  : 'payment.pay'.trParams({
+                                      'amount': amountLabel,
+                                      'currency': currency,
+                                    }),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 16,

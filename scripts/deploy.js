@@ -117,20 +117,13 @@ async function main() {
   const operatorWallet = configuredAddress("OPERATOR_WALLET");
   const adminOwner = configuredAddress("ADMIN_OWNER_ADDRESS");
   const scheduleSigner = configuredAddress("SCHEDULE_SIGNER_ADDRESS");
-  const basePayFulfiller = configuredAddress("BASE_PAY_FULFILLER_ADDRESS");
   const skillTreasury = configuredAddress("SKILL_TREASURY_ADDRESS");
-  if (!isLocalNetwork && adminOwner === basePayFulfiller) {
-    throw new Error(
-      "ADMIN_OWNER_ADDRESS and BASE_PAY_FULFILLER_ADDRESS must be different for two-party Base Pay refunds."
-    );
-  }
   deploymentSummary.roles = {
     projectWallet,
     treasuryAddress,
     operatorWallet,
     adminOwner,
     scheduleSigner,
-    basePayFulfiller,
     skillTreasury,
   };
   let usdcAddress = process.env.USDC_ADDRESS || "";
@@ -155,7 +148,6 @@ async function main() {
   console.log(`Operator wallet: ${operatorWallet}`);
   console.log(`Admin owner: ${adminOwner}`);
   console.log(`Schedule signer: ${scheduleSigner}`);
-  console.log(`Base Pay fulfiller: ${basePayFulfiller}`);
   console.log(`Skill treasury: ${skillTreasury}`);
   console.log(`USDC token: ${usdcAddress}`);
 
@@ -194,24 +186,6 @@ async function main() {
 
   const setCoreTx = await roundManager.setGameCore(easyGameAddress);
   await recordTransaction("RoundManager.setGameCore", setCoreTx);
-
-  const EasyGameBasePayGateway = await hre.ethers.getContractFactory(
-    "EasyGameBasePayGateway"
-  );
-  const basePayGateway = await EasyGameBasePayGateway.deploy(
-    easyGameAddress,
-    usdcAddress,
-    basePayFulfiller
-  );
-  await basePayGateway.waitForDeployment();
-  const basePayGatewayAddress = await recordDeployment(
-    "EasyGameBasePayGateway",
-    basePayGateway
-  );
-  await recordTransaction(
-    "EasyGameAdvance.setBasePayGateway",
-    await easyGame.setBasePayGateway(basePayGatewayAddress)
-  );
 
   const EasyGameArenaSkills = await hre.ethers.getContractFactory(
     "EasyGameArenaSkills"
@@ -265,10 +239,6 @@ async function main() {
       "RoundManager.transferOwnership",
       await roundManager.transferOwnership(adminOwner)
     );
-    await recordTransaction(
-      "BasePayGateway.transferOwnership",
-      await basePayGateway.transferOwnership(adminOwner)
-    );
   }
 
   if (mockUsdc) {
@@ -282,7 +252,6 @@ async function main() {
   updateAppArtifact("EasyGameAdvance", network.chainId, easyGameAddress);
   updateAppArtifact("EasyGameArenaSkills", network.chainId, arenaSkillsAddress);
   updateAppArtifact("EasyGameRoundSettlement", network.chainId, settlementAddress);
-  updateAppArtifact("EasyGameBasePayGateway", network.chainId, basePayGatewayAddress);
 
   console.log("DEPLOYMENT_SUMMARY_START");
   console.log(JSON.stringify(deploymentSummary, null, 2));

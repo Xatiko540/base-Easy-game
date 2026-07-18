@@ -422,13 +422,13 @@ class NeonHoneycombPainter extends CustomPainter {
 
 class NeonHoneycomb extends StatelessWidget {
   const NeonHoneycomb({
-    Key? key,
+    super.key,
     this.backgroundColor,
     this.padding = 2,
     this.zoomFactor = 1,
     required this.states,
     this.onCellTap,
-  }) : super(key: key);
+  });
 
   final Color? backgroundColor;
   final double padding;

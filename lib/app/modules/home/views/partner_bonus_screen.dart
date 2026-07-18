@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/controllers/partner_bonus_controller.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/partner_bonus_models.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
@@ -17,11 +18,12 @@ part '../widgets/partner_claim_widgets.dart';
 part '../widgets/partner_bonus_table_widgets.dart';
 
 class PartnerBonusScreen extends StatelessWidget {
-  const PartnerBonusScreen({Key? key}) : super(key: key);
+  const PartnerBonusScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
     final walletService = Get.find<WalletConnectService>();
+    final authController = Get.find<WalletAuthController>();
     return GetX<PartnerBonusController>(
       init: PartnerBonusController(),
       dispose: (_) {
@@ -64,7 +66,7 @@ class PartnerBonusScreen extends StatelessWidget {
                   const SizedBox(height: 12),
                   Obx(
                     () => Text(
-                      walletService.isConnected.value
+                      authController.isAuthenticated
                           ? 'partner.structure'.trParams({
                               'wallet': walletService.shortAddress,
                             })

@@ -21,8 +21,6 @@ class AppConfigService extends GetxService {
       String.fromEnvironment('EASY_GAME_ARENA_SKILLS_ADDRESS');
   static const _envRoundSettlementAddress =
       String.fromEnvironment('EASY_GAME_ROUND_SETTLEMENT_ADDRESS');
-  static const _envBasePayGatewayAddress =
-      String.fromEnvironment('EASY_GAME_BASE_PAY_GATEWAY_ADDRESS');
   static const _envEasyGameInviter =
       String.fromEnvironment('EASY_GAME_INVITER');
   static const _envPaymentReceiver = String.fromEnvironment('PAYMENT_RECEIVER');
@@ -34,10 +32,7 @@ class AppConfigService extends GetxService {
       String.fromEnvironment('BASE_BUILDER_DATA_SUFFIX');
   static const _envAllowLocalChains =
       String.fromEnvironment('EASY_GAME_ALLOW_LOCAL_CHAINS');
-  static const _envBaseAccountAppName =
-      String.fromEnvironment('BASE_ACCOUNT_APP_NAME');
-  static const _envBaseAccountAppLogoUrl =
-      String.fromEnvironment('BASE_ACCOUNT_APP_LOGO_URL');
+  static const _envAppPublicUrl = String.fromEnvironment('APP_PUBLIC_URL');
   static const _envTargetBaseChainId =
       int.fromEnvironment('EASY_GAME_CHAIN_ID', defaultValue: 0);
 
@@ -77,9 +72,11 @@ class AppConfigService extends GetxService {
       _copyAlias(
           from: 'easyGameRoundManagerAddress', to: 'roundManagerAddress');
       _copyAlias(from: 'web3Rpc', to: 'web3PublicRpcUrl');
+      _copyAlias(from: 'usdcTokenAddress', to: 'usdcContractAddress');
       isLoaded.value = true;
     } catch (e) {
-      debugPrint('AppConfigService fetch failed (non-critical): $e');
+      debugPrint('AppConfigService fetch failed: $e');
+      rethrow;
     }
   }
 
@@ -124,12 +121,11 @@ class AppConfigService extends GetxService {
         return _envArenaSkillsAddress;
       case 'roundSettlementAddress':
         return _envRoundSettlementAddress;
-      case 'basePayGatewayAddress':
-        return _envBasePayGatewayAddress;
       case 'easyGameInviter':
         return _envEasyGameInviter;
       case 'paymentReceiver':
         return _envPaymentReceiver;
+      case 'usdcContractAddress':
       case 'usdcTokenAddress':
         return _envUsdcTokenAddress;
       case 'web3Rpc':
@@ -139,10 +135,8 @@ class AppConfigService extends GetxService {
         return _envBaseBuilderDataSuffix;
       case 'allowLocalChains':
         return _envAllowLocalChains;
-      case 'baseAccountAppName':
-        return _envBaseAccountAppName;
-      case 'baseAccountAppLogoUrl':
-        return _envBaseAccountAppLogoUrl;
+      case 'appPublicUrl':
+        return _envAppPublicUrl;
       case 'chainId':
       case 'targetBaseChainId':
         return _envTargetBaseChainId == 0 ? '' : '$_envTargetBaseChainId';

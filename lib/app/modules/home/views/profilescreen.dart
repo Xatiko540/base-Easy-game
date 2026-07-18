@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:lottery_advance/app/models/game_transaction_model.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/controllers/profile_controller.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/profile_models.dart';
 import 'package:lottery_advance/app/modules/home/models/profile_session_model.dart';
 import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
@@ -23,7 +24,7 @@ part '../widgets/profile_about_widgets.dart';
 part '../widgets/profile_activity_widgets.dart';
 
 class ProfileScreen extends StatelessWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
+  const ProfileScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +36,8 @@ class ProfileScreen extends StatelessWidget {
         final transactionsError = profileController.transactionsError.value;
         final isClaimingPrize = profileController.isClaimingPrize.value;
         final isClaimingReferral = profileController.isClaimingReferral.value;
+        final isClaimingReferralUsdc =
+            profileController.isClaimingReferralUsdc.value;
         return ExpressAppShell(
           title: 'nav.dashboard'.tr,
           breadcrumb: '${'app.name'.tr} / ${'nav.dashboard'.tr}',
@@ -78,6 +81,7 @@ class ProfileScreen extends StatelessWidget {
                           data: data,
                           isClaimingPrize: isClaimingPrize,
                           isClaimingReferral: isClaimingReferral,
+                          isClaimingReferralUsdc: isClaimingReferralUsdc,
                         ),
                         const SizedBox(height: 22),
                         _RecentActivityTable(

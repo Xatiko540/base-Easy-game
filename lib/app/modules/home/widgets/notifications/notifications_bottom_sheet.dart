@@ -5,7 +5,7 @@ import 'package:lottery_advance/app/modules/home/controllers/notifications_contr
 import 'package:lottery_advance/utils/theme.dart';
 
 class NotificationsBottomSheet extends StatelessWidget {
-  const NotificationsBottomSheet({Key? key}) : super(key: key);
+  const NotificationsBottomSheet({super.key});
 
   @override
   Widget build(BuildContext context) {

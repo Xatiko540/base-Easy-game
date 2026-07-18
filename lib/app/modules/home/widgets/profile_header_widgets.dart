@@ -65,11 +65,11 @@ class _UserIdentity extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final walletService = Get.find<WalletConnectService>();
+    final authController = Get.find<WalletAuthController>();
     return Obx(
       () {
         final sessionStatus = resolveProfileSessionStatus(
-          walletConnected: walletService.isConnected.value &&
-              walletService.currentAddress.value.isNotEmpty,
+          walletAuthenticated: authController.isAuthenticated,
           playerExists: data.player?.exists == true,
         );
         return Container(
@@ -131,7 +131,7 @@ class _UserIdentity extends StatelessWidget {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      walletService.isConnected.value
+                      authController.isAuthenticated
                           ? walletService.currentAddress.value
                           : 'common.walletNotConnected'.tr,
                       overflow: TextOverflow.ellipsis,
@@ -162,7 +162,9 @@ class _UserIdentity extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      walletService.authProviderLabel,
+                      authController.isAuthenticated
+                          ? 'SIWE + Firebase'
+                          : 'common.notLoggedIn'.tr,
                       style:
                           const TextStyle(color: Colors.white38, fontSize: 13),
                     ),

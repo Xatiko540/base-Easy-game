@@ -10,11 +10,11 @@ class StableLoadingSurface extends StatelessWidget {
   final Widget child;
 
   const StableLoadingSurface({
-    Key? key,
+    super.key,
     required this.isLoading,
     required this.hasData,
     required this.child,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -38,11 +38,11 @@ class StableSkeletonBlock extends StatelessWidget {
   final BorderRadius borderRadius;
 
   const StableSkeletonBlock({
-    Key? key,
+    super.key,
     required this.height,
     this.width,
     this.borderRadius = const BorderRadius.all(Radius.circular(8)),
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {

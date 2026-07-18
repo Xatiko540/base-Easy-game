@@ -12,6 +12,7 @@ import 'package:lottery_advance/utils/theme.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/game_transaction_model.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/modules/home/widgets/game_round_presentation.dart';
 
 import '../models/levels_models.dart';
@@ -33,7 +34,7 @@ part '../widgets/level_detail_common_widgets.dart';
 class LevelsScreen extends StatelessWidget {
   final String? walletAddress;
 
-  const LevelsScreen({Key? key, this.walletAddress}) : super(key: key);
+  const LevelsScreen({super.key, this.walletAddress});
 
   @override
   Widget build(BuildContext context) {
@@ -48,11 +49,12 @@ class LevelsScreen extends StatelessWidget {
       },
       builder: (levelsProvider) {
         final walletService = Get.find<WalletConnectService>();
+        final authController = Get.find<WalletAuthController>();
         final levelCount = levelsProvider.levels.length;
         final loading = levelsProvider.isLoading.value;
         final errorMessage = levelsProvider.errorMessage.value;
         final currency = walletService.nativeSymbol;
-        final connected = walletService.isConnected.value;
+        final connected = authController.isAuthenticated;
         final identity = walletAddress?.isNotEmpty == true
             ? _shortLevelIdentity(walletAddress!)
             : connected
@@ -229,10 +231,10 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
   final BigInt roundId;
 
   const EasyGameLevelDetailScreen({
-    Key? key,
+    super.key,
     required this.level,
     required this.roundId,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -275,7 +277,7 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                   children: [
                     Obx(
                       () => Text(
-                        walletService.isConnected.value
+                        Get.find<WalletAuthController>().isAuthenticated
                             ? 'levels.walletBreadcrumb'.trParams({
                                 'wallet': walletService.shortAddress,
                                 'level': '$level',
@@ -325,7 +327,8 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                         priceWei: data.card.ethPriceWei,
                         stateLabel: detailController.stateLabel(data),
                         progress: detailController.fillPercent(data),
-                        walletLabel: walletService.isConnected.value
+                        walletLabel:
+                            Get.find<WalletAuthController>().isAuthenticated
                             ? walletService.shortAddress
                             : 'common.notConnected'.tr,
                         onActivate:

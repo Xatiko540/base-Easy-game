@@ -7,10 +7,10 @@ import 'package:lottery_advance/utils/theme.dart';
 
 class RoundCardTimer extends StatelessWidget {
   const RoundCardTimer({
-    Key? key,
+    super.key,
     required this.round,
     this.prominent = true,
-  }) : super(key: key);
+  });
 
   final GameRoundViewState round;
   final bool prominent;
@@ -66,7 +66,7 @@ class RoundCardTimer extends StatelessWidget {
 }
 
 class InlineRoundCountdown extends StatelessWidget {
-  const InlineRoundCountdown({Key? key, required this.round}) : super(key: key);
+  const InlineRoundCountdown({super.key, required this.round});
 
   final GameRoundViewState round;
 

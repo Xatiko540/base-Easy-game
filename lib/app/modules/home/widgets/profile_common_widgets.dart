@@ -153,38 +153,113 @@ class _WeightBreakdown extends StatelessWidget {
 
   const _WeightBreakdown({required this.data});
 
+  static const _cap = 5000;
+  static const _colors = [
+    Color(0xFF4D78FF),
+    Color(0xFF9B59B6),
+    Color(0xFF00B9B1),
+    Color(0xFFF39C12),
+  ];
+
   @override
   Widget build(BuildContext context) {
-    final items = [
-      MapEntry('profile.baseWeight'.tr, data.baseWeight),
-      MapEntry('profile.referralWeight'.tr, data.referralWeight),
-      MapEntry('profile.matrixWeight'.tr, data.matrixWeight),
-      MapEntry('profile.nftWeight'.tr, data.nftWeight),
+    final labels = [
+      'profile.baseWeight'.tr,
+      'profile.referralWeight'.tr,
+      'profile.matrixWeight'.tr,
+      'profile.nftWeight'.tr,
+    ];
+    final values = [
+      data.baseWeight,
+      data.referralWeight,
+      data.matrixWeight,
+      data.nftWeight,
     ];
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: items
-          .map(
-            (item) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFF171A1B),
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.white10),
-              ),
-              child: Text(
-                '${item.key}: ${item.value}',
-                style: const TextStyle(
-                  color: Colors.white60,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                ),
+    final total = values.fold<BigInt>(BigInt.zero, (a, b) => a + b);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              'profile.weightModel'.tr,
+              style: const TextStyle(
+                color: Colors.white54,
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
               ),
             ),
-          )
-          .toList(),
+            const Spacer(),
+            Text(
+              '$total / $_cap',
+              style: TextStyle(
+                color: total >= BigInt.from(_cap) ? EasyGameTheme.gold : Colors.white38,
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: SizedBox(
+            height: 14,
+            child: Row(
+              children: [
+                for (var i = 0; i < values.length; i++) ...[
+                  if (values[i] > BigInt.zero)
+                    Expanded(
+                      flex: (values[i] * BigInt.from(100) ~/ BigInt.from(_cap)).toInt().clamp(1, 100),
+                      child: Container(
+                        color: _colors[i].withValues(alpha: 0.7),
+                      ),
+                    ),
+                ],
+                if (total < BigInt.from(_cap))
+                  Expanded(
+                    flex: ((BigInt.from(_cap) - total) * BigInt.from(100) ~/ BigInt.from(_cap)).toInt().clamp(1, 100),
+                    child: Container(
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 10,
+          runSpacing: 6,
+          children: [
+            for (var i = 0; i < values.length; i++)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: _colors[i],
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                  Text(
+                    '${labels[i]}: ${values[i]}',
+                    style: const TextStyle(
+                      color: Colors.white54,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+        ),
+      ],
     );
   }
 }

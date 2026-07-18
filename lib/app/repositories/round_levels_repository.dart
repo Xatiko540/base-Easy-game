@@ -19,11 +19,8 @@ class RoundLevelsRepository extends GetxService {
   }) async {
     final cards = <RoundLevelCardState>[];
     final requests = <Future<RoundLevelCardState>>[];
-    final resolvedPlayerAddress = playerAddress?.isNotEmpty == true
-        ? playerAddress
-        : _wallet.isConnected.value
-            ? _wallet.currentAddress.value
-            : null;
+    final resolvedPlayerAddress =
+        playerAddress?.isNotEmpty == true ? playerAddress : null;
     final progressBySeason = await _loadSeasonProgress(
       playerAddress: resolvedPlayerAddress,
     );
@@ -80,12 +77,9 @@ class RoundLevelsRepository extends GetxService {
       );
     }
 
-    RoundPlayerState player;
+    RoundPlayerState? player;
     try {
-      player = await _wallet.getRoundPlayerState(
-        roundId,
-        playerAddress: playerAddress,
-      );
+      player = await _wallet.getRoundPlayerState(roundId);
     } catch (_) {
       return RoundLevelCardState(
         level: level,
@@ -105,12 +99,9 @@ class RoundLevelsRepository extends GetxService {
     );
     try {
       ArenaSkillStatus? arenaStatus;
-      if (player.active) {
+      if (player?.active == true) {
         try {
-          arenaStatus = await _wallet.getArenaSkillStatus(
-            roundId,
-            playerAddress: playerAddress,
-          );
+          arenaStatus = await _wallet.getArenaSkillStatus(roundId);
         } catch (_) {
           // Arena skills may not be configured on an older test deployment.
         }
@@ -143,11 +134,8 @@ class RoundLevelsRepository extends GetxService {
     required GameRoundViewState? round,
     String? playerAddress,
   }) async {
-    final resolvedPlayerAddress = playerAddress?.isNotEmpty == true
-        ? playerAddress
-        : _wallet.isConnected.value
-            ? _wallet.currentAddress.value
-            : null;
+    final resolvedPlayerAddress =
+        playerAddress?.isNotEmpty == true ? playerAddress : null;
     PlayerSeasonProgress? seasonProgress;
     if (round != null && resolvedPlayerAddress?.isNotEmpty == true) {
       final progressBySeason = await _loadSeasonProgress(
@@ -168,7 +156,7 @@ class RoundLevelsRepository extends GetxService {
     GameRoundViewState round,
   ) async {
     try {
-      return await _wallet.getRoundMatrixStats(roundId);
+      return (await _wallet.getRoundMatrixStats(roundId))!;
     } catch (_) {
       final chainState = round.chainState;
       return RoundMatrixStats(

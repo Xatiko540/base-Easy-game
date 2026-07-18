@@ -34,7 +34,6 @@ abstract contract EasyGameAdvanceStorage {
     address public operatorWallet;
     address public roundManager;
     address public settlementContract;
-    address public basePayGateway;
     IERC20Minimal public usdcToken;
 
     mapping(uint8 => bool) public levelAvailable;

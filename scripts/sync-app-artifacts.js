@@ -6,7 +6,6 @@ const contracts = [
   "EasyGameRoundManager",
   "EasyGameArenaSkills",
   "EasyGameRoundSettlement",
-  "EasyGameBasePayGateway",
 ];
 
 for (const contractName of contracts) {

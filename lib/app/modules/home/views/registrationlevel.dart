@@ -5,7 +5,6 @@ import 'package:lottery_advance/app/modules/home/controllers/registration_contro
 import 'package:lottery_advance/app/modules/home/models/registration_models.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
-import 'package:lottery_advance/app/services/base_pay_service.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/utils/theme.dart';
 
@@ -23,12 +22,11 @@ class RegistrationScreen extends StatelessWidget {
 
   RegistrationScreen(
     LevelStatus level1, {
-    Key? key,
+    super.key,
     this.level = 3,
     String? inviter,
     this.round,
-  })  : inviter = inviter ?? WalletConnectService.easyGameInviter,
-        super(key: key);
+  })  : inviter = inviter ?? WalletConnectService.easyGameInviter;
 
   @override
   Widget build(BuildContext context) {
@@ -109,8 +107,6 @@ class RegistrationScreen extends StatelessWidget {
                           _PaymentAssetSelector(
                             selected: paymentAsset,
                             nativeSymbol: walletService.nativeSymbol,
-                            basePayAvailable:
-                                Get.find<BasePayService>().isAvailable,
                             onChanged:
                                 registrationController.selectPaymentAsset,
                           ),
@@ -251,7 +247,6 @@ class RegistrationScreen extends StatelessWidget {
                             amount: selectedPriceUnits,
                             paysWithUsdc: registrationController.paysWithUsdc,
                             currencySymbol: currency,
-                            paymentAsset: paymentAsset,
                           ),
                           const SizedBox(height: 24),
                           _ProjectActionButton(

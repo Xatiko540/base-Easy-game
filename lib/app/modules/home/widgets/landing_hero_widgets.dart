@@ -10,6 +10,7 @@ class _HeroPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final walletService = Get.find<WalletConnectService>();
+    final authController = Get.find<WalletAuthController>();
     return Container(
       width: double.infinity,
       constraints: const BoxConstraints(minHeight: 260),
@@ -97,7 +98,7 @@ class _HeroPanel extends StatelessWidget {
                             () => Text(
                               walletService.isConnecting.value
                                   ? 'top.signingIn'.tr
-                                  : walletService.isConnected.value
+                                  : authController.isAuthenticated
                                       ? 'top.enterAccount'.tr
                                       : 'start.connectWallet'.tr,
                               style: const TextStyle(
@@ -168,4 +169,3 @@ class _HeroMatrixPreview extends StatelessWidget {
     );
   }
 }
-

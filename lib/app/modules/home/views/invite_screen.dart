@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/modules/home/views/language_selector.dart';
 import 'package:lottery_advance/app/modules/home/views/registrationlevel.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
-import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
@@ -12,13 +12,13 @@ import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 class InviteScreen extends StatelessWidget {
   final String inviter;
 
-  InviteScreen({Key? key, String? inviter})
+  InviteScreen({super.key, String? inviter})
       : inviter = ReferralLinkService.normalizeAddress(
           inviter ?? ReferralLinkService.inviterFromCurrentUrl(),
-        ),
-        super(key: key);
+        );
 
   final WalletConnectService walletService = Get.find<WalletConnectService>();
+  final WalletAuthController authController = Get.find<WalletAuthController>();
 
   @override
   Widget build(BuildContext context) {
@@ -57,7 +57,7 @@ class InviteScreen extends StatelessWidget {
                       const _InviteLogo(),
                       Obx(
                         () => _ConnectButton(
-                          label: walletService.isConnected.value
+                          label: authController.isAuthenticated
                               ? walletService.shortAddress
                               : 'start.connectWallet'.tr,
                           onPressed: _connectWallet,
@@ -154,16 +154,11 @@ class InviteScreen extends StatelessWidget {
 
   Future<void> _connectWallet() async {
     try {
-      await walletService.connectBaseAccount();
-      if (Get.isRegistered<FirebaseBackendService>()) {
-        final backend = Get.find<FirebaseBackendService>();
-        if (backend.isReady.value) {
-          backend.ensureCurrentWalletLinkedInBackground();
-        }
-      }
+      await authController.connectAndAuthenticate();
     } catch (e) {
+      if (WalletConnectService.isUserRejection(e)) return;
       Get.snackbar(
-        'Failed to connect wallet',
+        'common.error'.tr,
         '$e',
         snackPosition: SnackPosition.BOTTOM,
       );
@@ -171,9 +166,8 @@ class InviteScreen extends StatelessWidget {
   }
 
   Future<void> _connectAndPlay() async {
-    if (!walletService.isConnected.value) {
-      await _connectWallet();
-    }
+    if (!authController.isAuthenticated) await _connectWallet();
+    if (!authController.isAuthenticated) return;
     Get.to(
       () => RegistrationScreen(
         LevelStatus.waiting,

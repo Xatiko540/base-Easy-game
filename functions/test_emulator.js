@@ -64,13 +64,13 @@ async function main() {
   {
     // The emulator rejects unauthenticated requests at the framework level
     // BEFORE our handler code runs. This confirms auth enforcement works.
-    let r = await callFn('requestWalletNonce', { wallet: '' });
+    let r = await callFn('requestSiweNonce', { wallet: '' });
     assert(r?.error?.status === 'UNAUTHENTICATED',
-      'requestWalletNonce: UNAUTHENTICATED without valid App Check');
+      'requestSiweNonce: UNAUTHENTICATED without valid App Check');
 
-    r = await callFn('linkWallet', { signature: '' });
+    r = await callFn('authenticateWallet', { signature: '' });
     assert(r?.error?.status === 'UNAUTHENTICATED',
-      'linkWallet: UNAUTHENTICATED without valid App Check');
+      'authenticateWallet: UNAUTHENTICATED without valid App Check');
 
     r = await callFn('registerDevice', { token: '', platform: '' });
     assert(r?.error?.status === 'UNAUTHENTICATED',
@@ -85,8 +85,12 @@ async function main() {
   console.log('[4] Callable data fields are delivered');
   {
     // Verify the data payload is passed to the function (even though it rejects)
-    let r = await callFn('requestWalletNonce', { wallet: '0x70997970c51812dc3a010c7d01b50e0d17dc79c8' });
-    assert(!!r.error, 'requestWalletNonce: payload delivered (error: ' + r?.error?.status + ')');
+    let r = await callFn('requestSiweNonce', {
+      wallet: '0x70997970c51812dc3a010c7d01b50e0d17dc79c8',
+      chainId: 84532,
+      origin: 'http://127.0.0.1:5000',
+    });
+    assert(!!r.error, 'requestSiweNonce: payload delivered (error: ' + r?.error?.status + ')');
 
     r = await callFn('trackTransaction', { transactionHash: '0x' + 'a'.repeat(64) });
     assert(!!r.error, 'trackTransaction: payload delivered');
@@ -146,16 +150,13 @@ async function main() {
     });
     assert(writeAny.status === 403, 'default: all writes blocked (status 403)');
 
-    // Read own walletLinks — should be allowed (but doc may not exist)
+    // Anonymous bootstrap sessions cannot inspect wallet-linked data.
     const readOwnLink = await fetch(`${FIRESTORE_URL}/walletLinks/${uid}`, {
       method: 'GET',
       headers: fsHeaders
     });
-    // 200=found, 404=not found (both mean access was permitted by rules)
-    assert(
-      readOwnLink.status === 200 || readOwnLink.status === 404,
-      'walletLinks: read own uid allowed (status ' + readOwnLink.status + ')'
-    );
+    assert(readOwnLink.status === 403,
+      'walletLinks: anonymous bootstrap blocked (status 403)');
 
     // Read other's walletLinks — should be blocked
     const readOtherLink = await fetch(`${FIRESTORE_URL}/walletLinks/other-uid`, {
@@ -192,15 +193,16 @@ async function main() {
 
     // Functions
     assert(src.includes('exports.health'), 'health function');
-    assert(src.includes('exports.requestWalletNonce'), 'requestWalletNonce function');
-    assert(src.includes('exports.linkWallet'), 'linkWallet function');
-    assert(src.includes('exports.verifyBaseAccountSession'), 'verifyBaseAccountSession function');
+    assert(src.includes('exports.requestSiweNonce'), 'requestSiweNonce function');
+    assert(src.includes('exports.authenticateWallet'), 'authenticateWallet function');
+    assert(!src.includes('exports.requestWalletNonce'), 'legacy requestWalletNonce removed');
+    assert(!src.includes('exports.linkWallet'), 'legacy linkWallet removed');
+    assert(!src.includes('exports.verifyBaseAccountSession'), 'legacy Base session route removed');
     assert(src.includes('exports.registerDevice'), 'registerDevice function');
     assert(src.includes('exports.trackTransaction'), 'trackTransaction function');
     assert(src.includes('exports.contractSmokeTest'), 'contractSmokeTest function');
     assert(src.includes('exports.publishRoundManifest'), 'publishRoundManifest function');
     assert(src.includes('exports.getRoundSettlementProofs'), 'getRoundSettlementProofs function');
-    assert(src.includes('exports.fulfillBasePayRound'), 'fulfillBasePayRound function');
     assert(!/^exports\.syncGameEvents\s*=/m.test(src), 'syncGameEvents worker disabled');
     assert(!/^exports\.confirmTransactions\s*=/m.test(src), 'confirmTransactions worker disabled');
     assert(!src.includes('exports.syncLevel'), 'legacy syncLevel removed');
@@ -210,17 +212,21 @@ async function main() {
     assert(src.includes('enforceAppCheck: true'), 'enforceAppCheck: true');
     assert(src.includes('requireApp'), 'requireApp() in callable functions');
     assert(src.includes('requireUser'), 'requireUser() in callable functions');
+    assert(src.includes('requireWalletUser'), 'verified wallet guard defined');
+    assert(src.includes('claims.authProvider !== "siwe"'),
+      'verified wallet guard requires SIWE custom claims');
     assert(src.includes('enforceRateLimit'), 'enforceRateLimit() defined');
 
     // Auth flow
     assert(src.includes('walletVerificationClient().verifyMessage'),
       'viem verifyMessage supports EOA and Base Account signatures');
-    assert(src.includes('validateBaseAccountSiwe'), 'Base Account SIWE validation');
-    assert(src.includes('walletAuthNonces'), 'Base Account SIWE replay protection');
+    assert(src.includes('validateSiwe'), 'standard SIWE validation');
+    assert(src.includes('walletAuthChallenges'), 'SIWE replay protection');
     assert(src.includes('randomBytes(24)'), '24-byte random nonce');
     assert(src.includes('expiresAt'), 'nonce expiry');
-    assert(src.includes('walletNonces'), 'walletNonces collection');
-
+    assert(src.includes('createCustomToken'), 'Firebase Custom Token session');
+    assert(src.includes('walletFirebaseUid'), 'stable server-side wallet identity');
+    assert(src.includes('SIWE challenge changed'), 'challenge race protection');
     // Wallet linking
     assert(src.includes('walletLinks'), 'walletLinks collection');
     assert(src.includes('walletDevices'), 'walletDevices collection');
@@ -257,7 +263,6 @@ async function main() {
       'ROUND_MANAGER_LINK_ABI',
       'ARENA_SKILLS_LINK_ABI',
       'SETTLEMENT_LINK_ABI',
-      'BASE_PAY_GATEWAY_LINK_ABI',
     ];
     for (const name of expected) {
       assert(Array.isArray(deploymentAbis[name]), name + ' is array');

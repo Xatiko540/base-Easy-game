@@ -13,7 +13,9 @@ import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/models/matrix_round_models.dart';
 import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
+import 'package:lottery_advance/app/models/wallet_auth_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
+import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 import 'package:lottery_advance/app/services/game_clock_service.dart';
 import 'package:lottery_advance/app/widgets/stable_loading_surface.dart';
@@ -36,7 +38,7 @@ part '../widgets/information_diagram_widgets.dart';
 part '../widgets/information_common_widgets.dart';
 
 class StatisticsScreen extends StatelessWidget {
-  const StatisticsScreen({Key? key}) : super(key: key);
+  const StatisticsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -170,7 +172,7 @@ class StatisticsScreen extends StatelessWidget {
 }
 
 class MatrixArenaScreen extends StatelessWidget {
-  const MatrixArenaScreen({Key? key}) : super(key: key);
+  const MatrixArenaScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -287,9 +289,9 @@ class MemberPreviewScreen extends StatelessWidget {
   final String query;
 
   const MemberPreviewScreen({
-    Key? key,
+    super.key,
     required this.query,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -399,7 +401,7 @@ class MemberPreviewScreen extends StatelessWidget {
 }
 
 class InformationScreen extends StatelessWidget {
-  const InformationScreen({Key? key}) : super(key: key);
+  const InformationScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -423,7 +425,7 @@ class InformationScreen extends StatelessWidget {
 }
 
 class TelegramBotsScreen extends StatelessWidget {
-  const TelegramBotsScreen({Key? key}) : super(key: key);
+  const TelegramBotsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -454,7 +456,7 @@ class TelegramBotsScreen extends StatelessWidget {
 }
 
 class PromoScreen extends StatelessWidget {
-  PromoScreen({Key? key}) : super(key: key);
+  PromoScreen({super.key});
 
   final WalletConnectService walletService = Get.find<WalletConnectService>();
 
@@ -498,7 +500,7 @@ class PromoScreen extends StatelessWidget {
 }
 
 class NotifierBotScreen extends StatelessWidget {
-  NotifierBotScreen({Key? key}) : super(key: key);
+  NotifierBotScreen({super.key});
 
   final WalletConnectService walletService = Get.find<WalletConnectService>();
 
@@ -535,7 +537,7 @@ class NotifierBotScreen extends StatelessWidget {
 }
 
 class SettingsScreen extends StatelessWidget {
-  SettingsScreen({Key? key}) : super(key: key);
+  SettingsScreen({super.key});
 
   final WalletConnectService walletService = Get.find<WalletConnectService>();
 
@@ -588,8 +590,8 @@ class SettingsScreen extends StatelessWidget {
           icon: CupertinoIcons.square_arrow_left,
           title: 'utility.disconnectWallet'.tr,
           subtitle: 'utility.disconnectWalletText'.tr,
-          onTap: () {
-            walletService.disconnectWallet();
+          onTap: () async {
+            await Get.find<WalletAuthController>().logout();
             Get.offAllNamed('/home');
           },
         ),
@@ -599,7 +601,7 @@ class SettingsScreen extends StatelessWidget {
 }
 
 class SupportScreen extends StatelessWidget {
-  const SupportScreen({Key? key}) : super(key: key);
+  const SupportScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -629,7 +631,7 @@ class SupportScreen extends StatelessWidget {
 }
 
 class ExpressInfoScreen extends StatelessWidget {
-  const ExpressInfoScreen({Key? key}) : super(key: key);
+  const ExpressInfoScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -651,7 +653,7 @@ class ExpressInfoScreen extends StatelessWidget {
 }
 
 class RecentActivityScreen extends StatelessWidget {
-  const RecentActivityScreen({Key? key}) : super(key: key);
+  const RecentActivityScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
