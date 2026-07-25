@@ -229,21 +229,9 @@ class RoundLevelsRepository extends GetxService {
     if (progress == null || !progress.started) {
       return RoundEntryEligibility.eligible;
     }
-    if (level <= progress.highestLevel) {
-      return RoundEntryEligibility(
-        reason: RoundEntryEligibilityReason.alreadyPurchasedOrLower,
-        requiredLevel: progress.highestLevel,
-        blockingRoundId: BigInt.zero,
-      );
-    }
-    final requiredLevel = progress.nextLevel ?? progress.highestLevel;
-    if (level != requiredLevel) {
-      return RoundEntryEligibility(
-        reason: RoundEntryEligibilityReason.nextLevelRequired,
-        requiredLevel: requiredLevel,
-        blockingRoundId: BigInt.zero,
-      );
-    }
+    // Contract state is authoritative for duplicate entries. If the optional
+    // progression query is unavailable, do not infer that a lower or skipped
+    // level is blocked: every unpurchased level is independent.
     return RoundEntryEligibility.eligible;
   }
 }

@@ -540,8 +540,11 @@ class WalletConnectService extends GetxService {
     if (addr.isEmpty) return;
     try {
       final result = await _retryRpc(() => wagmi.Core.getBalance(
-        wagmi.GetBalanceParameters(address: addr),
-      ));
+            wagmi.GetBalanceParameters(
+              address: addr,
+              chainId: targetBaseChainId,
+            ),
+          ));
       if (currentAddress.value != addr) return;
       nativeBalance.value = result.formatted;
       nativeBalanceWei.value = result.value;
@@ -574,6 +577,7 @@ class WalletConnectService extends GetxService {
       final result = await wagmi.Core.getBalance(
         wagmi.GetBalanceParameters(
           address: addr,
+          chainId: targetBaseChainId,
           token: usdcAddr,
         ),
       );
@@ -593,11 +597,12 @@ class WalletConnectService extends GetxService {
       if (usdcAddr.isEmpty) return BigInt.zero;
       if (currentAddress.value != addr) return BigInt.zero;
       final result = await _retryRpc(() => wagmi.Core.getBalance(
-        wagmi.GetBalanceParameters(
-          address: addr,
-          token: usdcAddr,
-        ),
-      ));
+            wagmi.GetBalanceParameters(
+              address: addr,
+              chainId: targetBaseChainId,
+              token: usdcAddr,
+            ),
+          ));
       if (currentAddress.value == addr) {
         usdcBalance.value = result.formatted;
       }
@@ -713,7 +718,7 @@ class WalletConnectService extends GetxService {
       'usdcTokenAddress',
       config.get('usdcContractAddress'),
     );
-    final effectiveChainId = chainId.value ?? targetBaseChainId;
+    final effectiveChainId = targetBaseChainId;
     final address = configured.isNotEmpty
         ? configured
         : switch (effectiveChainId) {
@@ -725,7 +730,10 @@ class WalletConnectService extends GetxService {
           };
     try {
       final info = await wagmi.Core.getToken(
-        wagmi.GetTokenParameters(address: address),
+        wagmi.GetTokenParameters(
+          address: address,
+          chainId: targetBaseChainId,
+        ),
       );
       if (info.symbol != 'USDC') {
         debugPrint(
@@ -742,7 +750,7 @@ class WalletConnectService extends GetxService {
       await rootBundle.loadString('src/artifacts/$name.json'),
     ) as Map<String, dynamic>;
     final networks = artifact['networks'] as Map<String, dynamic>? ?? {};
-    final chainKey = '${chainId.value ?? targetBaseChainId}';
+    final chainKey = '$targetBaseChainId';
     final network = networks[chainKey] as Map<String, dynamic>?;
     final address = network?['address'] as String?;
     if (address == null || address.isEmpty) {
@@ -763,11 +771,9 @@ class WalletConnectService extends GetxService {
   }
 
   static GameRoundPhase _parsePhase(dynamic raw) {
-    if (raw is BigInt) {
-      final index = raw.toInt();
-      if (index >= 0 && index < GameRoundPhase.values.length) {
-        return GameRoundPhase.values[index];
-      }
+    final index = WagmiContractResult.scalarBigInt(raw).toInt();
+    if (index >= 0 && index < GameRoundPhase.values.length) {
+      return GameRoundPhase.values[index];
     }
     return GameRoundPhase.uninitialized;
   }
@@ -794,11 +800,11 @@ class WalletConnectService extends GetxService {
     List<dynamic> args = const [],
   }) {
     return _retryRpc(() => _readContractOnce(
-      artifactName: artifactName,
-      contractAddress: contractAddress,
-      functionName: functionName,
-      args: args,
-    ));
+          artifactName: artifactName,
+          contractAddress: contractAddress,
+          functionName: functionName,
+          args: args,
+        ));
   }
 
   Future<dynamic> _readContractOnce({
@@ -921,7 +927,7 @@ class WalletConnectService extends GetxService {
           contractAddress: skills,
           functionName: 'FREEZE_TOKEN_PRICE_USDC',
         );
-        return val as BigInt;
+        return WagmiContractResult.scalarBigInt(val);
       },
     );
   }
@@ -1066,7 +1072,7 @@ class WalletConnectService extends GetxService {
           functionName: 'levelAvailable',
           args: [BigInt.from(level)],
         );
-        return result as bool? ?? false;
+        return WagmiContractResult.scalarBoolean(result);
       },
     );
   }
@@ -1312,7 +1318,7 @@ class WalletConnectService extends GetxService {
           index: 4,
           name: 'freezeTokens',
         ).toInt(),
-        unfreezePriceUsdc: unfreezePrice as BigInt? ?? BigInt.zero,
+        unfreezePriceUsdc: WagmiContractResult.scalarBigInt(unfreezePrice),
       );
     }
     return null;
@@ -1497,46 +1503,50 @@ class WalletConnectService extends GetxService {
     final manager = await resolveRoundManagerAddress();
     final abi = await _loadAbi('EasyGameRoundManager');
     final results = await _retryRpc(() => wagmi.Core.readContracts(
-      wagmi.ReadContractsParameters(
-        contracts: [
-          {
-            'abi': abi,
-            'address': manager,
-            'functionName': 'getRoundState',
-            'args': [roundId],
-            'chainId': targetBaseChainId,
-          },
-          {
-            'abi': abi,
-            'address': manager,
-            'functionName': 'getRoundPhase',
-            'args': [roundId],
-            'chainId': targetBaseChainId,
-          },
-          {
-            'abi': abi,
-            'address': manager,
-            'functionName': 'getSeasonState',
-            'args': [BigInt.from(schedule.seasonId)],
-            'chainId': targetBaseChainId,
-          },
-          {
-            'abi': abi,
-            'address': manager,
-            'functionName': 'getCommittedRoundHash',
-            'args': [
-              BigInt.from(schedule.seasonId),
-              BigInt.from(schedule.level),
+          wagmi.ReadContractsParameters(
+            contracts: [
+              {
+                'abi': abi,
+                'address': manager,
+                'functionName': 'getRoundState',
+                'args': [roundId],
+                'chainId': targetBaseChainId,
+              },
+              {
+                'abi': abi,
+                'address': manager,
+                'functionName': 'getRoundPhase',
+                'args': [roundId],
+                'chainId': targetBaseChainId,
+              },
+              {
+                'abi': abi,
+                'address': manager,
+                'functionName': 'getSeasonState',
+                'args': [BigInt.from(schedule.seasonId)],
+                'chainId': targetBaseChainId,
+              },
+              {
+                'abi': abi,
+                'address': manager,
+                'functionName': 'getCommittedRoundHash',
+                'args': [
+                  BigInt.from(schedule.seasonId),
+                  BigInt.from(schedule.level),
+                ],
+                'chainId': targetBaseChainId,
+              },
             ],
-            'chainId': targetBaseChainId,
-          },
-        ],
-      ),
-    ));
-    final state = results.isNotEmpty ? results[0] : null;
-    final phaseRaw = results.length > 1 ? results[1] : null;
-    final season = results.length > 2 ? results[2] : null;
-    final committedHash = results.length > 3 ? results[3] : null;
+          ),
+        ));
+    final state =
+        results.isNotEmpty ? WagmiContractResult.unwrap(results[0]) : null;
+    final phaseRaw =
+        results.length > 1 ? WagmiContractResult.unwrap(results[1]) : null;
+    final season =
+        results.length > 2 ? WagmiContractResult.unwrap(results[2]) : null;
+    final committedHash =
+        results.length > 3 ? WagmiContractResult.unwrap(results[3]) : null;
     final hasRoundState = WagmiContractResult.hasField(
       state,
       index: 7,
@@ -1813,16 +1823,16 @@ class WalletConnectService extends GetxService {
   }) async {
     final accountAddress = await _prepareWriteAccount();
     final fees = await _retryRpc(() => wagmi.Core.estimateFeesPerGas(
-      wagmi.EstimateFeesPerGasParameters(
-        chainId: targetBaseChainId,
-        type: 'eip1559',
-      ),
-    ));
+          wagmi.EstimateFeesPerGasParameters(
+            chainId: targetBaseChainId,
+            type: 'eip1559',
+          ),
+        ));
     final gasPrice = (fees.maxFeePerGas ??
         fees.gasPrice ??
         await _retryRpc(() => wagmi.Core.getGasPrice(
-          wagmi.GetGasPriceParameters(chainId: targetBaseChainId),
-        )))!;
+              wagmi.GetGasPriceParameters(chainId: targetBaseChainId),
+            )))!;
 
     var includesApproval = false;
     var gasUnits = BigInt.from(1250000);
@@ -1866,10 +1876,11 @@ class WalletConnectService extends GetxService {
     isPaying.value = true;
     try {
       final tokenAddress = await resolveUsdcAddress();
-      final allowance = _cachedUsdcAllowance ?? await getUsdcAllowance(
-        owner: currentAddress.value,
-        spender: contractAddress,
-      );
+      final allowance = _cachedUsdcAllowance ??
+          await getUsdcAllowance(
+            owner: currentAddress.value,
+            spender: contractAddress,
+          );
       _cachedUsdcAllowance = null;
       if (allowance < round.usdcPrice) {
         paymentStatus.value = PaymentFlowStatus.estimatingGas;
@@ -1954,7 +1965,7 @@ class WalletConnectService extends GetxService {
       functionName: 'allowance',
       args: [owner, spender],
     );
-    return result as BigInt? ?? BigInt.zero;
+    return WagmiContractResult.scalarBigInt(result);
   }
 
   Future<void> _ensureUsdcAllowance({
@@ -2084,7 +2095,7 @@ class EasyGamePlayerSummary {
     required this.claimablePrizeWei,
     required this.pendingPrizeWei,
     required this.joinedAt,
-      required this.lastActiveAt,
+    required this.lastActiveAt,
   });
 }
 

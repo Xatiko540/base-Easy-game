@@ -55,7 +55,7 @@ const {
   normalizedAddress,
 } = require("./transaction_decoder");
 
-exports.requestSiweNonce = onCall({ region, enforceAppCheck: false }, async (request) => {
+exports.requestSiweNonce = onCall({ region, enforceAppCheck: true }, async (request) => {
   const playerAddress = wallet(request.data?.wallet);
   if (!playerAddress) throw new HttpsError("invalid-argument", "Valid wallet required");
   if (Number(request.data?.chainId) !== Number(chainIdParam.value())) {
@@ -98,7 +98,7 @@ exports.requestSiweNonce = onCall({ region, enforceAppCheck: false }, async (req
 
 exports.authenticateWallet = onCall({
   region,
-  enforceAppCheck: false,
+  enforceAppCheck: true,
   secrets: [rpcUrl],
 }, async (request) => {
   const playerAddress = wallet(request.data?.address);
@@ -152,7 +152,7 @@ exports.authenticateWallet = onCall({
   return { wallet: playerAddress, uid, customToken, verified: true };
 });
 
-exports.registerDevice = onCall({ region, enforceAppCheck: false }, async (request) => {
+exports.registerDevice = onCall({ region, enforceAppCheck: true }, async (request) => {
   const { uid, playerAddress } = requireWalletUser(request);
   await enforceRateLimit("registerDevice", uid, 10, 60 * 60);
   const link = await db.collection("walletLinks").doc(uid).get();
@@ -184,7 +184,7 @@ exports.registerDevice = onCall({ region, enforceAppCheck: false }, async (reque
 
 exports.trackTransaction = onCall({
   region,
-  enforceAppCheck: false,
+  enforceAppCheck: true,
   secrets: [rpcUrl],
   timeoutSeconds: 60,
 }, async (request) => {
@@ -293,7 +293,7 @@ exports.trackTransaction = onCall({
 
 exports.contractSmokeTest = onCall({
   region,
-  enforceAppCheck: false,
+  enforceAppCheck: true,
   timeoutSeconds: 60,
   secrets: [rpcUrl],
 }, async (request) => {
@@ -384,7 +384,7 @@ exports.contractSmokeTest = onCall({
 
 exports.publishSeasonManifest = onCall({
   region,
-  enforceAppCheck: false,
+  enforceAppCheck: true,
   secrets: [rpcUrl],
   timeoutSeconds: 120,
 }, async (request) => {
@@ -553,6 +553,7 @@ exports.getRoundSettlementProofs = onCall({
 
 exports.getAppConfig = onCall({
   region,
+  enforceAppCheck: false,
   secrets: [recaptchaSiteKey, vapidKey],
 }, async (_request) => {
   const chainId = chainIdParam.value();

@@ -173,6 +173,12 @@ function parseSeasonManifest(payload, { chainId, managerAddress, signerAddress }
       throw new Error(`Invalid schedule signer for level ${index + 1}`);
     }
   }
+  const durations = new Set(
+    rounds.map((round) => (round.config.endsAt - round.config.startsAt).toString()),
+  );
+  if (durations.size < 2) {
+    throw new Error("A season must use different round durations");
+  }
 
   let configRoot = solidityPackedKeccak256(
     ["uint256", "uint8"],

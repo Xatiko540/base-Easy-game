@@ -212,7 +212,7 @@ async function main() {
     assert(!indexSrc.includes('exports.syncAllLevels'), 'legacy syncAllLevels removed');
 
     // Security
-    assert(src.includes('enforceAppCheck: false'), 'enforceAppCheck: false');
+    assert(src.includes('enforceAppCheck: true'), 'protected callable functions enforce App Check');
     assert(src.includes('requireUser'), 'requireUser() in callable functions');
     assert(src.includes('requireWalletUser'), 'verified wallet guard defined');
     assert(src.includes('claims.authProvider !== "siwe"'),

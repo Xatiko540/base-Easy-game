@@ -116,11 +116,13 @@ The current `levelAvailable` owner switch becomes an emergency pause only. It
 must not be the normal scheduling mechanism.
 
 Adjacent levels in one season open at least five hours apart. Their durations
-may differ. A player's first purchase may be any open level; every later
-purchase must be exactly `highestLevel + 1`. Each activated level grants four
-slots for unique direct partners. Filling those slots does not modify existing
-entries, but another unique direct partner cannot register until the inviter
-buys the next level.
+may differ. All 17 levels are independent: a player may purchase any open level
+in any order, while a duplicate purchase of the same level is rejected. A
+skipped level grants no matrix position, ticket, rating, or referral capacity
+unless the player later purchases it while its entry window is still open.
+Each actually activated level grants four slots for unique direct partners.
+Filling those slots does not modify existing entries, but another unique direct
+partner cannot register until the inviter activates another level.
 
 ## 6. Winning cells
 

@@ -1,6 +1,13 @@
 class WagmiContractResult {
   const WagmiContractResult._();
 
+  static dynamic unwrap(dynamic result) {
+    if (result is Map && result.containsKey('result')) {
+      return result['result'];
+    }
+    return result;
+  }
+
   static bool hasField(
     dynamic result, {
     required int index,
@@ -41,6 +48,13 @@ class WagmiContractResult {
     return BigInt.tryParse(value?.toString() ?? '') ?? BigInt.zero;
   }
 
+  static BigInt scalarBigInt(dynamic value) {
+    if (value is BigInt) return value;
+    if (value is int) return BigInt.from(value);
+    if (value is num) return BigInt.from(value.toInt());
+    return BigInt.tryParse(value?.toString() ?? '') ?? BigInt.zero;
+  }
+
   static bool boolean(
     dynamic result, {
     required int index,
@@ -50,6 +64,16 @@ class WagmiContractResult {
     if (value is bool) return value;
     if (value is num) return value != 0;
     return value?.toString().toLowerCase() == 'true';
+  }
+
+  static bool scalarBoolean(dynamic value) {
+    if (value is bool) return value;
+    if (value is BigInt) return value != BigInt.zero;
+    if (value is num) return value != 0;
+    final normalized = value?.toString().toLowerCase();
+    if (normalized == 'true' || normalized == '1') return true;
+    if (normalized == 'false' || normalized == '0') return false;
+    return false;
   }
 
   static String string(

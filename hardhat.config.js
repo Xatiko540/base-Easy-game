@@ -1,5 +1,13 @@
 require("@nomicfoundation/hardhat-toolbox");
-require("dotenv").config(); // Загружаем переменные окружения из .env
+const fs = require("node:fs");
+const path = require("node:path");
+const dotenv = require("dotenv");
+
+dotenv.config(); // Secrets remain in the ignored .env file.
+const testnetRolesPath = path.join(__dirname, ".env.base-sepolia-test");
+if (fs.existsSync(testnetRolesPath)) {
+  dotenv.config({ path: testnetRolesPath, override: true });
+}
 
 const MNEMONIC = process.env.MNEMONIC;
 const DEPLOYER_PRIVATE_KEY = process.env.DEPLOYER_PRIVATE_KEY?.trim();

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -24,6 +25,7 @@ class FirebaseBackendService extends GetxService {
   final Rxn<WalletAuthSession> session = Rxn<WalletAuthSession>();
   final RxString errorMessage = ''.obs;
 
+  String _recaptchaSiteKey = '';
   String _vapidKey = '';
 
   FirebaseFunctions? _functions;
@@ -64,11 +66,7 @@ class FirebaseBackendService extends GetxService {
 
     _functions = FirebaseFunctions.instanceFor(region: _region);
     await _fetchConfig();
-
-    // AppCheck is disabled until reCAPTCHA is properly configured.
-    // Do not call FirebaseAppCheck.instance.activate() with an invalid/missing
-    // reCAPTCHA key — it causes 403 → 24h throttle on all Firebase requests.
-    // Cloud Functions already use enforceAppCheck: false.
+    await _activateAppCheck();
 
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen(
           (user) => unawaited(_restoreWalletSession(user)),
@@ -90,6 +88,20 @@ class FirebaseBackendService extends GetxService {
     });
   }
 
+  Future<void> _activateAppCheck() async {
+    if (kIsWeb && _recaptchaSiteKey.isEmpty) {
+      throw StateError(
+        'Firebase App Check reCAPTCHA site key is not configured.',
+      );
+    }
+    await FirebaseAppCheck.instance.activate(
+      providerWeb: kIsWeb ? ReCaptchaV3Provider(_recaptchaSiteKey) : null,
+      providerAndroid: const AndroidPlayIntegrityProvider(),
+      providerApple: const AppleAppAttestWithDeviceCheckFallbackProvider(),
+    );
+    await FirebaseAppCheck.instance.setTokenAutoRefreshEnabled(true);
+  }
+
   String _firebaseErrorMessage(Object error) {
     final message = error.toString();
     if (message.contains('recaptcha-error') ||
@@ -105,6 +117,7 @@ class FirebaseBackendService extends GetxService {
       if (!config.isLoaded.value) {
         await config.fetch();
       }
+      _recaptchaSiteKey = config.get('recaptchaSiteKey');
       _vapidKey = config.get('vapidKey');
     } catch (e) {
       debugPrint('Firebase config fetch failed: $e');
@@ -220,16 +233,13 @@ class FirebaseBackendService extends GetxService {
     final hash = receipt['transactionHash']?.toString() ?? '';
     if (hash.isEmpty) return;
 
-    final chainId = walletService.chainId.value ??
-        WalletConnectService.baseMainnetChainId;
+    final chainId =
+        walletService.chainId.value ?? WalletConnectService.baseMainnetChainId;
     final wallet = walletService.currentAddress.value;
     if (wallet.isEmpty) return;
 
     final docId = '${chainId}_${hash.toLowerCase()}';
-    await FirebaseFirestore.instance
-        .collection('transactions')
-        .doc(docId)
-        .set({
+    await FirebaseFirestore.instance.collection('transactions').doc(docId).set({
       'chainId': chainId,
       'transactionHash': hash.toLowerCase(),
       'uid': uid,
@@ -396,9 +406,10 @@ class FirebaseBackendService extends GetxService {
       }
       // Use the chainId from the token if it matches the target network;
       // otherwise fall back to the target (cloud function default may differ).
-      final sessionChainId = tokenChainId == WalletConnectService.targetBaseChainId
-          ? tokenChainId
-          : WalletConnectService.targetBaseChainId;
+      final sessionChainId =
+          tokenChainId == WalletConnectService.targetBaseChainId
+              ? tokenChainId
+              : WalletConnectService.targetBaseChainId;
       session.value = WalletAuthSession(
         wallet: wallet,
         chainId: sessionChainId,

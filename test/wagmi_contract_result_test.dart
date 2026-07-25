@@ -72,5 +72,19 @@ void main() {
         BigInt.zero,
       );
     });
+
+    test('unwraps multicall results and normalizes scalar values', () {
+      expect(
+        WagmiContractResult.unwrap(<String, dynamic>{
+          'status': 'success',
+          'result': <String, dynamic>{'initialized': true},
+        }),
+        <String, dynamic>{'initialized': true},
+      );
+      expect(WagmiContractResult.scalarBigInt(84532), BigInt.from(84532));
+      expect(WagmiContractResult.scalarBigInt('17'), BigInt.from(17));
+      expect(WagmiContractResult.scalarBoolean(1), isTrue);
+      expect(WagmiContractResult.scalarBoolean('false'), isFalse);
+    });
   });
 }

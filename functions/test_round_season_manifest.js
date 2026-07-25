@@ -111,6 +111,24 @@ async function main() {
     /five hours apart|signature/,
   );
 
+  const uniformDurations = await seasonPayload();
+  for (const round of uniformDurations.rounds) {
+    const duration = 24n * 60n * 60n;
+    round.config.endsAt = round.config.startsAt + duration;
+    round.config.freezeClosesAt = round.config.endsAt;
+    round.config.entriesCloseAt = round.config.startsAt + duration / 2n;
+    round.config.freezeLimit = 10;
+    round.signature = await signer.signTypedData(domain, roundTypes, round.config);
+  }
+  assert.throws(
+    () => parseSeasonManifest(uniformDurations, {
+      chainId,
+      managerAddress,
+      signerAddress: signer.address,
+    }),
+    /different round durations/,
+  );
+
   const wrongSigner = Wallet.createRandom();
   assert.throws(
     () => parseSeasonManifest(payload, {

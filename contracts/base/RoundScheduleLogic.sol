@@ -6,13 +6,6 @@ import "./Errors.sol";
 import "./Validation.sol";
 import "../rounds/RoundManagerStorage.sol";
 
-interface IEasyGameArenaProgression {
-    function isFrozen(uint256 roundId, address player)
-        external
-        view
-        returns (bool);
-}
-
 abstract contract RoundScheduleLogic is RoundManagerStorage {
     bytes32 public constant ROUND_CONFIG_TYPEHASH = keccak256(
         "RoundConfig(uint256 seasonId,uint256 roundId,uint8 level,uint64 startsAt,uint64 entriesCloseAt,uint64 endsAt,uint64 freezeClosesAt,uint32 maxPlayers,uint16 maxWinners,bytes32 winningCellsRoot,uint256 ethPrice,uint256 usdcPrice,uint16 freezeLimit,uint16 paymentSplitVersion)"
@@ -283,23 +276,13 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
         uint8 requiredLevel,
         uint256 blockingRoundId
     ) {
-        PlayerSeasonProgress memory progress =
-            _playerSeasonProgress[seasonId][player];
-        if (!progress.started) return (0, 0, 0);
-        if (level <= progress.highestLevel) return (1, progress.highestLevel, 0);
-
-        requiredLevel = progress.highestLevel + 1;
-        if (level != requiredLevel) return (2, requiredLevel, 0);
-
-        blockingRoundId = roundBySeasonLevel[seasonId][progress.highestLevel];
+        uint256 roundId = roundBySeasonLevel[seasonId][level];
+        requiredLevel = level;
         if (
-            arenaSkills != address(0) &&
-            IEasyGameArenaProgression(arenaSkills).isFrozen(
-                blockingRoundId,
-                player
-            )
+            roundId != 0 &&
+            roundEntryRegistered[roundId][player]
         ) {
-            return (3, requiredLevel, blockingRoundId);
+            return (1, requiredLevel, roundId);
         }
         return (0, requiredLevel, 0);
     }
@@ -524,28 +507,9 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
             progress.activatedLevels = 1;
             emit PlayerSeasonStarted(config.seasonId, player, config.level);
         } else {
-            if (progress.highestLevel == 17) {
-                revert InvalidPlayerLevelProgression(17, config.level);
+            if (config.level > progress.highestLevel) {
+                progress.highestLevel = config.level;
             }
-            uint8 requiredLevel = progress.highestLevel + 1;
-            if (config.level != requiredLevel) {
-                revert InvalidPlayerLevelProgression(
-                    requiredLevel,
-                    config.level
-                );
-            }
-            if (arenaSkills == address(0)) revert ArenaSkillsNotConfigured();
-            uint256 previousRoundId =
-                roundBySeasonLevel[config.seasonId][progress.highestLevel];
-            if (
-                IEasyGameArenaProgression(arenaSkills).isFrozen(
-                    previousRoundId,
-                    player
-                )
-            ) {
-                revert PlayerProgressionFrozen(previousRoundId, player);
-            }
-            progress.highestLevel = config.level;
             progress.activatedLevels += 1;
             emit PlayerSeasonAdvanced(
                 config.seasonId,

@@ -1231,37 +1231,43 @@ describe("EasyGameAdvance", function () {
       );
     });
 
-    it("allows any first level but then requires the next higher level", async function () {
+    it("allows every unpurchased level independently in any order", async function () {
       const fixture = await deployFixture();
       const { easyGame, roundManager, root } = fixture;
       const block = await ethers.provider.getBlock("latest");
-      const l3start = BigInt(block.timestamp - 19000);
+      const l2start = BigInt(block.timestamp - 73000);
+      const l3start = l2start + 18000n;
+      const l4start = l3start + 18000n;
+      const l5start = l4start + 18000n;
       const level3 = await signedRound(fixture, {
         roundId: 7003n,
         level: 3,
         startsAt: l3start,
-        entriesCloseAt: l3start + 43200n,
+        entriesCloseAt: l3start + 80000n,
         endsAt: l3start + 86400n,
         freezeClosesAt: l3start + 86400n,
       });
       const level2 = await signedRound(fixture, {
         roundId: 7002n,
         level: 2,
-        startsAt: l3start - 19000n,
-        entriesCloseAt: l3start - 19000n + 43200n,
-        endsAt: l3start - 19000n + 86400n,
-        freezeClosesAt: l3start - 19000n + 86400n,
+        startsAt: l2start,
+        entriesCloseAt: l2start + 80000n,
+        endsAt: l2start + 86400n,
+        freezeClosesAt: l2start + 86400n,
       });
-      const level5 = await signedOpenRound(fixture, {
+      const level5 = await signedRound(fixture, {
         roundId: 7005n,
         level: 5,
+        startsAt: l5start,
+        entriesCloseAt: l5start + 80000n,
+        endsAt: l5start + 86400n,
+        freezeClosesAt: l5start + 86400n,
       });
-      const l4start = l3start + 18000n;
       const level4 = await signedRound(fixture, {
         roundId: 7004n,
         level: 4,
         startsAt: l4start,
-        entriesCloseAt: l4start + 43200n,
+        entriesCloseAt: l4start + 80000n,
         endsAt: l4start + 86400n,
         freezeClosesAt: l4start + 86400n,
       });
@@ -1272,40 +1278,68 @@ describe("EasyGameAdvance", function () {
         ethers.ZeroAddress,
         { value: level3.config.ethPrice }
       );
-      await expect(
-        easyGame.connect(root).activateRound(
-          level2.config,
-          level2.signature,
-          ethers.ZeroAddress,
-          { value: level2.config.ethPrice }
-        )
-      ).to.be.revertedWithCustomError(
-        roundManager,
-        "InvalidPlayerLevelProgression"
-      ).withArgs(4, 2);
-      await expect(
-        easyGame.connect(root).activateRound(
-          level5.config,
-          level5.signature,
-          ethers.ZeroAddress,
-          { value: level5.config.ethPrice }
-        )
-      ).to.be.revertedWithCustomError(
-        roundManager,
-        "InvalidPlayerLevelProgression"
-      ).withArgs(4, 5);
+      const eligibility = await roundManager.getEntryEligibility(
+        level5.config.seasonId,
+        level5.config.level,
+        root.address
+      );
+      expect(eligibility.reason).to.equal(0);
 
+      await easyGame.connect(root).activateRound(
+        level5.config,
+        level5.signature,
+        ethers.ZeroAddress,
+        { value: level5.config.ethPrice }
+      );
+      const progressAfterSkipping =
+        await roundManager.getPlayerSeasonProgress(1, root.address);
+      expect(progressAfterSkipping.highestLevel).to.equal(5);
+      expect(progressAfterSkipping.activatedLevels).to.equal(2);
+      expect(progressAfterSkipping.inviteCapacity).to.equal(8);
+
+      const skippedLowerLevelEligibility =
+        await roundManager.getEntryEligibility(
+          level2.config.seasonId,
+          level2.config.level,
+          root.address
+        );
+      expect(skippedLowerLevelEligibility.reason).to.equal(0);
+      await easyGame.connect(root).activateRound(
+        level2.config,
+        level2.signature,
+        ethers.ZeroAddress,
+        { value: level2.config.ethPrice }
+      );
+      const purchasedLevelEligibility =
+        await roundManager.getEntryEligibility(
+          level2.config.seasonId,
+          level2.config.level,
+          root.address
+        );
+      expect(purchasedLevelEligibility.reason).to.equal(1);
+      expect(purchasedLevelEligibility.requiredLevel).to.equal(2);
+      expect(purchasedLevelEligibility.blockingRoundId).to.equal(
+        level2.config.roundId
+      );
+
+      const lowerLevelEligibility = await roundManager.getEntryEligibility(
+        level4.config.seasonId,
+        level4.config.level,
+        root.address
+      );
+      expect(lowerLevelEligibility.reason).to.equal(0);
       await easyGame.connect(root).activateRound(
         level4.config,
         level4.signature,
         ethers.ZeroAddress,
         { value: level4.config.ethPrice }
       );
+
       const progress = await roundManager.getPlayerSeasonProgress(1, root.address);
       expect(progress.startLevel).to.equal(3);
-      expect(progress.highestLevel).to.equal(4);
-      expect(progress.activatedLevels).to.equal(2);
-      expect(progress.inviteCapacity).to.equal(8);
+      expect(progress.highestLevel).to.equal(5);
+      expect(progress.activatedLevels).to.equal(4);
+      expect(progress.inviteCapacity).to.equal(16);
     });
 
     it("grants four unique direct invite slots per activated level", async function () {
@@ -1382,7 +1416,7 @@ describe("EasyGameAdvance", function () {
       expect(progress.inviteCapacity).to.equal(8);
     });
 
-    it("blocks the next level while the player is frozen on the current level", async function () {
+    it("keeps other levels available while a player is frozen in one round", async function () {
       const fixture = await deployFixture();
       const { easyGame, roundManager, arenaSkills, usdc, root, first } = fixture;
       const block = await ethers.provider.getBlock("latest");
@@ -1422,17 +1456,18 @@ describe("EasyGameAdvance", function () {
       await arenaSkills.connect(root).buyFreezeToken(level3.config.roundId);
       await arenaSkills.connect(root).freezePlayer(level3.config.roundId, first.address);
 
-      await expect(
-        easyGame.connect(first).activateRound(
-          level4.config,
-          level4.signature,
-          root.address,
-          { value: level4.config.ethPrice }
+      await easyGame.connect(first).activateRound(
+        level4.config,
+        level4.signature,
+        root.address,
+        { value: level4.config.ethPrice }
+      );
+      expect(
+        await roundManager.roundEntryRegistered(
+          level4.config.roundId,
+          first.address
         )
-      ).to.be.revertedWithCustomError(
-        roundManager,
-        "PlayerProgressionFrozen"
-      ).withArgs(level3.config.roundId, first.address);
+      ).to.equal(true);
     });
   });
 });

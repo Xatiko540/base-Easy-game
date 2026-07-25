@@ -10,7 +10,7 @@ npx hardhat node
 firebase emulators:start --only functions,firestore,auth --project lottery-advance
 ```
 
-## Deploy and seed a round
+## Deploy and seed a committed season
 
 ```bash
 npx hardhat run scripts/deploy.js --network hardhatNode
@@ -30,15 +30,19 @@ npx hardhat run scripts/smoke-ganache.js --network hardhatNode
 The smoke covers a signed round, ETH, direct USDC activation, referral claim,
 freeze/unfreeze, Merkle settlement, and winner claims.
 
-The seed creates:
+The seed first commits the complete signed season to the local Round Manager,
+then mirrors that immutable commitment into the Firestore emulator. It creates:
 
-- `seasons/1`;
-- one signed level-5 document in `rounds/{roundId}`;
-- four private Merkle proofs in `rounds/{roundId}/winningCells`;
+- one committed `seasons/{seasonId}` document;
+- exactly 17 signed level documents in `rounds/{roundId}`;
+- three private Merkle proofs for every local round;
 - one local development profile in `users/{chainId_wallet}`.
 
-It validates the EIP-712 signature against `EasyGameRoundManager` before
-writing. Re-running it replaces only emulator rounds for chain `31337`.
+It validates every EIP-712 signature and `configRoot` against
+`EasyGameRoundManager` before writing. Re-running it replaces only emulator
+seasons and rounds for chain `31337`. This direct Admin SDK mirror is local-only;
+production must use the callable `publishSeasonManifest` after the on-chain
+`SeasonCommitted` transaction.
 
 ## Run Flutter web
 

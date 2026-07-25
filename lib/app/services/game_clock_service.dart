@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get/get.dart';
+import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:wagmi_web/wagmi_web.dart' as wagmi;
 
 class GameClockService extends GetxService with WidgetsBindingObserver {
@@ -65,7 +66,10 @@ class GameClockService extends GetxService with WidgetsBindingObserver {
 
   Future<DateTime> _fetchLatestBlockTimestamp() async {
     final block = await wagmi.Core.getBlock(
-      wagmi.GetBlockParameters(blockTag: const wagmi.BlockTag.latest()),
+      wagmi.GetBlockParameters(
+        blockTag: const wagmi.BlockTag.latest(),
+        chainId: WalletConnectService.targetBaseChainId,
+      ),
     );
     final timestamp = block.timestamp;
     if (timestamp == null) {

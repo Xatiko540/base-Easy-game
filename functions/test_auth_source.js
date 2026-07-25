@@ -6,6 +6,14 @@ const indexSource = fs.readFileSync(path.join(__dirname, "index.js"), "utf8");
 const authSource = fs.readFileSync(path.join(__dirname, "auth.js"), "utf8");
 const contractSource = fs.readFileSync(path.join(__dirname, "contract.js"), "utf8");
 const siweSource = fs.readFileSync(path.join(__dirname, "siwe.js"), "utf8");
+const firebaseBackendSource = fs.readFileSync(
+  path.join(__dirname, "..", "lib", "app", "services", "firebase_backend_service.dart"),
+  "utf8",
+);
+const webIndexSource = fs.readFileSync(
+  path.join(__dirname, "..", "web", "index.html"),
+  "utf8",
+);
 const source = [indexSource, authSource, contractSource, siweSource].join("\n");
 const rules = fs.readFileSync(path.join(__dirname, "..", "firestore.rules"), "utf8");
 
@@ -43,14 +51,31 @@ assert(siweSource.includes("validateSiwe"));
 const nonce = exportedFunction("requestSiweNonce", "authenticateWallet");
 assert(!nonce.includes("requireUser(request)"));
 assert(nonce.includes('enforceRateLimit("requestSiweNonceWallet"'));
+assert(nonce.includes("enforceAppCheck: true"));
 
+const authentication = exportedFunction("authenticateWallet", "registerDevice");
 const register = exportedFunction("registerDevice", "trackTransaction");
 const tracking = exportedFunction("trackTransaction", "contractSmokeTest");
+const smokeTest = exportedFunction("contractSmokeTest", "publishSeasonManifest");
+const seasonPublisher = exportedFunction(
+  "publishSeasonManifest",
+  "getRoundSettlementProofs",
+);
+for (const handler of [authentication, register, tracking, smokeTest, seasonPublisher]) {
+  assert(handler.includes("enforceAppCheck: true"));
+}
 for (const handler of [register, tracking]) {
   assert(handler.includes("requireWalletUser(request)"));
 }
 const proofs = exportedFunction("getRoundSettlementProofs", "getAppConfig");
 assert(proofs.includes("enforceAppCheck: false"));
+const appConfig = exportedFunction("getAppConfig", "health");
+assert(appConfig.includes("enforceAppCheck: false"));
+assert(firebaseBackendSource.includes("FirebaseAppCheck.instance.activate("));
+assert(firebaseBackendSource.includes("ReCaptchaV3Provider(_recaptchaSiteKey)"));
+assert(firebaseBackendSource.includes("setTokenAutoRefreshEnabled(true)"));
+assert(webIndexSource.includes("FIREBASE_APPCHECK_DEBUG_TOKEN = true"));
+assert(webIndexSource.includes("location.hostname === 'localhost'"));
 assert(!source.includes("getPaymentStatus"));
 
 assert(rules.includes("function verifiedWallet()"));
