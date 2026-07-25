@@ -20,8 +20,8 @@ class WalletAuthController extends GetxController {
 
   final List<Worker> _workers = <Worker>[];
   bool _authenticationInFlight = false;
-  bool _loginRequested = false;
   bool _clearingMismatchedSession = false;
+  Completer<void>? _authCompleter;
 
   bool get isAuthenticated =>
       phase.value == WalletAuthPhase.authenticated &&
@@ -45,8 +45,12 @@ class WalletAuthController extends GetxController {
   }
 
   Future<void> connectAndAuthenticate() async {
+    if (_authCompleter != null) {
+      await _authCompleter!.future;
+      return;
+    }
+    _authCompleter = Completer<void>();
     errorMessage.value = '';
-    _loginRequested = true;
     try {
       await backendService.init();
       if (!walletService.isConnected.value) {
@@ -56,8 +60,11 @@ class WalletAuthController extends GetxController {
       }
       await walletService.ensureBaseNetwork();
       await _authenticateConnectedWallet();
+      _authCompleter!.complete();
     } catch (error) {
-      _loginRequested = false;
+      if (!_authCompleter!.isCompleted) {
+        _authCompleter!.completeError(error);
+      }
       if (WalletConnectService.isUserRejection(error)) {
         _reconcile();
         return;
@@ -65,6 +72,8 @@ class WalletAuthController extends GetxController {
       errorMessage.value = error.toString();
       phase.value = WalletAuthPhase.error;
       rethrow;
+    } finally {
+      _authCompleter = null;
     }
   }
 
@@ -77,7 +86,6 @@ class WalletAuthController extends GetxController {
   }
 
   Future<void> logout() async {
-    _loginRequested = false;
     errorMessage.value = '';
     await backendService.signOutWalletSession();
     await walletService.disconnectWallet();
@@ -100,7 +108,6 @@ class WalletAuthController extends GetxController {
         chainId: chainId,
         signMessage: walletService.signMessage,
       );
-      _loginRequested = false;
       phase.value = WalletAuthPhase.authenticated;
     } finally {
       _authenticationInFlight = false;
@@ -140,19 +147,29 @@ class WalletAuthController extends GetxController {
       phase.value = WalletAuthPhase.initializing;
       return;
     }
+    if (!walletService.isInitialized.value) {
+      phase.value = WalletAuthPhase.initializing;
+      return;
+    }
     if (!walletService.isConnected.value ||
         walletService.currentAddress.value.isEmpty) {
       phase.value = WalletAuthPhase.disconnected;
       return;
     }
     final activeSession = backendService.session.value;
+    final activeChainId = walletService.chainId.value;
+
+    if (activeSession != null && activeChainId == null) {
+      // Session exists but wagmi hasn't reported chainId yet — don't glitch phase.
+      return;
+    }
+
     if (activeSession?.matches(
           walletService.currentAddress.value,
-          walletService.chainId.value,
+          activeChainId,
         ) ==
         true) {
       phase.value = WalletAuthPhase.authenticated;
-      _loginRequested = false;
       return;
     }
     if (activeSession != null &&
@@ -169,12 +186,6 @@ class WalletAuthController extends GetxController {
       return;
     }
     phase.value = WalletAuthPhase.connected;
-    if (_loginRequested) {
-      unawaited(_authenticateConnectedWallet().catchError((Object error) {
-        errorMessage.value = error.toString();
-        phase.value = WalletAuthPhase.error;
-      }));
-    }
   }
 
   Future<void> _clearMismatchedSession() async {

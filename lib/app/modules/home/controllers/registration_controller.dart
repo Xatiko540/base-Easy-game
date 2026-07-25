@@ -73,6 +73,18 @@ class RegistrationController extends GetxController {
 
   String get selectedPriceLabel => formatAssetAmount(selectedPriceUnits.value);
 
+  List<int> get selectableLevels {
+    final levels = _rounds.roundsByLevel.entries
+        .where((entry) => entry.value.canEnter)
+        .map((entry) => entry.key)
+        .toSet();
+    // Keep the route-selected value present while the schedule is loading so
+    // DropdownButton never receives a value missing from its item list.
+    levels.add(selectedLevel.value);
+    final result = levels.toList()..sort((a, b) => b.compareTo(a));
+    return result;
+  }
+
   BigInt priceForLevel(int level) {
     final round = _roundForLevel(level);
     return paysWithUsdc
@@ -92,6 +104,7 @@ class RegistrationController extends GetxController {
   }
 
   void selectLevel(int level) {
+    if (!selectableLevels.contains(level)) return;
     selectedLevel.value = level;
     selectedRound.value = _roundForLevel(level);
     _applyRoundPrice();
@@ -131,11 +144,23 @@ class RegistrationController extends GetxController {
 
     try {
       await walletService.ensureBaseNetwork();
-      await _requireOpenRound();
+      final round = await _requireOpenRound();
       final price = priceForLevel(selectedLevel.value);
-      final hasEnoughBalance = paymentAsset.value == EasyGamePaymentAsset.usdc
+      await walletService.refreshNativeBalance();
+      final gasQuote = await walletService.estimateRoundActivationGas(
+        round: round.schedule,
+        paysWithUsdc: paymentAsset.value == EasyGamePaymentAsset.usdc,
+      );
+      final nativeBalance = walletService.nativeBalanceWei.value ?? BigInt.zero;
+      final requiredNative = gasQuote.requiredNativeWei(
+        ticketPriceWei: round.ethPriceWei,
+        paysWithUsdc: paymentAsset.value == EasyGamePaymentAsset.usdc,
+      );
+      final hasPaymentAsset = paymentAsset.value == EasyGamePaymentAsset.usdc
           ? (await walletService.getUsdcBalanceWei()) >= price
-          : (walletService.nativeBalanceWei.value ?? BigInt.zero) >= price;
+          : nativeBalance >= requiredNative;
+      final hasEnoughBalance =
+          hasPaymentAsset && nativeBalance >= requiredNative;
       balanceChecked.value = hasEnoughBalance;
       balanceMessage.value = hasEnoughBalance
           ? ''
@@ -213,6 +238,7 @@ class RegistrationController extends GetxController {
       }
 
       final round = await _requireOpenRound();
+      if (!await _checkEntryEligibility(round)) return;
       final price = priceForLevel(selectedLevel.value);
       selectedPriceUnits.value = price;
       networkChecked.value = true;
@@ -234,13 +260,79 @@ class RegistrationController extends GetxController {
     }
   }
 
+  Future<bool> _checkEntryEligibility(GameRoundViewState round) async {
+    try {
+      final eligibility = await walletService.getRoundEntryEligibility(
+        seasonId: BigInt.from(round.schedule.seasonId),
+        level: selectedLevel.value,
+      );
+      switch (eligibility.reason) {
+        case RoundEntryEligibilityReason.eligible:
+          return true;
+        case RoundEntryEligibilityReason.alreadyPurchasedOrLower:
+          _showEligibilityDialog(
+            title: 'levels.missed'.tr,
+            message: 'levels.missedHint'.tr,
+          );
+          return false;
+        case RoundEntryEligibilityReason.nextLevelRequired:
+          _showEligibilityDialog(
+            title: 'levels.activateRequiredLevel'.trParams({
+              'level': '${eligibility.requiredLevel}',
+            }),
+            message: 'levels.nextLevelRequired'.tr,
+          );
+          return false;
+        case RoundEntryEligibilityReason.frozen:
+          _showEligibilityDialog(
+            title: 'levels.progressionFrozen'.tr,
+            message: 'levels.unfreezeCurrentLevel'.tr,
+          );
+          return false;
+        case RoundEntryEligibilityReason.unknown:
+          return true;
+      }
+    } catch (_) {
+      return true;
+    }
+  }
+
+  void _showEligibilityDialog({
+    required String title,
+    required String message,
+  }) {
+    Get.dialog(
+      AlertDialog(
+        backgroundColor: const Color(0xFF2A2B2E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          title,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18),
+        ),
+        content: Text(
+          message,
+          style: const TextStyle(color: Color(0xFFBBBBBB), fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text(
+              'common.close'.tr,
+              style: const TextStyle(color: Color(0xFF6A4BFF), fontWeight: FontWeight.w800),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   GameRoundViewState? _roundForLevel(int level) {
     return _rounds.roundForLevel(level);
   }
 
   Future<GameRoundViewState> _requireOpenRound() async {
     final round = selectedRound.value;
-    if (round == null || !round.canEnter) {
+    if (round == null || round.phase != GameRoundPhase.open) {
       throw Exception('round.actionsUnavailable'.tr);
     }
     final available =
@@ -249,38 +341,7 @@ class RegistrationController extends GetxController {
     if (!available) {
       throw Exception('payment.levelEmergencyPausedHint'.tr);
     }
-    await _requireProgressionEligibility(round);
     return round;
-  }
-
-  Future<void> _requireProgressionEligibility(
-    GameRoundViewState round,
-  ) async {
-    RoundEntryEligibility eligibility;
-    try {
-      eligibility = await walletService.getRoundEntryEligibility(
-        seasonId: BigInt.from(round.schedule.seasonId),
-        level: selectedLevel.value,
-      );
-    } catch (_) {
-      // Older test deployments do not expose progression introspection. The
-      // transaction remains protected by RoundManager after the next deploy.
-      return;
-    }
-    switch (eligibility.reason) {
-      case RoundEntryEligibilityReason.eligible:
-        return;
-      case RoundEntryEligibilityReason.alreadyPurchasedOrLower:
-        throw Exception('levels.missedHint'.tr);
-      case RoundEntryEligibilityReason.nextLevelRequired:
-        throw Exception('levels.activateRequiredLevel'.trParams({
-          'level': '${eligibility.requiredLevel}',
-        }));
-      case RoundEntryEligibilityReason.frozen:
-        throw Exception('levels.unfreezeCurrentLevel'.tr);
-      case RoundEntryEligibilityReason.unknown:
-        throw Exception('levels.entryUnavailable'.tr);
-    }
   }
 
   void _applyRoundPrice() {

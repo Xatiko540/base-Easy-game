@@ -260,7 +260,9 @@ class GameRoundViewState {
     );
   }
 
-  bool get canEnter => isConfigurationTrusted && phase == GameRoundPhase.open;
+  bool get canEnter =>
+      phase == GameRoundPhase.open &&
+      (chainState == null || isConfigurationTrusted);
 
   BigInt get ethPriceWei => chainState?.initialized == true
       ? chainState!.ethPriceWei

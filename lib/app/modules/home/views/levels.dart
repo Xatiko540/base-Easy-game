@@ -353,7 +353,7 @@ class EasyGameLevelDetailScreen extends StatelessWidget {
                           DetailRow('levelDetail.playerWeight'.tr,
                               data.card.playerWeight.toString()),
                           DetailRow('levelDetail.chance'.tr,
-                              formatBpsToPercent(data.card.playerChanceBps)),
+                              formatBpsToPercent(data.card.playerWeightShareBps)),
                           DetailRow('levelDetail.boxTokens'.tr,
                               data.player?.boxTokens.toString() ?? '0'),
                           DetailRow('levelDetail.cycles'.tr,

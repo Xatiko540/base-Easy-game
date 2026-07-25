@@ -10,9 +10,11 @@ import 'package:lottery_advance/app/services/game_clock_service.dart';
 import 'package:lottery_advance/app/services/game_schedule_service.dart';
 import 'package:lottery_advance/app/services/game_round_blockchain_service.dart';
 import 'package:lottery_advance/app/services/game_settlement_service.dart';
+import 'package:lottery_advance/app/services/game_contract_events_service.dart';
 import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
 import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
 import 'package:lottery_advance/app/repositories/game_user_repository.dart';
+import 'package:lottery_advance/app/repositories/matrix_arena_repository.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/controllers/notifications_controller.dart';
 import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
@@ -45,6 +47,7 @@ void main() async {
     Get.put(AppConfigService(), permanent: true);
     Get.put(NotificationsService(), permanent: true);
     Get.put(WalletConnectService(), permanent: true);
+    Get.put(GameContractEventsService(), permanent: true);
     Get.put(FirebaseBackendService(), permanent: true);
     Get.put(WalletAuthController(), permanent: true);
     Get.put(GameClockService(), permanent: true);
@@ -55,6 +58,7 @@ void main() async {
     Get.put(RoundLevelsRepository(), permanent: true);
     Get.put(GameRoundsController(), permanent: true);
     Get.put(GameUserRepository().bind(), permanent: true);
+    Get.put(MatrixArenaRepository(), permanent: true);
     Get.put(NotificationsController(), permanent: true);
     if (kDebugMode) {
       print(kIsWeb

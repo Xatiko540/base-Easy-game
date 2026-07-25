@@ -247,18 +247,18 @@ class _SmallMetric extends StatelessWidget {
 
 class _WeightStrip extends StatelessWidget {
   final BigInt weight;
-  final BigInt chanceBps;
+  final BigInt weightShareBps;
   final BigInt totalWeight;
 
   const _WeightStrip({
     required this.weight,
-    required this.chanceBps,
+    required this.weightShareBps,
     required this.totalWeight,
   });
 
   @override
   Widget build(BuildContext context) {
-    final chance = chanceBps.toDouble() / 100;
+    final weightShare = weightShareBps.toDouble() / 100;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 7),
       decoration: BoxDecoration(
@@ -282,9 +282,9 @@ class _WeightStrip extends StatelessWidget {
           Expanded(
             child: _TinyStat(
               label: 'levelDetail.chance'.tr,
-              value: chanceBps == BigInt.zero
+              value: weightShareBps == BigInt.zero
                   ? '-'
-                  : '${chance.toStringAsFixed(2)}%',
+                  : '${weightShare.toStringAsFixed(2)}%',
               alignEnd: true,
             ),
           ),

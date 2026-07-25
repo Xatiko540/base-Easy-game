@@ -1,17 +1,17 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
 import 'package:lottery_advance/app/models/game_transaction_model.dart';
-import 'package:lottery_advance/app/models/wallet_auth_models.dart';
 import 'package:lottery_advance/app/modules/home/models/profile_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/round_level_card_state.dart';
-import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
 import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/game_settlement_service.dart';
+import 'package:lottery_advance/app/services/game_contract_events_service.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -20,9 +20,10 @@ class ProfileController extends GetxController {
   final WalletConnectService walletService = Get.find<WalletConnectService>();
   final WalletAuthController authController = Get.find<WalletAuthController>();
   final RoundLevelsRepository _roundLevels = Get.find<RoundLevelsRepository>();
-  final GameRoundsRepository _rounds = Get.find<GameRoundsRepository>();
   final GameSettlementService _settlement = Get.find<GameSettlementService>();
   final FirebaseBackendService _backend = Get.find<FirebaseBackendService>();
+  final GameContractEventsService _contractEvents =
+      Get.find<GameContractEventsService>();
 
   final dashboard = ProfileDashboardSnapshot.empty().obs;
   final isLoading = false.obs;
@@ -61,13 +62,14 @@ class ProfileController extends GetxController {
       ever<bool>(walletService.isConnected, (_) => _handleIdentityChange()),
       ever<String>(
           walletService.currentAddress, (_) => _handleIdentityChange()),
-      ever<int?>(walletService.chainId, (_) => _handleIdentityChange()),
-      ever<WalletAuthPhase>(
-          authController.phase, (_) => _handleIdentityChange()),
-      ever<Map<int, int>>(_rounds.selectedRoundIds, (_) => refreshDashboard()),
       ever<bool>(_backend.isReady, (ready) {
         if (ready) _subscribeToTransactions();
       }),
+      debounce<int>(
+        _contractEvents.eventRevision,
+        (_) => refreshDashboard(),
+        time: const Duration(milliseconds: 700),
+      ),
     ]);
     _subscribeToTransactions();
     unawaited(refreshDashboard());
@@ -281,6 +283,10 @@ class ProfileController extends GetxController {
       BigInt.zero,
       (sum, level) => sum + level.prizePoolWei,
     );
+    final totalPrizePoolUsdc = levels.fold<BigInt>(
+      BigInt.zero,
+      (sum, level) => sum + level.prizePoolUsdc,
+    );
     final totalActiveCells = levels.fold<BigInt>(
       BigInt.zero,
       (sum, level) => sum + level.activeCells,
@@ -298,6 +304,7 @@ class ProfileController extends GetxController {
       activeCount: activeCount,
       frozenCount: frozenCount,
       totalPrizePoolWei: totalPrizePoolWei,
+      totalPrizePoolUsdc: totalPrizePoolUsdc,
       totalActiveCells: totalActiveCells,
       totalWeight: totalWeight,
       settlementPrizeWei: settlement.ethAmount,
@@ -308,7 +315,8 @@ class ProfileController extends GetxController {
   Future<T?> _safeLoad<T>(Future<T> Function() load) async {
     try {
       return await load();
-    } catch (_) {
+    } catch (error) {
+      debugPrint('[ProfileController] _safeLoad error: $error');
       return null;
     }
   }

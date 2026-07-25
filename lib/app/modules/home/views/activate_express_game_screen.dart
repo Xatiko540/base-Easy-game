@@ -5,6 +5,7 @@ import 'package:lottery_advance/app/modules/home/controllers/round_payment_contr
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
+import 'package:lottery_advance/utils/theme.dart';
 
 class ActivateExpressGameScreen extends StatelessWidget {
   final int level;
@@ -158,9 +159,19 @@ class ActivateExpressGameScreen extends StatelessWidget {
                         _PaymentStateLine(
                           icon: CupertinoIcons.doc_text_fill,
                           color: Colors.tealAccent,
-                          label: 'registration.totalContractCharge'.tr,
-                          value:
-                              '$amountLabel $currency + ${'registration.networkGasExtra'.tr}',
+                          label: 'payment.totalRequired'.tr,
+                          value: paymentController.gasQuote.value == null
+                              ? 'registration.estimatedSigning'.tr
+                              : paymentController.totalRequiredLabel,
+                        ),
+                        const SizedBox(height: 8),
+                        _PaymentStateLine(
+                          icon: CupertinoIcons.bolt_fill,
+                          color: Colors.lightBlueAccent,
+                          label: 'payment.estimatedNetworkFee'.tr,
+                          value: paymentController.gasQuote.value == null
+                              ? 'registration.estimatedSigning'.tr
+                              : '${paymentController.estimatedGasFeeLabel} ${walletService.nativeSymbol}',
                         ),
                         const SizedBox(height: 8),
                         _PaymentStateLine(
@@ -174,17 +185,6 @@ class ActivateExpressGameScreen extends StatelessWidget {
                               : paymentController.balanceError.value.isNotEmpty
                                   ? 'payment.balanceUnavailable'.tr
                                   : '${paymentController.availableBalanceLabel} $currency',
-                          trailing: IconButton(
-                            tooltip: 'payment.refreshBalance'.tr,
-                            onPressed: paymentController.isBalanceLoading.value
-                                ? null
-                                : paymentController.refreshBalance,
-                            icon: const Icon(
-                              CupertinoIcons.refresh,
-                              size: 18,
-                              color: Colors.white70,
-                            ),
-                          ),
                         ),
                         const SizedBox(height: 8),
                         _PaymentStateLine(
@@ -209,18 +209,6 @@ class ActivateExpressGameScreen extends StatelessWidget {
                                           true
                                       ? 'common.ready'.tr
                                       : 'payment.preflightUnavailable'.tr,
-                          trailing: IconButton(
-                            tooltip: 'common.refresh'.tr,
-                            onPressed:
-                                paymentController.isPreflightLoading.value
-                                    ? null
-                                    : paymentController.refreshPaymentReadiness,
-                            icon: const Icon(
-                              CupertinoIcons.refresh,
-                              size: 18,
-                              color: Colors.white70,
-                            ),
-                          ),
                         ),
                         if (paymentController.hasEnoughBalance == false) ...[
                           const SizedBox(height: 6),
@@ -268,8 +256,9 @@ class ActivateExpressGameScreen extends StatelessWidget {
                             icon: CupertinoIcons.bolt_fill,
                             color: Colors.lightBlueAccent,
                             label: 'payment.gasEstimate'.tr,
-                            value:
-                                '${walletService.lastGasEstimate.value} gas units',
+                            value: 'payment.gasUnits'.trParams({
+                              'units': '${walletService.lastGasEstimate.value}',
+                            }),
                           ),
                         ],
                         if (walletService
@@ -284,39 +273,51 @@ class ActivateExpressGameScreen extends StatelessWidget {
                           ),
                         ],
                         const SizedBox(height: 16),
-                        ElevatedButton(
-                          onPressed: !paymentController.canSubmit
-                              ? null
-                              : () async {
-                                  try {
-                                    await paymentController.submitPayment();
-                                  } catch (e) {
-                                    Get.snackbar(
-                                      'payment.unavailable'.tr,
-                                      '$e',
-                                      snackPosition: SnackPosition.BOTTOM,
-                                    );
-                                  }
-                                },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue,
-                            padding: EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
+                        AnimatedOpacity(
+                          duration: const Duration(milliseconds: 180),
+                          opacity: paymentController.canSubmit ? 1 : 0.45,
+                          child: Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              gradient: EasyGameTheme.actionGradient,
                               borderRadius: BorderRadius.circular(8),
                             ),
-                          ),
-                          child: Center(
-                            child: Text(
-                              isProcessing
-                                  ? walletService.paymentStatusLabel
-                                  : 'payment.pay'.trParams({
-                                      'amount': amountLabel,
-                                      'currency': currency,
-                                    }),
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
+                            child: ElevatedButton(
+                              onPressed: !paymentController.canSubmit
+                                  ? null
+                                  : () async {
+                                      try {
+                                        await paymentController.submitPayment();
+                                      } catch (e) {
+                                        Get.snackbar(
+                                          'payment.unavailable'.tr,
+                                          '$e',
+                                          snackPosition: SnackPosition.BOTTOM,
+                                        );
+                                      }
+                                    },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.transparent,
+                                disabledBackgroundColor: Colors.transparent,
+                                shadowColor: Colors.transparent,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                              ),
+                              child: Text(
+                                isProcessing
+                                    ? walletService.paymentStatusLabel
+                                    : 'payment.pay'.trParams({
+                                        'amount': amountLabel,
+                                        'currency': currency,
+                                      }),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
                           ),
@@ -550,14 +551,12 @@ class _PaymentStateLine extends StatelessWidget {
   final Color color;
   final String label;
   final String value;
-  final Widget? trailing;
 
   const _PaymentStateLine({
     required this.icon,
     required this.color,
     required this.label,
     required this.value,
-    this.trailing,
   });
 
   @override
@@ -573,7 +572,6 @@ class _PaymentStateLine extends StatelessWidget {
             style: const TextStyle(color: Colors.grey, fontSize: 14),
           ),
         ),
-        if (trailing != null) trailing!,
       ],
     );
   }

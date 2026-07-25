@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:lottery_advance/app/modules/home/models/profile_models.dart';
 import 'package:lottery_advance/app/modules/home/models/profile_session_model.dart';
 
 void main() {
@@ -31,6 +32,27 @@ void main() {
         ),
         ProfileSessionStatus.registered,
       );
+    });
+  });
+
+  group('ProfileDashboardSnapshot', () {
+    test('keeps ETH and USDC prize pools separate', () {
+      final snapshot = ProfileDashboardSnapshot.empty().copyWith(
+        totalPrizePoolWei: BigInt.from(100000000000000),
+        totalPrizePoolUsdc: BigInt.from(2500000),
+      );
+
+      expect(snapshot.totalPrizePoolWei, BigInt.from(100000000000000));
+      expect(snapshot.totalPrizePoolUsdc, BigInt.from(2500000));
+    });
+
+    test('empty state never invents claimable balances', () {
+      final snapshot = ProfileDashboardSnapshot.empty();
+
+      expect(snapshot.claimableWei, BigInt.zero);
+      expect(snapshot.referralBonusUsdc, BigInt.zero);
+      expect(snapshot.totalPrizePoolWei, BigInt.zero);
+      expect(snapshot.totalPrizePoolUsdc, BigInt.zero);
     });
   });
 }

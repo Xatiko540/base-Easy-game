@@ -8,10 +8,13 @@ class _StartTimerStrip extends StatelessWidget {
     final roundsController = Get.find<GameRoundsController>();
     return Obx(
       () {
+        final isLoading = roundsController.isScheduleLoading;
         final round = roundsController.nearestEvent;
-        final text = round == null
-            ? 'start.scheduleUnavailable'.tr
-            : _roundTimerText(round);
+        final text = isLoading
+            ? 'common.loading'.tr
+            : round == null
+                ? 'start.scheduleUnavailable'.tr
+                : _roundTimerText(round);
         return Center(
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),

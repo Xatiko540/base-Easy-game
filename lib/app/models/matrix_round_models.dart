@@ -14,6 +14,15 @@ class RoundMatrixStats {
     required this.nextCellId,
     required this.nextOpenParentId,
   });
+
+  static final zero = RoundMatrixStats(
+    prizePoolEth: BigInt.zero,
+    prizePoolUsdc: BigInt.zero,
+    totalWeight: BigInt.zero,
+    activeCells: BigInt.zero,
+    nextCellId: BigInt.zero,
+    nextOpenParentId: BigInt.zero,
+  );
 }
 
 class RoundPlayerState {
@@ -83,5 +92,17 @@ class MatrixParticipant {
     required this.isCurrentPlayer,
     required this.isInvited,
     this.skillStatus,
+  });
+}
+
+class MatrixArenaRosterPage {
+  final List<MatrixParticipant> participants;
+  final int page;
+  final bool hasMore;
+
+  const MatrixArenaRosterPage({
+    required this.participants,
+    required this.page,
+    required this.hasMore,
   });
 }

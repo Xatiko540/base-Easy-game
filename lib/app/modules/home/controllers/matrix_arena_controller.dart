@@ -6,6 +6,10 @@ class _MatrixArenaController extends GetxController {
   final GameRoundsController roundsController =
       Get.find<GameRoundsController>();
   final GameClockService clockService = Get.find<GameClockService>();
+  final MatrixArenaRepository arenaRepository =
+      Get.find<MatrixArenaRepository>();
+  final GameContractEventsService contractEvents =
+      Get.find<GameContractEventsService>();
 
   _MatrixArenaController();
 
@@ -14,6 +18,7 @@ class _MatrixArenaController extends GetxController {
   final snapshot = _MatrixArenaSnapshot.empty(1).obs;
   final isLoading = false.obs;
   final isSkillActionRunning = false.obs;
+  final isLoadingMoreParticipants = false.obs;
   final selectedOpponent = ''.obs;
   final errorMessage = ''.obs;
 
@@ -23,6 +28,7 @@ class _MatrixArenaController extends GetxController {
   Worker? _scheduleWorker;
   Worker? _timelineWorker;
   Worker? _authWorker;
+  Worker? _eventWorker;
   int _loadRequest = 0;
 
   @override
@@ -35,15 +41,15 @@ class _MatrixArenaController extends GetxController {
     );
     _connectionWorker = ever<bool>(
       walletService.isConnected,
-      (_) => _bootstrapArena(),
+      (_) => _handleIdentityChange(),
     );
     _addressWorker = ever<String>(
       walletService.currentAddress,
-      (_) => _bootstrapArena(),
+      (_) => _handleIdentityChange(),
     );
     _chainWorker = ever<int?>(
       walletService.chainId,
-      (_) => _bootstrapArena(),
+      (_) => _handleIdentityChange(),
     );
     _scheduleWorker = ever<bool>(
       roundsController.isScheduleReady,
@@ -57,7 +63,16 @@ class _MatrixArenaController extends GetxController {
     );
     _authWorker = ever<WalletAuthPhase>(
       authController.phase,
-      (_) => _bootstrapArena(),
+      (_) => _handleIdentityChange(),
+    );
+    _eventWorker = debounce<int>(
+      contractEvents.eventRevision,
+      (_) {
+        final roundId = snapshot.value.roundId;
+        if (roundId > BigInt.zero) arenaRepository.invalidateRound(roundId);
+        unawaited(refreshArena());
+      },
+      time: const Duration(milliseconds: 700),
     );
   }
 
@@ -69,6 +84,7 @@ class _MatrixArenaController extends GetxController {
     _scheduleWorker?.dispose();
     _timelineWorker?.dispose();
     _authWorker?.dispose();
+    _eventWorker?.dispose();
     _loadRequest++;
     super.onClose();
   }
@@ -92,6 +108,12 @@ class _MatrixArenaController extends GetxController {
         hasRequestedRound ? requestedLevel : await _findInitialLevel();
     selectedLevel.value = initialLevel;
     await refreshArena();
+  }
+
+  void _handleIdentityChange() {
+    arenaRepository.clear();
+    selectedOpponent.value = '';
+    unawaited(_bootstrapArena());
   }
 
   Future<int> _findInitialLevel() async {
@@ -144,7 +166,7 @@ class _MatrixArenaController extends GetxController {
       walletService.getRoundMatrixStats(roundId),
       walletService.getArenaFreezeTokenPriceUsdc(),
     ]);
-    final stats = baseValues[0] as RoundMatrixStats;
+    final stats = baseValues[0] as RoundMatrixStats? ?? RoundMatrixStats.zero;
     final freezeTokenPriceUsdc = baseValues[1] as BigInt;
     RoundPlayerState? playerRound;
     ArenaSkillStatus? playerSkill;
@@ -154,21 +176,20 @@ class _MatrixArenaController extends GetxController {
         walletService.getRoundPlayerState(roundId),
         walletService.getEasyGamePlayerSummary(),
       ]);
-      playerRound = playerValues[0] as RoundPlayerState;
-      player = playerValues[1] as EasyGamePlayerSummary;
-      if (playerRound.active) {
+      playerRound = playerValues[0] as RoundPlayerState?;
+      player = playerValues[1] as EasyGamePlayerSummary?;
+      if (playerRound?.active == true) {
         playerSkill = await walletService.getArenaSkillStatus(roundId);
       }
     }
-    final count = math.min(stats.activeCells.toInt(), 15);
-    final participantResults = await Future.wait([
-      for (var cell = 1; cell <= count; cell++) _loadParticipant(roundId, cell),
-    ]);
-    final participants = participantResults
-        .whereType<MatrixParticipant>()
-        .toList(growable: false);
+    final roster = await arenaRepository.loadRosterPage(
+      roundId: roundId,
+      activeCells: stats.activeCells,
+      currentPlayerCellId: playerRound?.cellId ?? BigInt.zero,
+      page: 0,
+    );
     final playerWeight = playerRound?.totalWeight ?? BigInt.zero;
-    final chanceBps = stats.totalWeight == BigInt.zero
+    final weightShareBps = stats.totalWeight == BigInt.zero
         ? BigInt.zero
         : playerWeight * BigInt.from(10000) ~/ stats.totalWeight;
     final now = clockService.chainTime.value.toUtc();
@@ -185,6 +206,7 @@ class _MatrixArenaController extends GetxController {
       activeCells: stats.activeCells,
       totalWeight: stats.totalWeight,
       prizePoolWei: stats.prizePoolEth,
+      prizePoolUsdc: stats.prizePoolUsdc,
       nextCellId: stats.nextCellId,
       nextOpenParentId: stats.nextOpenParentId,
       playerCellId: playerRound?.cellId ?? BigInt.zero,
@@ -192,7 +214,7 @@ class _MatrixArenaController extends GetxController {
       playerFrozen: playerSkill?.frozen ?? false,
       recycleCount: playerRound?.cycleCount ?? BigInt.zero,
       playerWeight: playerWeight,
-      chanceBps: chanceBps,
+      weightShareBps: weightShareBps,
       boxTokens: player?.boxTokens ?? BigInt.zero,
       maxPlayers: round.schedule.maxPlayers,
       phase: round.phase,
@@ -203,65 +225,44 @@ class _MatrixArenaController extends GetxController {
         freezeLimit: round.schedule.freezeLimit,
         freezeHitsTaken: playerSkill?.freezeHits ?? 0,
       ),
-      participants: participants,
+      participants: roster.participants,
       playerSkillStatus: playerSkill,
+      participantPage: roster.page,
+      hasMoreParticipants: roster.hasMore,
     );
   }
 
-  Future<MatrixParticipant?> _loadParticipant(
-    BigInt roundId,
-    int cell,
-  ) async {
-    try {
-      final node = await walletService.getRoundMatrixNode(
-        roundId,
-        cell,
-      );
-      if (node == null || node.cellId == BigInt.zero || node.player.isEmpty) {
-        return null;
-      }
-      final values = await Future.wait<Object?>([
-        _safePlayerSummary(node.player),
-        _safeSkillStatus(roundId, node.player),
-      ]);
-      final summary = values[0] as EasyGamePlayerSummary?;
-      final skill = values[1] as ArenaSkillStatus?;
-      final current = walletService.currentAddress.value.toLowerCase();
-      return MatrixParticipant(
-        cellId: node.cellId,
-        wallet: node.player,
-        isCurrentPlayer:
-            current.isNotEmpty && node.player.toLowerCase() == current,
-        isInvited:
-            current.isNotEmpty && summary?.inviter.toLowerCase() == current,
-        skillStatus: skill,
-      );
-    } catch (_) {
-      return null;
+  Future<void> loadMoreParticipants() async {
+    final current = snapshot.value;
+    if (!current.hasMoreParticipants ||
+        current.roundId == BigInt.zero ||
+        isLoadingMoreParticipants.value) {
+      return;
     }
-  }
-
-  Future<EasyGamePlayerSummary?> _safePlayerSummary(String player) async {
+    isLoadingMoreParticipants.value = true;
     try {
-      return await walletService.getEasyGamePlayerSummary(
-        address: player,
+      final page = await arenaRepository.loadRosterPage(
+        roundId: current.roundId,
+        activeCells: current.activeCells,
+        currentPlayerCellId: current.playerCellId,
+        page: current.participantPage + 1,
       );
-    } catch (_) {
-      return null;
-    }
-  }
-
-  Future<ArenaSkillStatus?> _safeSkillStatus(
-    BigInt roundId,
-    String player,
-  ) async {
-    try {
-      return await walletService.getArenaSkillStatus(
-        roundId,
-        playerAddress: player,
+      if (snapshot.value.roundId != current.roundId) return;
+      final byCell = <BigInt, MatrixParticipant>{
+        for (final participant in current.participants)
+          participant.cellId: participant,
+        for (final participant in page.participants)
+          participant.cellId: participant,
+      };
+      final merged = byCell.values.toList()
+        ..sort((left, right) => left.cellId.compareTo(right.cellId));
+      snapshot.value = current.copyWith(
+        participants: merged,
+        participantPage: page.page,
+        hasMoreParticipants: page.hasMore,
       );
-    } catch (_) {
-      return null;
+    } finally {
+      isLoadingMoreParticipants.value = false;
     }
   }
 
@@ -386,6 +387,7 @@ class _MatrixArenaController extends GetxController {
       await Get.find<WalletAuthController>().ensureAuthenticated();
       final hash = await action();
       _showMessage(title, hash);
+      arenaRepository.invalidateRound(snapshot.value.roundId);
       await refreshArena();
     } catch (error) {
       _showMessage(title, '$error');

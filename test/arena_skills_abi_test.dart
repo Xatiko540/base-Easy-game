@@ -1,9 +1,11 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/abi_test_utils.dart';
 
 void main() {
-  test('Matrix Arena ABI exposes every function used by Flutter', () {
+  test('Matrix Arena ABI exposes every function used by Flutter', () async {
+    if (kIsWeb) return;
     final expected = <String, ({String mutability, List<String> inputs})>{
       'FREEZE_TOKEN_PRICE_USDC': (
         mutability: 'view',
@@ -32,7 +34,7 @@ void main() {
     };
 
     for (final entry in expected.entries) {
-      final function = loadAbiFunction('EasyGameArenaSkills', entry.key);
+      final function = await loadAbiFunction('EasyGameArenaSkills', entry.key);
       expect(function['stateMutability'], entry.value.mutability);
       expect(abiInputTypes(function), entry.value.inputs);
     }

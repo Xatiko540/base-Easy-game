@@ -2,41 +2,15 @@ import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/matrix_round_models.dart';
 import 'package:lottery_advance/app/models/player_progression_models.dart';
 
-enum RoundLevelPlayerStatus {
-  unavailable,
-  available,
-  active,
-  frozen,
-  missed,
-  progressionBlocked,
-  completed
-}
-
 enum RoundLevelCardViewMode {
-  scheduleLoading,
-  awaitingRound,
-  refreshingRound,
-  configurationMismatch,
-  playerLoading,
-  dataError,
-  scheduled,
+  awaiting,
+  activation,
   active,
+  completed,
+  skipped,
   frozen,
-  missed,
-  progressionFrozen,
-  progressionBlocked,
-  emergencyPaused,
-  entryUnavailable,
-  activationAvailable,
-  entryClosed,
-  entryClosedActive,
-  settlementFinished,
-  settlementActive,
-  settledWithoutEntry,
-  settledActive,
   paused,
   cancelled,
-  uninitialized,
 }
 
 class RoundLevelCardState {
@@ -48,8 +22,7 @@ class RoundLevelCardState {
   final PlayerSeasonProgress? seasonProgress;
   final RoundEntryEligibility? entryEligibility;
   final bool? contractLevelAvailable;
-  final bool playerStateResolved;
-  final String? errorMessage;
+  final bool? didWin;
 
   const RoundLevelCardState({
     required this.level,
@@ -60,9 +33,32 @@ class RoundLevelCardState {
     this.seasonProgress,
     this.entryEligibility,
     this.contractLevelAvailable,
-    this.playerStateResolved = true,
-    this.errorMessage,
+    this.didWin,
   });
+
+  RoundLevelCardState copyWith({
+    int? level,
+    GameRoundViewState? round,
+    RoundMatrixStats? matrix,
+    RoundPlayerState? player,
+    ArenaSkillStatus? arenaStatus,
+    PlayerSeasonProgress? seasonProgress,
+    RoundEntryEligibility? entryEligibility,
+    bool? contractLevelAvailable,
+    bool? didWin,
+  }) {
+    return RoundLevelCardState(
+      level: level ?? this.level,
+      round: round ?? this.round,
+      matrix: matrix ?? this.matrix,
+      player: player ?? this.player,
+      arenaStatus: arenaStatus ?? this.arenaStatus,
+      seasonProgress: seasonProgress ?? this.seasonProgress,
+      entryEligibility: entryEligibility ?? this.entryEligibility,
+      contractLevelAvailable: contractLevelAvailable ?? this.contractLevelAvailable,
+      didWin: didWin ?? this.didWin,
+    );
+  }
 
   BigInt get roundId => BigInt.from(round?.schedule.roundId ?? 0);
   BigInt get ethPriceWei => round?.ethPriceWei ?? BigInt.zero;
@@ -79,13 +75,17 @@ class RoundLevelCardState {
   bool get isFrozen => arenaStatus?.frozen == true;
   bool get isImmune => arenaStatus?.immune == true;
   bool get hasRound => round != null;
-  bool get hasError => errorMessage?.isNotEmpty == true;
-  bool get isPlayerStatePending => !playerStateResolved;
   bool get isEmergencyPaused => contractLevelAvailable == false;
+  BigInt get _occupiedCells =>
+      round?.chainState?.occupiedCells ?? activeCells;
+  bool get isFull =>
+      round != null &&
+      _occupiedCells >= BigInt.from(round!.schedule.maxPlayers);
   bool get canEnter =>
       round?.canEnter == true &&
       contractLevelAvailable == true &&
-      entryEligibility?.canEnter != false;
+      entryEligibility?.canEnter != false &&
+      !isFull;
   bool get isMissed =>
       !isPlayerActive &&
       entryEligibility?.reason ==
@@ -101,119 +101,48 @@ class RoundLevelCardState {
   int get inviteCapacity => seasonProgress?.inviteCapacity ?? 0;
   int get remainingInviteSlots => seasonProgress?.remainingInviteSlots ?? 0;
 
-  RoundLevelPlayerStatus get playerStatus {
-    if (!hasRound) return RoundLevelPlayerStatus.unavailable;
-    if (isEmergencyPaused) return RoundLevelPlayerStatus.unavailable;
-    if (isFrozen) return RoundLevelPlayerStatus.frozen;
-    if (isMissed) return RoundLevelPlayerStatus.missed;
-    if (isProgressionBlocked || isFrozenProgressionBlocked) {
-      return RoundLevelPlayerStatus.progressionBlocked;
-    }
-    if (isPlayerActive && round!.phase == GameRoundPhase.settled) {
-      return RoundLevelPlayerStatus.completed;
-    }
-    if (isPlayerActive) return RoundLevelPlayerStatus.active;
-    return canEnter
-        ? RoundLevelPlayerStatus.available
-        : RoundLevelPlayerStatus.unavailable;
-  }
-
   double get fillPercent {
     final capacity = round?.schedule.maxPlayers ?? 0;
     if (capacity <= 0 || activeCells <= BigInt.zero) return 0;
     return (activeCells.toDouble() / capacity * 100).clamp(0, 100).toDouble();
   }
 
-  BigInt get playerChanceBps {
+  BigInt get playerWeightShareBps {
     if (playerWeight <= BigInt.zero || totalWeight <= BigInt.zero) {
       return BigInt.zero;
     }
     return (playerWeight * BigInt.from(10000)) ~/ totalWeight;
   }
 
-  RoundLevelCardViewMode resolveViewMode({
-    required GameRoundViewState? liveRound,
-    required bool isScheduleLoading,
-  }) {
-    if (liveRound == null) {
-      return isScheduleLoading
-          ? RoundLevelCardViewMode.scheduleLoading
-          : RoundLevelCardViewMode.awaitingRound;
-    }
-    if (hasRound && roundId != BigInt.from(liveRound.schedule.roundId)) {
-      return RoundLevelCardViewMode.refreshingRound;
-    }
-    if (!liveRound.isConfigurationTrusted) {
-      return RoundLevelCardViewMode.configurationMismatch;
-    }
-    if (isPlayerStatePending) return RoundLevelCardViewMode.playerLoading;
-    if (hasError) return RoundLevelCardViewMode.dataError;
+  RoundLevelCardViewMode resolveViewMode() {
+    final r = round;
+    if (r == null) return RoundLevelCardViewMode.awaiting;
 
-    // A lower level remains unavailable after the player has started higher,
-    // regardless of the current round timer.
-    if (isMissed) return RoundLevelCardViewMode.missed;
-
-    // Scheduled rounds must keep showing their chain-time countdown. Entry
-    // eligibility becomes actionable only after the round opens.
-    if (liveRound.phase == GameRoundPhase.scheduled) {
-      return RoundLevelCardViewMode.scheduled;
-    }
-    if (liveRound.phase == GameRoundPhase.paused) {
-      return RoundLevelCardViewMode.paused;
-    }
-    if (liveRound.phase == GameRoundPhase.cancelled) {
-      return RoundLevelCardViewMode.cancelled;
-    }
-    if (liveRound.phase == GameRoundPhase.uninitialized) {
-      return RoundLevelCardViewMode.uninitialized;
-    }
-
-    if (liveRound.phase == GameRoundPhase.settlementReady) {
-      return isPlayerActive
-          ? RoundLevelCardViewMode.settlementActive
-          : RoundLevelCardViewMode.settlementFinished;
-    }
-    if (liveRound.phase == GameRoundPhase.settled) {
-      return isPlayerActive
-          ? RoundLevelCardViewMode.settledActive
-          : RoundLevelCardViewMode.settledWithoutEntry;
-    }
-
-    // Freeze only blocks play/progression while the round is live. Results
-    // and claims remain reachable after settlement.
-    if (isFrozen) return RoundLevelCardViewMode.frozen;
-    if (isFrozenProgressionBlocked) {
-      return RoundLevelCardViewMode.progressionFrozen;
-    }
-    if (isProgressionBlocked) {
-      return RoundLevelCardViewMode.progressionBlocked;
-    }
-
-    switch (liveRound.phase) {
-      case GameRoundPhase.open:
-        if (isPlayerActive) return RoundLevelCardViewMode.active;
-        if (isEmergencyPaused) {
-          return RoundLevelCardViewMode.emergencyPaused;
-        }
-        return canEnter
-            ? RoundLevelCardViewMode.activationAvailable
-            : RoundLevelCardViewMode.entryUnavailable;
-      case GameRoundPhase.locked:
-        return isPlayerActive
-            ? RoundLevelCardViewMode.entryClosedActive
-            : RoundLevelCardViewMode.entryClosed;
+    switch (r.phase) {
       case GameRoundPhase.paused:
         return RoundLevelCardViewMode.paused;
       case GameRoundPhase.cancelled:
         return RoundLevelCardViewMode.cancelled;
-      case GameRoundPhase.uninitialized:
-        return RoundLevelCardViewMode.uninitialized;
       case GameRoundPhase.scheduled:
-        return RoundLevelCardViewMode.scheduled;
+        return RoundLevelCardViewMode.awaiting;
+      case GameRoundPhase.open:
+        if (isFrozen) return RoundLevelCardViewMode.frozen;
+        if (isPlayerActive) return RoundLevelCardViewMode.active;
+        return RoundLevelCardViewMode.activation;
+      case GameRoundPhase.locked:
+        if (isFrozen) return RoundLevelCardViewMode.frozen;
+        if (isPlayerActive) return RoundLevelCardViewMode.active;
+        return RoundLevelCardViewMode.awaiting;
       case GameRoundPhase.settlementReady:
-        return RoundLevelCardViewMode.settlementFinished;
+        if (isFrozen) return RoundLevelCardViewMode.frozen;
+        if (isPlayerActive) return RoundLevelCardViewMode.active;
+        return RoundLevelCardViewMode.awaiting;
       case GameRoundPhase.settled:
-        return RoundLevelCardViewMode.settledWithoutEntry;
+        if (isFrozen) return RoundLevelCardViewMode.frozen;
+        if (isPlayerActive) return RoundLevelCardViewMode.completed;
+        return RoundLevelCardViewMode.awaiting;
+      case GameRoundPhase.uninitialized:
+        return RoundLevelCardViewMode.awaiting;
     }
   }
 }

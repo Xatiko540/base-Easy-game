@@ -70,7 +70,7 @@ class AppConfigService extends GetxService {
       _copyAlias(from: 'chainId', to: 'targetBaseChainId');
       _copyAlias(from: 'contractAddress', to: 'easyGameContractAddress');
       _copyAlias(
-          from: 'easyGameRoundManagerAddress', to: 'roundManagerAddress');
+          from: 'roundManagerAddress', to: 'easyGameRoundManagerAddress');
       _copyAlias(from: 'web3Rpc', to: 'web3PublicRpcUrl');
       _copyAlias(from: 'usdcTokenAddress', to: 'usdcContractAddress');
       isLoaded.value = true;

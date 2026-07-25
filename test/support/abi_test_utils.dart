@@ -1,17 +1,15 @@
-import 'dart:convert';
-import 'dart:io';
+import 'abi_artifact_loader_web.dart'
+    if (dart.library.io) 'abi_artifact_loader_io.dart';
 
-Map<String, dynamic> loadArtifact(String contractName) {
-  return jsonDecode(
-    File('src/artifacts/$contractName.json').readAsStringSync(),
-  ) as Map<String, dynamic>;
+Future<Map<String, dynamic>> loadArtifact(String contractName) async {
+  return loadArtifactJson(contractName);
 }
 
-Map<String, dynamic> loadAbiFunction(
+Future<Map<String, dynamic>> loadAbiFunction(
   String contractName,
   String functionName,
-) {
-  final abi = loadArtifact(contractName)['abi'] as List<dynamic>;
+) async {
+  final abi = (await loadArtifact(contractName))['abi'] as List<dynamic>;
   return abi.cast<Map<String, dynamic>>().singleWhere(
         (entry) => entry['type'] == 'function' && entry['name'] == functionName,
       );

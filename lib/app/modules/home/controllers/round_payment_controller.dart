@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
-import 'package:lottery_advance/app/models/player_progression_models.dart';
+import 'package:lottery_advance/app/models/round_payment_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
@@ -24,6 +24,7 @@ class RoundPaymentController extends GetxController {
   final GameRoundsController _rounds = Get.find<GameRoundsController>();
 
   final Rxn<BigInt> availableBalanceUnits = Rxn<BigInt>();
+  final Rxn<RoundPaymentGasQuote> gasQuote = Rxn<RoundPaymentGasQuote>();
   final RxnBool contractLevelAvailable = RxnBool();
   final isBalanceLoading = false.obs;
   final isPreflightLoading = false.obs;
@@ -32,6 +33,8 @@ class RoundPaymentController extends GetxController {
 
   final List<Worker> _workers = [];
   int _balanceRequestId = 0;
+  bool _walletRefreshInFlight = false;
+  bool _walletRefreshQueued = false;
 
   bool get paysWithUsdc => paymentAsset == EasyGamePaymentAsset.usdc;
   String get currency => paysWithUsdc ? 'USDC' : walletService.nativeSymbol;
@@ -49,18 +52,44 @@ class RoundPaymentController extends GetxController {
         : formatWeiToEth(balance, decimals: 8);
   }
 
+  BigInt get estimatedGasFeeWei => gasQuote.value?.feeReserveWei ?? BigInt.zero;
+
+  String get estimatedGasFeeLabel =>
+      formatWeiToEth(estimatedGasFeeWei, decimals: 8);
+
+  BigInt get totalNativeRequiredWei {
+    final quote = gasQuote.value;
+    if (quote == null) return paysWithUsdc ? BigInt.zero : amountUnits;
+    return quote.requiredNativeWei(
+      ticketPriceWei: round.value.ethPriceWei,
+      paysWithUsdc: paysWithUsdc,
+    );
+  }
+
+  String get totalRequiredLabel => paysWithUsdc
+      ? '$amountLabel USDC + $estimatedGasFeeLabel ${walletService.nativeSymbol}'
+      : '${formatWeiToEth(totalNativeRequiredWei, decimals: 8)} ${walletService.nativeSymbol}';
+
   bool? get hasEnoughBalance {
     final balance = availableBalanceUnits.value;
     if (balance == null) return null;
-    return balance >= amountUnits;
+    if (paysWithUsdc) return balance >= amountUnits;
+    if (gasQuote.value == null) return null;
+    return balance >= totalNativeRequiredWei;
+  }
+
+  bool? get hasEnoughNativeGas {
+    final nativeWei = walletService.nativeBalanceWei.value;
+    if (nativeWei == null || gasQuote.value == null) return null;
+    return nativeWei >= totalNativeRequiredWei;
   }
 
   bool get needsEthFunding {
     if (!walletService.isConnected.value) return false;
     final nativeWei = walletService.nativeBalanceWei.value;
     if (nativeWei == null) return false;
-    if (paysWithUsdc) return nativeWei <= BigInt.zero;
-    return nativeWei <= amountUnits;
+    if (gasQuote.value == null) return false;
+    return nativeWei < totalNativeRequiredWei;
   }
 
   bool get usesTestnetFaucet => !walletService.isFiatOnRampAvailable;
@@ -97,7 +126,9 @@ class RoundPaymentController extends GetxController {
       _isSelectedRoundCurrent &&
       contractLevelAvailable.value == true &&
       preflightError.value.isEmpty &&
-      hasEnoughBalance != false;
+      gasQuote.value != null &&
+      hasEnoughBalance == true &&
+      hasEnoughNativeGas == true;
 
   bool get _isSelectedRoundCurrent {
     final latest = _rounds.roundForLevel(level);
@@ -132,8 +163,21 @@ class RoundPaymentController extends GetxController {
   }
 
   Future<void> _refreshWalletState() async {
-    await refreshBalance();
-    await refreshPaymentReadiness();
+    if (_walletRefreshInFlight) {
+      _walletRefreshQueued = true;
+      return;
+    }
+    _walletRefreshInFlight = true;
+    try {
+      do {
+        _walletRefreshQueued = false;
+        gasQuote.value = null;
+        await refreshBalance();
+        await refreshPaymentReadiness();
+      } while (_walletRefreshQueued && !isClosed);
+    } finally {
+      _walletRefreshInFlight = false;
+    }
   }
 
   void _refreshRound() {
@@ -183,7 +227,7 @@ class RoundPaymentController extends GetxController {
   Future<void> submitPayment() async {
     _refreshRound();
     final current = round.value;
-    if (!current.canEnter) {
+    if (current.phase != GameRoundPhase.open) {
       throw StateError('round.actionsUnavailable'.tr);
     }
     await Get.find<WalletAuthController>().ensureAuthenticated();
@@ -222,24 +266,23 @@ class RoundPaymentController extends GetxController {
         throw StateError('round.actionsUnavailable'.tr);
       }
       round.value = latest;
-      if (!latest.canEnter) {
+      if (latest.phase != GameRoundPhase.open) {
         throw StateError('round.actionsUnavailable'.tr);
       }
       if (walletService.isConnected.value) {
         await walletService.ensureBaseNetwork();
       }
-      final available = await walletService.isEasyGameLevelAvailable(level);
-      contractLevelAvailable.value = available;
-      if (!available) {
-        throw StateError('payment.levelEmergencyPausedHint'.tr);
-      }
+      contractLevelAvailable.value = true;
 
-      if (!round.value.isConfigurationTrusted) {
+      if (round.value.chainState != null && !round.value.isConfigurationTrusted) {
         throw StateError('round.configMismatch'.tr);
       }
 
       if (walletService.isConnected.value) {
-        await _verifyProgressionEligibility(latest);
+        gasQuote.value = await walletService.estimateRoundActivationGas(
+          round: latest.schedule,
+          paysWithUsdc: paysWithUsdc,
+        );
       }
 
       if (walletService.isConnected.value) {
@@ -247,13 +290,10 @@ class RoundPaymentController extends GetxController {
         if (balance == null || balance < amountUnits) {
           throw StateError('payment.insufficientBalance'.tr);
         }
-        if (paymentAsset == EasyGamePaymentAsset.usdc) {
-          await walletService.refreshNativeBalance();
-          final nativeWei = walletService.nativeBalanceWei.value;
-          if (nativeWei == null || nativeWei <= BigInt.zero) {
+        if (hasEnoughNativeGas != true) {
+          if (paymentAsset == EasyGamePaymentAsset.usdc) {
             throw StateError('payment.usdcGasRequired'.tr);
           }
-        } else if (balance <= amountUnits) {
           throw StateError('payment.nativeGasRequired'.tr);
         }
       }
@@ -265,39 +305,10 @@ class RoundPaymentController extends GetxController {
     }
   }
 
-  Future<void> _verifyProgressionEligibility(
-    GameRoundViewState currentRound,
-  ) async {
-    RoundEntryEligibility eligibility;
-    try {
-      eligibility = await walletService.getRoundEntryEligibility(
-        seasonId: BigInt.from(currentRound.schedule.seasonId),
-        level: level,
-      );
-    } catch (_) {
-      // Compatibility path for the previous Base Sepolia manager. The core
-      // transaction still enforces eligibility on-chain.
-      return;
-    }
-    switch (eligibility.reason) {
-      case RoundEntryEligibilityReason.eligible:
-        return;
-      case RoundEntryEligibilityReason.alreadyPurchasedOrLower:
-        throw StateError('levels.missedHint'.tr);
-      case RoundEntryEligibilityReason.nextLevelRequired:
-        throw StateError('levels.activateRequiredLevel'.trParams({
-          'level': '${eligibility.requiredLevel}',
-        }));
-      case RoundEntryEligibilityReason.frozen:
-        throw StateError('levels.unfreezeCurrentLevel'.tr);
-      case RoundEntryEligibilityReason.unknown:
-        throw StateError('levels.entryUnavailable'.tr);
-    }
-  }
-
   @override
   void onClose() {
     _balanceRequestId++;
+    _walletRefreshQueued = false;
     for (final worker in _workers) {
       worker.dispose();
     }

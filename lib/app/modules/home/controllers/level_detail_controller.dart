@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/models/game_transaction_model.dart';
-import 'package:lottery_advance/app/models/wallet_auth_models.dart';
 import 'package:lottery_advance/app/models/game_round_models.dart';
 import 'package:lottery_advance/app/models/game_round_settlement_models.dart';
 import 'package:lottery_advance/app/modules/home/controllers/game_rounds_controller.dart';
@@ -47,8 +46,6 @@ class LevelDetailController extends GetxController {
     _workers.addAll([
       ever<bool>(walletService.isConnected, (_) => _handleWalletChange()),
       ever<String>(walletService.currentAddress, (_) => _handleWalletChange()),
-      ever<int?>(walletService.chainId, (_) => _handleWalletChange()),
-      ever<WalletAuthPhase>(authController.phase, (_) => _handleWalletChange()),
       ever(_roundChain.states, (_) => refreshDetail()),
     ]);
     if (Get.isRegistered<FirebaseBackendService>()) {
@@ -149,8 +146,7 @@ class LevelDetailController extends GetxController {
         if (authController.isAuthenticated) _settlement.getClaimable(),
       ]);
       if (isClosed || run != _refreshRun) return;
-      final card = values[0];
-      if (card.hasError) throw StateError(card.errorMessage!);
+      final card = values[0] as RoundLevelCardState;
       snapshot.value = LevelDetailSnapshot(
         card: card,
         player: authController.isAuthenticated ? values[1] : null,
@@ -191,53 +187,23 @@ class LevelDetailController extends GetxController {
   double fillPercent(LevelDetailSnapshot data) => data.card.fillPercent;
 
   String stateLabel(LevelDetailSnapshot data) {
-    final selectedRound = data.card.round;
-    final mode = data.card.resolveViewMode(
-      liveRound: selectedRound,
-      isScheduleLoading: false,
-    );
+    final mode = data.card.resolveViewMode();
     switch (mode) {
       case RoundLevelCardViewMode.active:
         return 'common.active'.tr;
       case RoundLevelCardViewMode.frozen:
         return 'common.frozen'.tr;
-      case RoundLevelCardViewMode.missed:
+      case RoundLevelCardViewMode.skipped:
         return 'levels.missed'.tr;
-      case RoundLevelCardViewMode.progressionFrozen:
-        return 'levels.progressionFrozen'.tr;
-      case RoundLevelCardViewMode.progressionBlocked:
-        return 'levels.nextLevelRequired'.tr;
-      case RoundLevelCardViewMode.activationAvailable:
+      case RoundLevelCardViewMode.activation:
         return 'levels.availableActivation'.tr;
-      case RoundLevelCardViewMode.emergencyPaused:
-        return 'payment.levelEmergencyPaused'.tr;
-      case RoundLevelCardViewMode.configurationMismatch:
-        return 'round.configurationMismatch'.tr;
-      case RoundLevelCardViewMode.dataError:
-        return 'common.error'.tr;
-      case RoundLevelCardViewMode.playerLoading:
-      case RoundLevelCardViewMode.refreshingRound:
-      case RoundLevelCardViewMode.scheduleLoading:
-        return 'common.loading'.tr;
-      case RoundLevelCardViewMode.awaitingRound:
-        return 'levels.gameNotStarted'.tr;
-      case RoundLevelCardViewMode.entryUnavailable:
-        return 'round.actionsUnavailable'.tr;
-      case RoundLevelCardViewMode.entryClosed:
-      case RoundLevelCardViewMode.entryClosedActive:
-        return 'round.locked'.tr;
-      case RoundLevelCardViewMode.settlementFinished:
-        return 'round.finished'.tr;
-      case RoundLevelCardViewMode.settlementActive:
-        return 'round.settlementReady'.tr;
-      case RoundLevelCardViewMode.settledWithoutEntry:
-      case RoundLevelCardViewMode.settledActive:
+      case RoundLevelCardViewMode.completed:
         return 'round.settled'.tr;
-      case RoundLevelCardViewMode.scheduled:
+      case RoundLevelCardViewMode.awaiting:
+        return 'levels.gameNotStarted'.tr;
       case RoundLevelCardViewMode.paused:
       case RoundLevelCardViewMode.cancelled:
-      case RoundLevelCardViewMode.uninitialized:
-        return 'round.${selectedRound?.phase.name ?? 'uninitialized'}'.tr;
+        return 'round.${data.card.round?.phase.name ?? 'paused'}'.tr;
     }
   }
 

@@ -31,7 +31,7 @@ class _PartnerMetricGrid extends StatelessWidget {
         title: 'partner.ratio'.tr,
         value: data.totalWeight == BigInt.zero
             ? '0%'
-            : '${((data.referralWeight.toDouble() / data.totalWeight.toDouble()) * 100).clamp(0, 100).toStringAsFixed(0)}%',
+            : '${(data.referralWeight * BigInt.from(10000) ~/ data.totalWeight).toDouble() / 100}%',
         delta: '+ weight',
         color: Colors.greenAccent,
       ),

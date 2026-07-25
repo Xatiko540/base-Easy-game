@@ -10,21 +10,21 @@ import 'package:lottery_advance/app/modules/home/models/round_level_card_state.d
 import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/models/wallet_auth_models.dart';
 import 'package:lottery_advance/app/repositories/round_levels_repository.dart';
-import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
 import 'package:lottery_advance/app/services/firebase_backend_service.dart';
 import 'package:lottery_advance/app/services/game_round_blockchain_service.dart';
 import 'package:lottery_advance/app/services/game_settlement_service.dart';
+import 'package:lottery_advance/app/services/game_contract_events_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 class LevelsProvider extends GetxController {
-  static const Duration backgroundRefreshInterval = Duration(minutes: 2);
   final WalletConnectService walletService = Get.find<WalletConnectService>();
   final WalletAuthController authController = Get.find<WalletAuthController>();
   final RoundLevelsRepository _roundLevels = Get.find<RoundLevelsRepository>();
   final GameSettlementService _settlement = Get.find<GameSettlementService>();
   final GameRoundBlockchainService _roundChain =
       Get.find<GameRoundBlockchainService>();
-  final GameRoundsRepository _rounds = Get.find<GameRoundsRepository>();
+  final GameContractEventsService _contractEvents =
+      Get.find<GameContractEventsService>();
 
   final RxList<RoundLevelCardState> levels = <RoundLevelCardState>[].obs;
   final Rx<SettlementClaimable> settlementClaimable =
@@ -36,12 +36,7 @@ class LevelsProvider extends GetxController {
   final RxString transactionsError = ''.obs;
 
   String? playerAddress;
-  int _refreshRun = 0;
-  bool _fetchInFlight = false;
-  bool _fetchQueued = false;
   bool _hasCompletedInitialLoad = false;
-  Timer? _refreshDebounce;
-  Timer? _autoRefreshTimer;
   StreamSubscription<List<GameTransaction>>? _transactionsSub;
   final List<Worker> _workers = [];
 
@@ -58,21 +53,19 @@ class LevelsProvider extends GetxController {
       ever<bool>(backend.isReady, (ready) {
         if (ready) _subscribeToTransactions(backend);
       }),
-      ever<bool>(walletService.isConnected, (_) => _handleWalletChange()),
-      ever<String>(walletService.currentAddress, (_) => _handleWalletChange()),
-      ever<int?>(walletService.chainId, (_) => _handleWalletChange()),
-      ever<WalletAuthPhase>(authController.phase, (_) => _handleWalletChange()),
-      ever<Map<int, int>>(_rounds.selectedRoundIds, (_) => _queueFetchLevels()),
+      ever<bool>(walletService.isConnected, (_) => fetchLevels()),
+      ever<String>(walletService.currentAddress, (_) => fetchLevels()),
+      ever<int?>(walletService.chainId, (_) => fetchLevels()),
+      ever<WalletAuthPhase>(authController.phase, (_) => fetchLevels()),
       ever<Map<int, GameRoundChainState>>(
         _roundChain.states,
-        (_) => _queueFetchLevels(),
+        (_) => fetchLevels(),
+      ),
+      ever<int>(
+        _contractEvents.eventRevision,
+        (_) => fetchLevels(),
       ),
     ]);
-
-    _autoRefreshTimer = Timer.periodic(
-      backgroundRefreshInterval,
-      (_) => _queueFetchLevels(),
-    );
 
     if (backend.isReady.value) _subscribeToTransactions(backend);
   }
@@ -82,27 +75,8 @@ class LevelsProvider extends GetxController {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (isClosed) return;
       if (levels.isEmpty) levels.assignAll(_initialLevels());
-      _queueFetchLevels(immediate: true);
-    });
-  }
-
-  void _handleWalletChange() {
-    if (isClosed || playerAddress != null) return;
-    _subscribeToTransactions(Get.find<FirebaseBackendService>());
-    _queueFetchLevels();
-  }
-
-  void _queueFetchLevels({bool immediate = false}) {
-    if (isClosed) return;
-    _refreshDebounce?.cancel();
-    if (immediate) {
       fetchLevels();
-      return;
-    }
-    _refreshDebounce = Timer(
-      const Duration(milliseconds: 350),
-      fetchLevels,
-    );
+    });
   }
 
   void _subscribeToTransactions(FirebaseBackendService backend) {
@@ -139,30 +113,11 @@ class LevelsProvider extends GetxController {
     );
   }
 
+  bool _isFetching = false;
+
   Future<void> fetchLevels() async {
-    if (isClosed) return;
-    _refreshRun++;
-    if (_fetchInFlight) {
-      _fetchQueued = true;
-      return;
-    }
-
-    _fetchInFlight = true;
-    try {
-      do {
-        _fetchQueued = false;
-        await _fetchLevelsOnce(_refreshRun);
-      } while (_fetchQueued && !isClosed);
-    } finally {
-      _fetchInFlight = false;
-      if (!isClosed) isLoading.value = false;
-    }
-  }
-
-  Future<void> _fetchLevelsOnce(int run) async {
-    if (isClosed) return;
-
-    // Keep already rendered cards in place during background refreshes.
+    if (isClosed || _isFetching) return;
+    _isFetching = true;
     isLoading.value = !_hasCompletedInitialLoad;
     errorMessage.value = '';
     try {
@@ -172,34 +127,26 @@ class LevelsProvider extends GetxController {
               (authController.isAuthenticated
                   ? walletService.currentAddress.value
                   : null),
-          onBatch: (batch) {
-            if (isClosed || run != _refreshRun) return;
-            _applyCardBatch(batch);
-          },
         ),
         if (authController.isAuthenticated && playerAddress == null)
           _loadSettlementClaimable(),
       ]);
-      if (isClosed || run != _refreshRun) return;
+      if (isClosed) return;
 
       final incoming = results.first as List<RoundLevelCardState>;
-      levels.assignAll(_mergeWithStableCards(incoming));
+      levels.assignAll(incoming);
       settlementClaimable.value = results.length > 1
           ? results[1] as SettlementClaimable
           : SettlementClaimable.zero;
 
-      final failures = levels.where((item) => item.hasError).toList();
-      if (failures.isNotEmpty) {
-        errorMessage.value = 'levels.partialRoundLoad'.trParams({
-          'count': '${failures.length}',
-        });
-      }
+      errorMessage.value = '';
     } catch (error) {
-      if (isClosed || run != _refreshRun) return;
+      if (isClosed) return;
       errorMessage.value = '${'levels.unableRefresh'.tr}: $error';
       if (kDebugMode) debugPrint(errorMessage.value);
     } finally {
-      if (!isClosed && run == _refreshRun) {
+      _isFetching = false;
+      if (!isClosed) {
         _hasCompletedInitialLoad = true;
         isLoading.value = false;
       }
@@ -217,46 +164,6 @@ class LevelsProvider extends GetxController {
     }
   }
 
-  List<RoundLevelCardState> _mergeWithStableCards(
-    List<RoundLevelCardState> incoming,
-  ) {
-    final previous = {for (final item in levels) item.level: item};
-    return incoming.map((next) {
-      final current = previous[next.level];
-      final sameRound = current != null && current.roundId == next.roundId;
-      final transientFailure = next.hasError || next.isPlayerStatePending;
-      final currentIsStable = current != null &&
-          !current.hasError &&
-          !current.isPlayerStatePending &&
-          current.hasRound;
-      if (sameRound && transientFailure && currentIsStable) return current;
-      return next;
-    }).toList();
-  }
-
-  void _applyCardBatch(List<RoundLevelCardState> batch) {
-    final next = levels.toList();
-    for (final incoming in batch) {
-      final index = next.indexWhere((item) => item.level == incoming.level);
-      if (index < 0) {
-        next.add(incoming);
-        continue;
-      }
-      final current = next[index];
-      final sameRound = current.roundId == incoming.roundId;
-      final transientFailure =
-          incoming.hasError || incoming.isPlayerStatePending;
-      final currentIsStable = !current.hasError &&
-          !current.isPlayerStatePending &&
-          current.hasRound;
-      if (!(sameRound && transientFailure && currentIsStable)) {
-        next[index] = incoming;
-      }
-    }
-    next.sort((a, b) => b.level.compareTo(a.level));
-    levels.assignAll(next);
-  }
-
   Future<void> refreshAll() async {
     _subscribeToTransactions(Get.find<FirebaseBackendService>());
     await fetchLevels();
@@ -269,9 +176,6 @@ class LevelsProvider extends GetxController {
 
   @override
   void onClose() {
-    _refreshRun++;
-    _refreshDebounce?.cancel();
-    _autoRefreshTimer?.cancel();
     _transactionsSub?.cancel();
     for (final worker in _workers) {
       worker.dispose();

@@ -49,6 +49,18 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         uint256 indexed cellId,
         uint256 tickets
     );
+    event RoundReferralWeightDeferred(
+        address indexed player,
+        uint256 indexed roundId,
+        uint256 amount,
+        uint256 pendingTotal
+    );
+    event RoundReferralWeightApplied(
+        address indexed player,
+        uint256 indexed roundId,
+        uint256 requested,
+        uint256 accepted
+    );
 
     function _activateRoundState(
         RoundConfig calldata config,
@@ -58,6 +70,9 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         bool paidWithUsdc
     ) internal returns (uint256 cellId) {
         Player storage player = players[playerAddress];
+        // Once a player exists the inviter chain is final — re-registration
+        // is prevented so the three-level bonus graph remains immutable per
+        // player.  A fresh player always honours the caller-supplied inviter.
         address effectiveInviter = player.exists ? player.inviter : inviter;
         if (
             effectiveInviter == playerAddress ||
@@ -88,7 +103,8 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         player.lastActiveAt = block.timestamp;
 
         cellId = _placeRoundPlayer(config.roundId, config.level, playerAddress);
-        _addRoundWeight(playerAddress, config.roundId, BASE_ACTIVATION_WEIGHT, 0);
+        _addRoundWeight(playerAddress, config.roundId, BASE_ACTIVATION_WEIGHT, WeightType.Base);
+        _applyPendingRoundReferralWeight(config.roundId, config.level, playerAddress);
         _processRoundRecycles(config.roundId, config.level, MAX_RECYCLE_STEPS_PER_TX);
 
         emit RoundActivated(
@@ -163,8 +179,8 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
                 state.cycleCount += 1;
                 players[playerAddress].recycleCount += 1;
                 players[playerAddress].boxTokens += 1;
-                _addRoundWeight(playerAddress, roundId, RECYCLE_MATRIX_WEIGHT, 3);
-                _addRoundWeight(playerAddress, roundId, BOX_NFT_WEIGHT, 4);
+                _addRoundWeight(playerAddress, roundId, RECYCLE_MATRIX_WEIGHT, WeightType.Matrix);
+                _addRoundWeight(playerAddress, roundId, BOX_NFT_WEIGHT, WeightType.Nft);
                 uint256 newCellId = _placeRoundPlayer(roundId, level, playerAddress);
                 emit RoundRecycled(playerAddress, roundId, state.cycleCount, newCellId);
             }
@@ -188,20 +204,20 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         address playerAddress,
         uint256 roundId,
         uint256 amount,
-        uint8 weightType
+        WeightType weightType
     ) internal returns (uint256 accepted) {
         if (amount == 0 || !playerRounds[playerAddress][roundId].active) return 0;
         WeightBreakdown storage breakdown = _roundWeights[playerAddress][roundId];
         PlayerRound storage state = playerRounds[playerAddress][roundId];
         uint256 current;
         uint256 cap;
-        if (weightType == 0) {
+        if (weightType == WeightType.Base) {
             current = breakdown.baseWeight;
             cap = MAX_BASE_WEIGHT_PER_LEVEL;
-        } else if (weightType == 1) {
+        } else if (weightType == WeightType.Referral) {
             current = breakdown.referralWeight;
             cap = MAX_REFERRAL_WEIGHT_PER_LEVEL;
-        } else if (weightType == 3) {
+        } else if (weightType == WeightType.Matrix) {
             current = breakdown.matrixWeight;
             cap = MAX_MATRIX_WEIGHT_PER_LEVEL;
         } else {
@@ -213,13 +229,13 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         if (accepted == 0) return 0;
 
         Player storage player = players[playerAddress];
-        if (weightType == 0) {
+        if (weightType == WeightType.Base) {
             breakdown.baseWeight += accepted;
             player.baseWeight += accepted;
-        } else if (weightType == 1) {
+        } else if (weightType == WeightType.Referral) {
             breakdown.referralWeight += accepted;
             player.referralWeight += accepted;
-        } else if (weightType == 3) {
+        } else if (weightType == WeightType.Matrix) {
             breakdown.matrixWeight += accepted;
             player.matrixWeight += accepted;
         } else {
@@ -313,8 +329,33 @@ abstract contract RoundGameLogic is EasyGameAdvanceStorage, PlayerRegistryLogic 
         }
         if (paidWithUsdc) claimableReferralBonusUsdc[inviter] += amount;
         else players[inviter].claimableReferralBonus += amount;
-        uint256 accepted = _addRoundWeight(inviter, roundId, weight, 1);
+        if (!playerRounds[inviter][roundId].active) {
+            uint256 pendingTotal = pendingRoundReferralWeight[inviter][roundId] + weight;
+            pendingRoundReferralWeight[inviter][roundId] = pendingTotal;
+            emit RoundReferralWeightDeferred(inviter, roundId, weight, pendingTotal);
+            return;
+        }
+        uint256 accepted = _addRoundWeight(inviter, roundId, weight, WeightType.Referral);
         _grantReferralBonusPositions(roundId, level, inviter, accepted);
+    }
+
+    function _applyPendingRoundReferralWeight(
+        uint256 roundId,
+        uint8 level,
+        address playerAddress
+    ) private {
+        uint256 requested = pendingRoundReferralWeight[playerAddress][roundId];
+        if (requested == 0) return;
+
+        delete pendingRoundReferralWeight[playerAddress][roundId];
+        uint256 accepted = _addRoundWeight(
+            playerAddress,
+            roundId,
+            requested,
+            WeightType.Referral
+        );
+        _grantReferralBonusPositions(roundId, level, playerAddress, accepted);
+        emit RoundReferralWeightApplied(playerAddress, roundId, requested, accepted);
     }
 
     /// @dev Every accumulated 100 referral-weight points grant one additional

@@ -83,10 +83,12 @@ class _ArenaStatCard extends StatelessWidget {
 class _PayoutDistributionPanel extends StatelessWidget {
   final BigInt totalPrizePoolWei;
   final String currency;
+  final int version;
 
   const _PayoutDistributionPanel({
     required this.totalPrizePoolWei,
     required this.currency,
+    this.version = 1,
   });
 
   @override
@@ -141,9 +143,11 @@ class _PayoutDistributionPanel extends StatelessWidget {
           for (final row in rows) _DistributionLine(row: row),
           const SizedBox(height: 10),
           Text(
-            'stats.payoutHint'.tr,
-            style: const TextStyle(
-              color: Colors.white54,
+            version != 1
+                ? 'stats.payoutVersionMismatch'.tr
+                : 'stats.payoutHint'.tr,
+            style: TextStyle(
+              color: version != 1 ? Colors.orangeAccent : Colors.white54,
               fontSize: 13,
               height: 1.45,
             ),

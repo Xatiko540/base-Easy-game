@@ -56,8 +56,8 @@ class _LevelClaimPanel extends StatelessWidget {
                 '${formatWeiToEth(data.settlement.ethAmount)} $currency / ${formatUsdc(data.settlement.usdcAmount)} USDC',
               ),
               DetailRow(
-                'levelDetail.pendingPrize'.tr,
-                '0 $currency',
+                'levelDetail.prizePool'.tr,
+                '${formatWeiToEth(data.card.prizePoolWei)} $currency / ${formatUsdc(data.card.prizePoolUsdc)} USDC',
               ),
               DetailRow(
                 'levelDetail.referralBonus'.tr,

@@ -158,8 +158,10 @@ Settlement must perform bounded work only. It may iterate over the fixed winner
 list, but never over every matrix participant.
 
 If there are multiple eligible winners, the distributable round prize is split
-equally. A frozen winner receives `pendingPrize`; an active winner receives
-`claimablePrize`.
+proportionally to their capped on-chain round weights. Winning cells are still
+precommitted in the Merkle root; this is not a random weighted draw. Referral
+weight also grants additional matrix tickets, increasing the number of chances
+to occupy a committed winning cell.
 
 ## 8. Freeze, shield, and unfreeze rules
 

@@ -52,63 +52,27 @@ class GameRoundsRepository extends GetxService {
     for (var level = 1; level <= 17; level++) {
       final candidates = states.where((item) => item.schedule.level == level);
       if (candidates.isEmpty) continue;
-      selected[level] = candidates.reduce(_preferCurrentRound);
+      selected[level] = candidates.reduce(
+        (a, b) => a.schedule.seasonId > b.schedule.seasonId ? a : b,
+      );
     }
     roundsByLevel.assignAll(selected);
-    final nextIds = selected.map(
-      (level, round) => MapEntry(level, round.schedule.roundId),
-    );
-    if (!_sameRoundIds(selectedRoundIds, nextIds)) {
-      selectedRoundIds.assignAll(nextIds);
+
+    final newIds = <int, int>{
+      for (final entry in selected.entries)
+        entry.key: entry.value.schedule.roundId,
+    };
+    if (!_mapEquals(selectedRoundIds, newIds)) {
+      selectedRoundIds.assignAll(newIds);
     }
   }
 
-  bool _sameRoundIds(Map<int, int> current, Map<int, int> next) {
-    if (current.length != next.length) return false;
-    for (final entry in next.entries) {
-      if (current[entry.key] != entry.value) return false;
+  static bool _mapEquals(Map<int, int> a, Map<int, int> b) {
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (b[entry.key] != entry.value) return false;
     }
     return true;
-  }
-
-  GameRoundViewState _preferCurrentRound(
-    GameRoundViewState current,
-    GameRoundViewState candidate,
-  ) {
-    final currentRank = _phaseRank(current.phase);
-    final candidateRank = _phaseRank(candidate.phase);
-    if (candidateRank != currentRank) {
-      return candidateRank < currentRank ? candidate : current;
-    }
-    if (candidate.phase == GameRoundPhase.settled) {
-      return candidate.schedule.endsAt.isAfter(current.schedule.endsAt)
-          ? candidate
-          : current;
-    }
-    return candidate.schedule.startsAt.isBefore(current.schedule.startsAt)
-        ? candidate
-        : current;
-  }
-
-  int _phaseRank(GameRoundPhase phase) {
-    switch (phase) {
-      case GameRoundPhase.open:
-        return 0;
-      case GameRoundPhase.locked:
-        return 1;
-      case GameRoundPhase.scheduled:
-        return 2;
-      case GameRoundPhase.settlementReady:
-        return 3;
-      case GameRoundPhase.paused:
-        return 4;
-      case GameRoundPhase.settled:
-        return 5;
-      case GameRoundPhase.cancelled:
-        return 6;
-      case GameRoundPhase.uninitialized:
-        return 7;
-    }
   }
 
   @override

@@ -6,7 +6,7 @@ import 'package:get/get.dart';
 import 'package:wagmi_web/wagmi_web.dart' as wagmi;
 
 class GameClockService extends GetxService with WidgetsBindingObserver {
-  static const Duration chainResyncInterval = Duration(minutes: 2);
+  static const Duration chainResyncInterval = Duration(hours: 1);
   final Rx<DateTime> chainTime = DateTime.now().toUtc().obs;
   final RxBool isSynchronized = false.obs;
   final RxString errorMessage = ''.obs;

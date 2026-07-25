@@ -60,7 +60,10 @@ class PartnerBonusController extends GetxController {
     }
     try {
       final player = await walletService.getEasyGamePlayerSummary();
-      return PartnerArenaSnapshot(player: player);
+      return PartnerArenaSnapshot(
+        player: player,
+        paymentSplitVersion: 1,
+      );
     } catch (_) {
       return PartnerArenaSnapshot.empty();
     }
@@ -90,6 +93,25 @@ class PartnerBonusController extends GetxController {
     try {
       await authController.ensureAuthenticated();
       final txHash = await walletService.claimEasyGameReferralBonus();
+      Get.snackbar(
+        'partner.claimSent'.tr,
+        txHash,
+        snackPosition: SnackPosition.BOTTOM,
+      );
+      await refreshSnapshot();
+    } catch (e) {
+      Get.snackbar(
+        'payment.unavailable'.tr,
+        e.toString(),
+        snackPosition: SnackPosition.BOTTOM,
+      );
+    }
+  }
+
+  Future<void> claimReferralBonusUSDC() async {
+    try {
+      await authController.ensureAuthenticated();
+      final txHash = await walletService.claimEasyGameReferralBonusUSDC();
       Get.snackbar(
         'partner.claimSent'.tr,
         txHash,

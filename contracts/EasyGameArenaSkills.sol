@@ -85,6 +85,11 @@ contract EasyGameArenaSkills {
     }
 
     function buyUnfreeze(uint256 roundId) external nonReentrant {
+        RoundPhase phase = roundManager.getRoundPhase(roundId);
+        require(
+            phase == RoundPhase.Open || phase == RoundPhase.Locked,
+            "Round is not active"
+        );
         ArenaStatus storage status = arenaStatus[roundId][msg.sender];
         require(block.timestamp < status.frozenUntil, "Player is not frozen");
         uint256 price = getUnfreezePriceUsdc(roundId, msg.sender);

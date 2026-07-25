@@ -11,23 +11,17 @@ class _MemberPreviewController extends GetxController {
   final isLoading = false.obs;
   final errorMessage = ''.obs;
 
-  Worker? _roundsWorker;
   int _requestId = 0;
 
   @override
   void onInit() {
     super.onInit();
-    _roundsWorker = ever<Map<int, int>>(
-      _rounds.selectedRoundIds,
-      (_) => refreshPreview(),
-    );
     refreshPreview();
   }
 
   @override
   void onClose() {
     _requestId++;
-    _roundsWorker?.dispose();
     super.onClose();
   }
 

@@ -5,8 +5,10 @@ import 'package:lottery_advance/app/services/wallet_connect_service.dart';
 
 class GameSettlementService extends GetxService {
   static const _region = 'us-central1';
+  final _proofsCache = <BigInt, RoundSettlementProofs>{};
 
   Future<RoundSettlementProofs> fetchProofs(BigInt roundId) async {
+    if (_proofsCache.containsKey(roundId)) return _proofsCache[roundId]!;
     final result = await FirebaseFunctions.instanceFor(region: _region)
         .httpsCallable('getRoundSettlementProofs')
         .call(<String, dynamic>{'roundId': roundId.toString()});
@@ -16,10 +18,12 @@ class GameSettlementService extends GetxService {
               Map<String, dynamic>.from(value as Map),
             ))
         .toList(growable: false);
-    return RoundSettlementProofs(
+    final proofs = RoundSettlementProofs(
       roundId: BigInt.parse('${data['roundId']}'),
       cells: cells,
     );
+    _proofsCache[roundId] = proofs;
+    return proofs;
   }
 
   Future<String> settleRound(BigInt roundId) async {
@@ -32,4 +36,13 @@ class GameSettlementService extends GetxService {
 
   Future<SettlementClaimable> getClaimable() =>
       Get.find<WalletConnectService>().getSettlementClaimable();
+
+  Future<bool?> isWinningCell(BigInt roundId, BigInt cellId) async {
+    try {
+      final proofs = await fetchProofs(roundId);
+      return proofs.cells.any((c) => c.cellId == cellId);
+    } catch (_) {
+      return null;
+    }
+  }
 }

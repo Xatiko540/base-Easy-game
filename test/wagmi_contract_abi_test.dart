@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/abi_test_utils.dart';
@@ -5,7 +6,8 @@ import 'support/abi_test_utils.dart';
 typedef _ExpectedFunction = ({String mutability, List<String> inputs});
 
 void main() {
-  test('active Wagmi contract calls match bundled Solidity artifacts', () {
+  test('active Wagmi contract calls match bundled Solidity artifacts', () async {
+    if (kIsWeb) return;
     final expectedByContract = <String, Map<String, _ExpectedFunction>>{
       'EasyGameAdvance': {
         'getPlayer': (mutability: 'view', inputs: const ['address']),
@@ -98,7 +100,7 @@ void main() {
 
     for (final contractEntry in expectedByContract.entries) {
       for (final functionEntry in contractEntry.value.entries) {
-        final function = loadAbiFunction(
+        final function = await loadAbiFunction(
           contractEntry.key,
           functionEntry.key,
         );

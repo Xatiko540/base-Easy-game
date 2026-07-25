@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -25,7 +24,6 @@ class FirebaseBackendService extends GetxService {
   final Rxn<WalletAuthSession> session = Rxn<WalletAuthSession>();
   final RxString errorMessage = ''.obs;
 
-  String _recaptchaSiteKey = '';
   String _vapidKey = '';
 
   FirebaseFunctions? _functions;
@@ -67,25 +65,25 @@ class FirebaseBackendService extends GetxService {
     _functions = FirebaseFunctions.instanceFor(region: _region);
     await _fetchConfig();
 
-    if (!kDebugMode || _recaptchaSiteKey.isNotEmpty) {
-      await FirebaseAppCheck.instance.activate(
-        providerWeb: kIsWeb && _recaptchaSiteKey.isNotEmpty
-            ? ReCaptchaV3Provider(_recaptchaSiteKey)
-            : null,
-        providerAndroid: const AndroidPlayIntegrityProvider(),
-        providerApple: const AppleAppAttestWithDeviceCheckFallbackProvider(),
-      );
-    }
+    // AppCheck is disabled until reCAPTCHA is properly configured.
+    // Do not call FirebaseAppCheck.instance.activate() with an invalid/missing
+    // reCAPTCHA key — it causes 403 → 24h throttle on all Firebase requests.
+    // Cloud Functions already use enforceAppCheck: false.
 
     _authSubscription = FirebaseAuth.instance.authStateChanges().listen(
           (user) => unawaited(_restoreWalletSession(user)),
         );
     await _ensureBootstrapSession();
-    await _restoreWalletSession(FirebaseAuth.instance.currentUser);
 
     await _configureMessaging();
-    _paymentWorker = ever<String>(walletService.lastPaymentTxHash, (hash) {
+    _paymentWorker = ever<Map<String, dynamic>?>(
+        walletService.lastPaymentReceipt, (receipt) {
+      if (receipt == null || receipt['status'] != 'success') return;
+      final hash = receipt['transactionHash']?.toString() ?? '';
       if (hash.isEmpty) return;
+      unawaited(_writeTransactionDirectly(receipt).catchError((Object error) {
+        debugPrint('Direct transaction write failed: $error');
+      }));
       unawaited(trackTransaction(hash).catchError((Object error) {
         debugPrint('Firebase transaction tracking skipped: $error');
       }));
@@ -107,7 +105,6 @@ class FirebaseBackendService extends GetxService {
       if (!config.isLoaded.value) {
         await config.fetch();
       }
-      _recaptchaSiteKey = config.get('recaptchaSiteKey');
       _vapidKey = config.get('vapidKey');
     } catch (e) {
       debugPrint('Firebase config fetch failed: $e');
@@ -153,7 +150,8 @@ class FirebaseBackendService extends GetxService {
     });
     final challengeData = Map<String, dynamic>.from(challenge.data as Map);
     final message = challengeData['message']?.toString() ?? '';
-    if (message.isEmpty) {
+    final challengeId = challengeData['challengeId']?.toString() ?? '';
+    if (message.isEmpty || challengeId.isEmpty) {
       throw StateError('SIWE challenge is missing.');
     }
     final signature = await signMessage(message);
@@ -163,6 +161,7 @@ class FirebaseBackendService extends GetxService {
       'address': address,
       'message': message,
       'signature': signature,
+      'challengeId': challengeId,
     });
     final data = Map<String, dynamic>.from(authentication.data as Map);
     final customToken = data['customToken']?.toString() ?? '';
@@ -208,6 +207,41 @@ class FirebaseBackendService extends GetxService {
     await _functions!.httpsCallable('registerDevice').call(<String, dynamic>{
       'token': token,
       'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
+    });
+  }
+
+  Future<void> _writeTransactionDirectly(Map<String, dynamic> receipt) async {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) return;
+
+    final context = receipt['_roundContext'] as Map<String, dynamic>?;
+    if (context == null) return;
+
+    final hash = receipt['transactionHash']?.toString() ?? '';
+    if (hash.isEmpty) return;
+
+    final chainId = walletService.chainId.value ??
+        WalletConnectService.baseMainnetChainId;
+    final wallet = walletService.currentAddress.value;
+    if (wallet.isEmpty) return;
+
+    final docId = '${chainId}_${hash.toLowerCase()}';
+    await FirebaseFirestore.instance
+        .collection('transactions')
+        .doc(docId)
+        .set({
+      'chainId': chainId,
+      'transactionHash': hash.toLowerCase(),
+      'uid': uid,
+      'wallet': wallet.toLowerCase(),
+      'status': 'confirmed',
+      'operation': context['operation'] ?? 'onChainTransaction',
+      'roundId': context['roundId'],
+      'level': context['level'],
+      'amount': context['amount'] ?? '',
+      'currency': context['currency'] ?? '',
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -314,8 +348,21 @@ class FirebaseBackendService extends GetxService {
   }
 
   Future<void> _ensureBootstrapSession() async {
-    if (FirebaseAuth.instance.currentUser == null) {
-      await FirebaseAuth.instance.signInAnonymously();
+    if (FirebaseAuth.instance.currentUser != null) return;
+    try {
+      await FirebaseAuth.instance
+          .authStateChanges()
+          .where((user) => user != null)
+          .first
+          .timeout(const Duration(seconds: 3));
+    } catch (_) {
+      if (FirebaseAuth.instance.currentUser == null) {
+        try {
+          await FirebaseAuth.instance.signInAnonymously();
+        } catch (e) {
+          debugPrint('Firebase anonymous auth not available: $e');
+        }
+      }
     }
   }
 
@@ -341,15 +388,20 @@ class FirebaseBackendService extends GetxService {
       final token = await user.getIdTokenResult();
       final claims = token.claims ?? const <String, dynamic>{};
       final wallet = claims['wallet']?.toString() ?? '';
-      final chainId = int.tryParse(claims['chainId']?.toString() ?? '');
+      final tokenChainId = int.tryParse(claims['chainId']?.toString() ?? '');
       final authProvider = claims['authProvider']?.toString() ?? '';
-      if (wallet.isEmpty || chainId == null || authProvider != 'siwe') {
+      if (wallet.isEmpty || tokenChainId == null || authProvider != 'siwe') {
         session.value = null;
         return;
       }
+      // Use the chainId from the token if it matches the target network;
+      // otherwise fall back to the target (cloud function default may differ).
+      final sessionChainId = tokenChainId == WalletConnectService.targetBaseChainId
+          ? tokenChainId
+          : WalletConnectService.targetBaseChainId;
       session.value = WalletAuthSession(
         wallet: wallet,
-        chainId: chainId,
+        chainId: sessionChainId,
         firebaseUid: user.uid,
       );
     } catch (error) {

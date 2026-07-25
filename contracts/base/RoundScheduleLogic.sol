@@ -26,7 +26,8 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
     uint16 public constant MAX_WINNERS_PER_ROUND = 8;
     uint32 public constant MAX_PLAYERS_PER_ROUND = 1_000_000;
     uint64 public constant MIN_LEVEL_OPEN_INTERVAL = 5 hours;
-    uint64 public constant MIN_ROUND_DURATION = 1 hours;
+    uint64 public constant MIN_ROUND_DURATION = 24 hours;
+    uint64 public constant MAX_ROUND_DURATION = 6 days;
     uint32 public constant DIRECT_INVITES_PER_LEVEL = 4;
     uint8 public constant SEASON_LEVEL_COUNT = 17;
     uint256 public constant MAX_ETH_PRICE = 1_000 ether;
@@ -428,7 +429,8 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
             config.startsAt >= config.entriesCloseAt ||
             config.entriesCloseAt >= config.endsAt ||
             config.freezeClosesAt != config.endsAt ||
-            config.endsAt - config.startsAt < MIN_ROUND_DURATION
+            config.endsAt - config.startsAt < MIN_ROUND_DURATION ||
+            config.endsAt - config.startsAt > MAX_ROUND_DURATION
         ) {
             revert InvalidRoundTimeRange();
         }
@@ -493,6 +495,7 @@ abstract contract RoundScheduleLogic is RoundManagerStorage {
                 roundBySeasonLevel[config.seasonId][config.level + 1];
             if (
                 upperRoundId != 0 &&
+                _roundStates[upperRoundId].initialized &&
                 _roundConfigs[upperRoundId].startsAt <
                     config.startsAt + MIN_LEVEL_OPEN_INTERVAL
             ) {

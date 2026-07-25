@@ -108,6 +108,8 @@ class _SchedulePreview extends StatelessWidget {
     return Obx(
       () {
         final rounds = roundsController.timeline.take(12).toList();
+        final availability = roundsController.scheduleAvailability.value;
+        final isLoading = roundsController.isScheduleLoading;
         return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(24),
@@ -127,7 +129,22 @@ class _SchedulePreview extends StatelessWidget {
                 ),
               ),
               const SizedBox(height: 18),
-              if (rounds.isEmpty)
+              if (isLoading)
+                const Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 24),
+                    child: CircularProgressIndicator(),
+                  ),
+                )
+              else if (availability == GameScheduleAvailability.failed)
+                Text(
+                  'start.scheduleUnavailable'.tr,
+                  style: const TextStyle(
+                    color: Colors.white54,
+                    fontWeight: FontWeight.w700,
+                  ),
+                )
+              else if (rounds.isEmpty)
                 Text(
                   'start.scheduleUnavailable'.tr,
                   style: const TextStyle(

@@ -165,14 +165,15 @@ describe("EasyGameAdvance", function () {
       const block = await ethers.provider.getBlock("latest");
       const network = await ethers.provider.getNetwork();
       const contractAddress = await fixture.roundManager.getAddress();
+      const start = BigInt(block.timestamp + 100);
       const config = {
         seasonId: 1n,
         roundId: 1001n,
         level: 5,
-        startsAt: BigInt(block.timestamp + 100),
-        entriesCloseAt: BigInt(block.timestamp + 3700),
-        endsAt: BigInt(block.timestamp + 7300),
-        freezeClosesAt: BigInt(block.timestamp + 7300),
+        startsAt: start,
+        entriesCloseAt: start + 43200n,
+        endsAt: start + 86400n,
+        freezeClosesAt: start + 86400n,
         maxPlayers: 1024,
         maxWinners: 4,
         winningCellsRoot: ethers.keccak256(ethers.toUtf8Bytes("winning-cells")),
@@ -204,11 +205,12 @@ describe("EasyGameAdvance", function () {
 
     async function signedOpenRound(fixture, overrides = {}) {
       const block = await ethers.provider.getBlock("latest");
+      const startsAt = overrides.startsAt ?? BigInt(block.timestamp) - 10n;
       return signedRound(fixture, {
-        startsAt: BigInt(block.timestamp - 10),
-        entriesCloseAt: BigInt(block.timestamp + 1800),
-        endsAt: BigInt(block.timestamp + 3600),
-        freezeClosesAt: BigInt(block.timestamp + 3600),
+        startsAt,
+        entriesCloseAt: startsAt + 43200n,
+        endsAt: startsAt + 86400n,
+        freezeClosesAt: startsAt + 86400n,
         ...overrides,
       });
     }
@@ -305,8 +307,8 @@ describe("EasyGameAdvance", function () {
         roundId: 1011n,
         level: 6,
         startsAt: BigInt(block.timestamp + 5000),
-        entriesCloseAt: BigInt(block.timestamp + 6000),
-        endsAt: BigInt(block.timestamp + 9000),
+        entriesCloseAt: BigInt(block.timestamp + 5000 + 43200),
+        endsAt: BigInt(block.timestamp + 5000 + 86400),
       });
 
       await expect(
@@ -329,8 +331,8 @@ describe("EasyGameAdvance", function () {
       const block = await ethers.provider.getBlock("latest");
       const { config, signature } = await signedOpenRound(fixture, {
         roundId: 1012n,
-        freezeClosesAt: BigInt(block.timestamp + 1200),
-        endsAt: BigInt(block.timestamp + 3600),
+        freezeClosesAt: BigInt(block.timestamp + 43200),
+        endsAt: BigInt(block.timestamp + 86390),
       });
 
       await expect(roundManager.initializeRound(config, signature))
@@ -545,9 +547,9 @@ describe("EasyGameAdvance", function () {
           roundId: seasonId * 100n + BigInt(level),
           level,
           startsAt,
-          entriesCloseAt: startsAt + 1800n,
-          endsAt: startsAt + 3600n,
-          freezeClosesAt: startsAt + 3600n,
+          entriesCloseAt: startsAt + 43200n,
+          endsAt: startsAt + 86400n,
+          freezeClosesAt: startsAt + 86400n,
           maxPlayers: 1024,
           maxWinners: 1,
           winningCellsRoot: ethers.keccak256(
@@ -651,6 +653,76 @@ describe("EasyGameAdvance", function () {
       expect(
         (await easyGame.getRoundGameStats(config.roundId)).activeCells
       ).to.equal(3);
+    });
+
+    it("applies pending referral weight when the inviter enters the round later", async function () {
+      const fixture = await deployFixture();
+      const { easyGame, root, first } = fixture;
+      const block = await ethers.provider.getBlock("latest");
+      const level5 = await signedRound(fixture, {
+        roundId: 2011n,
+        level: 5,
+        startsAt: BigInt(block.timestamp - 22000),
+        entriesCloseAt: BigInt(block.timestamp - 22000 + 43200),
+        endsAt: BigInt(block.timestamp - 22000 + 86400),
+      });
+      const level6 = await signedRound(fixture, {
+        roundId: 2012n,
+        level: 6,
+        startsAt: level5.config.startsAt + 18000n,
+        entriesCloseAt: level5.config.startsAt + 18000n + 43200n,
+        endsAt: level5.config.startsAt + 18000n + 86400n,
+      });
+
+      await easyGame.connect(root).activateRound(
+        level5.config,
+        level5.signature,
+        ethers.ZeroAddress,
+        { value: level5.config.ethPrice }
+      );
+      await expect(
+        easyGame.connect(first).activateRound(
+          level6.config,
+          level6.signature,
+          root.address,
+          { value: level6.config.ethPrice }
+        )
+      ).to.emit(easyGame, "RoundReferralWeightDeferred")
+        .withArgs(root.address, level6.config.roundId, 100, 100);
+
+      expect(
+        await easyGame.pendingRoundReferralWeight(
+          root.address,
+          level6.config.roundId
+        )
+      ).to.equal(100);
+      expect((await easyGame.getPlayerRound(root.address, level6.config.roundId)).active)
+        .to.equal(false);
+      expect((await easyGame.getPlayer(root.address)).claimableReferralBonus)
+        .to.equal((level6.config.ethPrice * 950n) / 10000n);
+
+      await expect(
+        easyGame.connect(root).activateRound(
+          level6.config,
+          level6.signature,
+          ethers.ZeroAddress,
+          { value: level6.config.ethPrice }
+        )
+      ).to.emit(easyGame, "RoundReferralWeightApplied")
+        .withArgs(root.address, level6.config.roundId, 100, 100);
+
+      const rootRound = await easyGame.getPlayerRound(
+        root.address,
+        level6.config.roundId
+      );
+      expect(rootRound.totalWeight).to.equal(200);
+      expect(rootRound.tickets).to.equal(2);
+      expect(
+        await easyGame.pendingRoundReferralWeight(
+          root.address,
+          level6.config.roundId
+        )
+      ).to.equal(0);
     });
 
     it("isolates matrix cells and pools between consecutive rounds of one level", async function () {
@@ -915,8 +987,8 @@ describe("EasyGameAdvance", function () {
       const { config, signature } = await signedOpenRound(fixture, {
         roundId: 5002n,
         entriesCloseAt: BigInt(block.timestamp + 300),
-        endsAt: BigInt(block.timestamp + 3600),
-        freezeClosesAt: BigInt(block.timestamp + 3600),
+        endsAt: BigInt(block.timestamp + 86390),
+        freezeClosesAt: BigInt(block.timestamp + 86390),
       });
       await easyGame.connect(root).activateRound(config, signature, ethers.ZeroAddress, {
         value: config.ethPrice,
@@ -975,6 +1047,29 @@ describe("EasyGameAdvance", function () {
         await easyGame.processRoundRecycles(roundId, 4);
       }
       await settlement.settleRound(roundId, winningCells, tree.proofs);
+      expect((await roundManager.getRoundState(roundId)).settled).to.equal(true);
+    });
+
+    it("settles a correctly initialized round with no participants or prize pool", async function () {
+      const fixture = await deployFixture();
+      const { settlement, roundManager } = fixture;
+      const roundId = 5902n;
+      const winningCells = [1n];
+      const tree = winnerTree(roundId, winningCells);
+      const { config, signature } = await signedOpenRound(fixture, {
+        roundId,
+        maxWinners: 1,
+        winningCellsRoot: tree.root,
+      });
+
+      await roundManager.initializeRound(config, signature);
+      await ethers.provider.send("evm_setNextBlockTimestamp", [Number(config.endsAt)]);
+      await ethers.provider.send("evm_mine", []);
+
+      await expect(settlement.settleRound(roundId, winningCells, tree.proofs))
+        .to.emit(settlement, "PrizeRolledOver")
+        .withArgs(roundId, config.level, 0, 0);
+      expect(await settlement.roundSettled(roundId)).to.equal(true);
       expect((await roundManager.getRoundState(roundId)).settled).to.equal(true);
     });
 
@@ -1051,11 +1146,11 @@ describe("EasyGameAdvance", function () {
       const winningCells = [1n, 2n];
       const tree = winnerTree(roundId, winningCells);
       const { config, signature } = await signedOpenRound(fixture, {
-        roundId,
+        roundId: 6002n,
         maxWinners: winningCells.length,
         entriesCloseAt: BigInt(block.timestamp + 300),
-        endsAt: BigInt(block.timestamp + 3600),
-        freezeClosesAt: BigInt(block.timestamp + 3600),
+        endsAt: BigInt(block.timestamp + 86390),
+        freezeClosesAt: BigInt(block.timestamp + 86390),
         freezeLimit: 10,
         winningCellsRoot: tree.root,
       });
@@ -1140,33 +1235,35 @@ describe("EasyGameAdvance", function () {
       const fixture = await deployFixture();
       const { easyGame, roundManager, root } = fixture;
       const block = await ethers.provider.getBlock("latest");
+      const l3start = BigInt(block.timestamp - 19000);
       const level3 = await signedRound(fixture, {
         roundId: 7003n,
         level: 3,
-        startsAt: BigInt(block.timestamp - 19000),
-        entriesCloseAt: BigInt(block.timestamp + 3600),
-        endsAt: BigInt(block.timestamp + 7200),
-        freezeClosesAt: BigInt(block.timestamp + 7200),
+        startsAt: l3start,
+        entriesCloseAt: l3start + 43200n,
+        endsAt: l3start + 86400n,
+        freezeClosesAt: l3start + 86400n,
       });
       const level2 = await signedRound(fixture, {
         roundId: 7002n,
         level: 2,
-        startsAt: level3.config.startsAt - 19000n,
-        entriesCloseAt: BigInt(block.timestamp + 3600),
-        endsAt: BigInt(block.timestamp + 7200),
-        freezeClosesAt: BigInt(block.timestamp + 7200),
+        startsAt: l3start - 19000n,
+        entriesCloseAt: l3start - 19000n + 43200n,
+        endsAt: l3start - 19000n + 86400n,
+        freezeClosesAt: l3start - 19000n + 86400n,
       });
       const level5 = await signedOpenRound(fixture, {
         roundId: 7005n,
         level: 5,
       });
+      const l4start = l3start + 18000n;
       const level4 = await signedRound(fixture, {
         roundId: 7004n,
         level: 4,
-        startsAt: level3.config.startsAt + 18000n,
-        entriesCloseAt: BigInt(block.timestamp + 3600),
-        endsAt: BigInt(block.timestamp + 7200),
-        freezeClosesAt: BigInt(block.timestamp + 7200),
+        startsAt: l4start,
+        entriesCloseAt: l4start + 43200n,
+        endsAt: l4start + 86400n,
+        freezeClosesAt: l4start + 86400n,
       });
 
       await easyGame.connect(root).activateRound(
@@ -1224,21 +1321,22 @@ describe("EasyGameAdvance", function () {
         fifth,
       } = fixture;
       const block = await ethers.provider.getBlock("latest");
+      const l5start = BigInt(block.timestamp - 22000);
       const level5 = await signedRound(fixture, {
         roundId: 7105n,
         level: 5,
-        startsAt: BigInt(block.timestamp - 22000),
-        entriesCloseAt: BigInt(block.timestamp + 3600),
-        endsAt: BigInt(block.timestamp + 7200),
-        freezeClosesAt: BigInt(block.timestamp + 7200),
+        startsAt: l5start,
+        entriesCloseAt: l5start + 43200n,
+        endsAt: l5start + 86400n,
+        freezeClosesAt: l5start + 86400n,
       });
       const level6 = await signedRound(fixture, {
         roundId: 7106n,
         level: 6,
-        startsAt: level5.config.startsAt + 18000n,
-        entriesCloseAt: BigInt(block.timestamp + 3600),
-        endsAt: BigInt(block.timestamp + 7200),
-        freezeClosesAt: BigInt(block.timestamp + 7200),
+        startsAt: l5start + 18000n,
+        entriesCloseAt: l5start + 18000n + 43200n,
+        endsAt: l5start + 18000n + 86400n,
+        freezeClosesAt: l5start + 18000n + 86400n,
       });
 
       await easyGame.connect(root).activateRound(
@@ -1288,21 +1386,22 @@ describe("EasyGameAdvance", function () {
       const fixture = await deployFixture();
       const { easyGame, roundManager, arenaSkills, usdc, root, first } = fixture;
       const block = await ethers.provider.getBlock("latest");
+      const l3start = BigInt(block.timestamp - 19000);
       const level3 = await signedRound(fixture, {
         roundId: 7203n,
         level: 3,
-        startsAt: BigInt(block.timestamp - 19000),
-        entriesCloseAt: BigInt(block.timestamp + 3600),
-        endsAt: BigInt(block.timestamp + 7200),
-        freezeClosesAt: BigInt(block.timestamp + 7200),
+        startsAt: l3start,
+        entriesCloseAt: l3start + 43200n,
+        endsAt: l3start + 86400n,
+        freezeClosesAt: l3start + 86400n,
       });
       const level4 = await signedRound(fixture, {
         roundId: 7204n,
         level: 4,
-        startsAt: level3.config.startsAt + 18000n,
-        entriesCloseAt: BigInt(block.timestamp + 3600),
-        endsAt: BigInt(block.timestamp + 7200),
-        freezeClosesAt: BigInt(block.timestamp + 7200),
+        startsAt: l3start + 18000n,
+        entriesCloseAt: l3start + 18000n + 43200n,
+        endsAt: l3start + 18000n + 86400n,
+        freezeClosesAt: l3start + 18000n + 86400n,
       });
       await easyGame.connect(root).activateRound(
         level3.config,

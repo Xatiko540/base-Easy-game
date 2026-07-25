@@ -81,8 +81,8 @@
       "artifacts": []
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/Storage.sol": {
-      "lastModificationDate": 1784407406716,
-      "contentHash": "274a2198ded3e3e70de243078809402a",
+      "lastModificationDate": 1784672597594,
+      "contentHash": "0ec9ab7a4d7c6c6c46620aae3fb55416",
       "sourceName": "contracts/base/Storage.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -157,8 +157,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/RoundGameLogic.sol": {
-      "lastModificationDate": 1784407503069,
-      "contentHash": "dd183f62fe60c1bb3401c490968bc480",
+      "lastModificationDate": 1784672597763,
+      "contentHash": "7676ebe64ef5570793cc6439cf09fcbe",
       "sourceName": "contracts/base/RoundGameLogic.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -200,8 +200,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/AdminInterface.sol": {
-      "lastModificationDate": 1784407406876,
-      "contentHash": "01f06341f1984c0b7cdcd5028fcd942a",
+      "lastModificationDate": 1784651592176,
+      "contentHash": "abc517adac29a406710f4f890fb36792",
       "sourceName": "contracts/base/AdminInterface.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -437,8 +437,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/base/RoundScheduleLogic.sol": {
-      "lastModificationDate": 1784409702574,
-      "contentHash": "03a9f72ae5ba7d7cd21716112f6566c5",
+      "lastModificationDate": 1784749346375,
+      "contentHash": "8023e1f0c0050f6553cbd723ea54e72f",
       "sourceName": "contracts/base/RoundScheduleLogic.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -521,8 +521,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameRoundSettlement.sol": {
-      "lastModificationDate": 1784138187234,
-      "contentHash": "82aea9c632f937ffb6977740d7868de6",
+      "lastModificationDate": 1784672597925,
+      "contentHash": "92867f883b887727632cb61b97e2c00d",
       "sourceName": "contracts/EasyGameRoundSettlement.sol",
       "solcConfig": {
         "version": "0.8.24",
@@ -563,8 +563,8 @@
       ]
     },
     "/Users/xatiko/StudioProjects/base-Easy-game/contracts/EasyGameArenaSkills.sol": {
-      "lastModificationDate": 1784138187402,
-      "contentHash": "f4d20739fe85e8f69c5cf46f536f45f4",
+      "lastModificationDate": 1784651610248,
+      "contentHash": "1a64ab809745615d8fa2bd11995d11e3",
       "sourceName": "contracts/EasyGameArenaSkills.sol",
       "solcConfig": {
         "version": "0.8.24",

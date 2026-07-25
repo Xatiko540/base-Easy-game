@@ -87,7 +87,6 @@ class RoundLevelsRepository extends GetxService {
         matrix: matrix,
         seasonProgress: seasonProgress,
         contractLevelAvailable: contractLevelAvailable,
-        playerStateResolved: false,
       );
     }
 

@@ -153,7 +153,6 @@ class _WeightBreakdown extends StatelessWidget {
 
   const _WeightBreakdown({required this.data});
 
-  static const _cap = 5000;
   static const _colors = [
     Color(0xFF4D78FF),
     Color(0xFF9B59B6),
@@ -177,6 +176,7 @@ class _WeightBreakdown extends StatelessWidget {
     ];
 
     final total = values.fold<BigInt>(BigInt.zero, (a, b) => a + b);
+    final scale = total > BigInt.zero ? total : BigInt.one;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -193,9 +193,9 @@ class _WeightBreakdown extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              '$total / $_cap',
-              style: TextStyle(
-                color: total >= BigInt.from(_cap) ? EasyGameTheme.gold : Colors.white38,
+              '$total',
+              style: const TextStyle(
+                color: Colors.white70,
                 fontSize: 12,
                 fontWeight: FontWeight.w700,
               ),
@@ -212,19 +212,12 @@ class _WeightBreakdown extends StatelessWidget {
                 for (var i = 0; i < values.length; i++) ...[
                   if (values[i] > BigInt.zero)
                     Expanded(
-                      flex: (values[i] * BigInt.from(100) ~/ BigInt.from(_cap)).toInt().clamp(1, 100),
+                      flex: (values[i] * BigInt.from(100) ~/ scale).toInt().clamp(1, 100),
                       child: Container(
                         color: _colors[i].withValues(alpha: 0.7),
                       ),
                     ),
                 ],
-                if (total < BigInt.from(_cap))
-                  Expanded(
-                    flex: ((BigInt.from(_cap) - total) * BigInt.from(100) ~/ BigInt.from(_cap)).toInt().clamp(1, 100),
-                    child: Container(
-                      color: Colors.white.withValues(alpha: 0.06),
-                    ),
-                  ),
               ],
             ),
           ),

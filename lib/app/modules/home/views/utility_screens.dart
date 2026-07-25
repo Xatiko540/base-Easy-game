@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'package:lottery_advance/app/modules/home/views/app_shell.dart';
 import 'package:lottery_advance/app/repositories/game_rounds_repository.dart';
+import 'package:lottery_advance/app/repositories/matrix_arena_repository.dart';
 import 'package:lottery_advance/app/services/referral_link_service.dart';
 import 'package:lottery_advance/app/services/ui_navigation_service.dart';
 import 'package:lottery_advance/app/services/wallet_connect_service.dart';
@@ -18,6 +19,7 @@ import 'package:lottery_advance/app/modules/home/controllers/game_rounds_control
 import 'package:lottery_advance/app/modules/home/controllers/wallet_auth_controller.dart';
 import 'package:lottery_advance/app/modules/home/models/levels_models.dart';
 import 'package:lottery_advance/app/services/game_clock_service.dart';
+import 'package:lottery_advance/app/services/game_contract_events_service.dart';
 import 'package:lottery_advance/app/widgets/stable_loading_surface.dart';
 import 'package:lottery_advance/utils/theme.dart';
 import '../widgets/neon_honeycomb.dart';
@@ -95,9 +97,11 @@ class StatisticsScreen extends StatelessWidget {
                     ),
                     _ArenaStatCard(
                       icon: CupertinoIcons.arrow_clockwise,
-                      title: 'stats.transactions'.tr,
-                      value: data?.matrixNodes.toString() ?? '-',
-                      delta: '+${data?.frozenLevels ?? 0} frozen',
+                      title: 'stats.entryVolume'.tr,
+                      value: data == null
+                          ? '-'
+                          : '${_formatWei(data.totalLevelCostWei)} $currency',
+                      delta: '+${data?.activeLevels ?? 0} active',
                       color: EasyGameTheme.orange,
                     ),
                     _ArenaStatCard(
@@ -130,6 +134,7 @@ class StatisticsScreen extends StatelessWidget {
                 final distribution = _PayoutDistributionPanel(
                   totalPrizePoolWei: data?.totalPrizePoolWei ?? BigInt.zero,
                   currency: currency,
+                  version: data?.paymentSplitVersion ?? 1,
                 );
                 final levels = _LevelVolumePanel(
                   rows: data?.levelRows ?? const <_LevelArenaStat>[],
@@ -153,6 +158,17 @@ class StatisticsScreen extends StatelessWidget {
                 );
               },
             ),
+            if (statisticsController.hasPartialErrors.value)
+              _InfoBlock(
+                title: 'common.notLoaded'.tr,
+                text: 'stats.partialLoadHint'.tr,
+              ),
+            if (data != null && data.playerRewardsWei > BigInt.zero)
+              _StatusCard(
+                title: 'stats.claimableRewards'.tr,
+                value: '${_formatWei(data.playerRewardsWei)} $currency',
+                icon: CupertinoIcons.money_dollar_circle,
+              ),
             _InfoBlock(
               title: 'stats.strategyTitle'.tr,
               text: 'stats.strategyText'.tr,
@@ -246,6 +262,8 @@ class MatrixArenaScreen extends StatelessWidget {
                                     matrixController.selectedOpponent.value,
                                 actionsBusy:
                                     matrixController.isSkillActionRunning.value,
+                                participantsLoading: matrixController
+                                    .isLoadingMoreParticipants.value,
                                 onSelectOpponent:
                                     matrixController.selectOpponent,
                                 onBuyFreeze: () =>
@@ -254,6 +272,8 @@ class MatrixArenaScreen extends StatelessWidget {
                                     matrixController.freezeClosestOpponent(),
                                 onUnfreeze: () =>
                                     matrixController.buyUnfreezeSkill(),
+                                onLoadMoreParticipants:
+                                    matrixController.loadMoreParticipants,
                               );
                         if (compact) {
                           return Column(

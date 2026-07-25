@@ -5,20 +5,24 @@ class _MatrixArenaPanel extends StatelessWidget {
   final String currency;
   final String selectedOpponent;
   final bool actionsBusy;
+  final bool participantsLoading;
   final ValueChanged<String> onSelectOpponent;
   final VoidCallback onBuyFreeze;
   final VoidCallback onFreeze;
   final VoidCallback onUnfreeze;
+  final VoidCallback onLoadMoreParticipants;
 
   const _MatrixArenaPanel({
     required this.data,
     required this.currency,
     required this.selectedOpponent,
     required this.actionsBusy,
+    required this.participantsLoading,
     required this.onSelectOpponent,
     required this.onBuyFreeze,
     required this.onFreeze,
     required this.onUnfreeze,
+    required this.onLoadMoreParticipants,
   });
 
   @override
@@ -96,8 +100,13 @@ class _MatrixArenaPanel extends StatelessWidget {
             children: [
               _PowerChip(
                 icon: CupertinoIcons.star,
-                label: 'levelDetail.prizePool'.tr,
+                label: 'matrix.ethPrizePool'.tr,
                 value: '${_formatWei(data.prizePoolWei)} $currency',
+              ),
+              _PowerChip(
+                icon: CupertinoIcons.money_dollar_circle,
+                label: 'matrix.usdcPrizePool'.tr,
+                value: '${_usdcPool(data.prizePoolUsdc)} USDC',
               ),
               _PowerChip(
                 icon: CupertinoIcons.bolt,
@@ -106,8 +115,8 @@ class _MatrixArenaPanel extends StatelessWidget {
               ),
               _PowerChip(
                 icon: CupertinoIcons.percent,
-                label: 'levelDetail.chance'.tr,
-                value: _formatChance(data.chanceBps),
+                label: 'matrix.weightShare'.tr,
+                value: _formatWeightShare(data.weightShareBps),
               ),
               _PowerChip(
                 icon: CupertinoIcons.tray_full,
@@ -125,6 +134,8 @@ class _MatrixArenaPanel extends StatelessWidget {
             onBuyFreeze: onBuyFreeze,
             onFreeze: onFreeze,
             onUnfreeze: onUnfreeze,
+            participantsLoading: participantsLoading,
+            onLoadMoreParticipants: onLoadMoreParticipants,
           ),
           const SizedBox(height: 18),
           _InfoBlock(
@@ -134,6 +145,15 @@ class _MatrixArenaPanel extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _usdcPool(BigInt value) {
+    final whole = value ~/ BigInt.from(1000000);
+    final fraction = (value % BigInt.from(1000000))
+        .toString()
+        .padLeft(6, '0')
+        .replaceFirst(RegExp(r'0+$'), '');
+    return fraction.isEmpty ? '$whole' : '$whole.$fraction';
   }
 }
 

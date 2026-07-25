@@ -8,6 +8,8 @@ class _ArenaSkillsPanel extends StatelessWidget {
   final VoidCallback onBuyFreeze;
   final VoidCallback onFreeze;
   final VoidCallback onUnfreeze;
+  final bool participantsLoading;
+  final VoidCallback onLoadMoreParticipants;
 
   const _ArenaSkillsPanel({
     required this.data,
@@ -17,6 +19,8 @@ class _ArenaSkillsPanel extends StatelessWidget {
     required this.onBuyFreeze,
     required this.onFreeze,
     required this.onUnfreeze,
+    required this.participantsLoading,
+    required this.onLoadMoreParticipants,
   });
 
   @override
@@ -168,17 +172,17 @@ class _ArenaSkillsPanel extends StatelessWidget {
                               ? CupertinoIcons.snow
                               : participant.skillStatus?.immune == true
                                   ? CupertinoIcons.shield_fill
-                              : participant.isInvited
-                                  ? CupertinoIcons.person_badge_plus
-                                  : CupertinoIcons.person,
+                                  : participant.isInvited
+                                      ? CupertinoIcons.person_badge_plus
+                                      : CupertinoIcons.person,
                           size: 16,
                           color: participant.skillStatus?.frozen == true
                               ? Colors.lightBlueAccent
                               : participant.skillStatus?.immune == true
                                   ? Colors.greenAccent
-                              : participant.isInvited
-                                  ? EasyGameTheme.purple
-                                  : EasyGameTheme.teal,
+                                  : participant.isInvited
+                                      ? EasyGameTheme.purple
+                                      : EasyGameTheme.teal,
                         ),
                         label: Text(
                           '#${participant.cellId} ${_shortAddress(participant.wallet)}'
@@ -190,6 +194,19 @@ class _ArenaSkillsPanel extends StatelessWidget {
                     }).toList(),
                   ),
           ),
+          if (data.hasMoreParticipants) ...[
+            const SizedBox(height: 12),
+            TextButton.icon(
+              onPressed: participantsLoading ? null : onLoadMoreParticipants,
+              icon: participantsLoading
+                  ? const SizedBox.square(
+                      dimension: 15,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(CupertinoIcons.chevron_down, size: 16),
+              label: Text('matrix.loadMoreParticipants'.tr),
+            ),
+          ],
         ],
       ),
     );

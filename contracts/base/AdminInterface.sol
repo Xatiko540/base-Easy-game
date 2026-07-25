@@ -92,7 +92,7 @@ abstract contract AdminInterface is EasyGameAdvanceStorage {
     /// @notice USDC is shared with immutable skills and settlement contracts.
     /// Changing only the core token would split accounting between different
     /// assets, so token migration requires a coordinated redeploy.
-    function setUsdcToken(address) external view onlyOwner {
+    function setUsdcToken(address) external onlyOwner {
         revert UsdcTokenLocked();
     }
 

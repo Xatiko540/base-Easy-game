@@ -25,7 +25,7 @@ const domain = {
 async function seasonPayload() {
   const seasonId = 2026071801n;
   const baseStart = 1_800_000_000n;
-  const durations = [24n, 48n, 1n, 96n, 12n];
+  const durations = [24n, 48n, 72n, 96n, 144n];
   const rounds = [];
   for (let level = 1; level <= SEASON_LEVEL_COUNT; level++) {
     const roundId = seasonId * 100n + BigInt(level);

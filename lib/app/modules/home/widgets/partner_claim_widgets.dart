@@ -9,59 +9,104 @@ class _ClaimableReferralPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Obx(() {
       final data = controller.snapshot.value;
-      final claimable = data.claimableReferralBonusWei;
+      final claimableEth = data.claimableReferralBonusWei;
+      final claimableUsdc = data.claimableReferralBonusUsdc;
       final totalWeight = data.totalWeight;
       return _PartnerAccordionPanel(
         icon: CupertinoIcons.money_dollar_circle,
         title: 'partner.claimableReferral'.tr,
-        child: Wrap(
-          spacing: 14,
-          runSpacing: 14,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          alignment: WrapAlignment.spaceBetween,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _ClaimStat(
-              title: 'partner.claimableReferral'.tr,
-              value:
-                  '${formatPartnerWei(claimable)} ${controller.walletService.nativeSymbol}',
-            ),
-            _ClaimStat(
-              title: 'partner.totalWeight'.tr,
-              value: totalWeight.toString(),
-            ),
-            Obx(() {
-              final isPaying = controller.walletService.isPaying.value;
-              final authenticatedNow =
-                  Get.find<WalletAuthController>().isAuthenticated;
-              final disabled =
-                  !authenticatedNow || claimable == BigInt.zero || isPaying;
+            Wrap(
+              spacing: 14,
+              runSpacing: 14,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              alignment: WrapAlignment.spaceBetween,
+              children: [
+                _ClaimStat(
+                  title: 'partner.claimableEth'.tr,
+                  value:
+                      '${formatPartnerWei(claimableEth)} ${controller.walletService.nativeSymbol}',
+                ),
+                if (claimableUsdc > BigInt.zero)
+                  _ClaimStat(
+                    title: 'partner.claimableUsdc'.tr,
+                    value: '${formatPartnerUsdc(claimableUsdc)} USDC',
+                  ),
+                _ClaimStat(
+                  title: 'partner.totalWeight'.tr,
+                  value: totalWeight.toString(),
+                ),
+                Obx(() {
+                  final isPaying = controller.walletService.isPaying.value;
+                  final authenticatedNow =
+                      Get.find<WalletAuthController>().isAuthenticated;
+                  final ethDisabled =
+                      !authenticatedNow || claimableEth == BigInt.zero || isPaying;
 
-              return ElevatedButton(
-                onPressed: disabled ? null : controller.claimReferralBonus,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: EasyGameTheme.blue,
-                  disabledBackgroundColor: EasyGameTheme.card,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 18,
-                    vertical: 14,
+                  return ElevatedButton(
+                    onPressed: ethDisabled ? null : controller.claimReferralBonus,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: EasyGameTheme.blue,
+                      disabledBackgroundColor: EasyGameTheme.card,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 14,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                    child: Text(
+                      isPaying
+                          ? controller.walletService.paymentStatusLabel
+                          : claimableEth == BigInt.zero
+                              ? 'partner.noClaimableReferral'.tr
+                              : 'partner.claimEth'.tr,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+            if (claimableUsdc > BigInt.zero) ...[
+              const SizedBox(height: 12),
+              Obx(() {
+                final isPaying = controller.walletService.isPaying.value;
+                final authenticatedNow =
+                    Get.find<WalletAuthController>().isAuthenticated;
+                final usdcDisabled =
+                    !authenticatedNow || isPaying;
+
+                return ElevatedButton(
+                  onPressed: usdcDisabled ? null : controller.claimReferralBonusUSDC,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: EasyGameTheme.purple,
+                    disabledBackgroundColor: EasyGameTheme.card,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 18,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
                   ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
+                  child: Text(
+                    isPaying
+                        ? controller.walletService.paymentStatusLabel
+                        : 'partner.claimUsdc'.tr,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
                   ),
-                ),
-                child: Text(
-                  isPaying
-                      ? controller.walletService.paymentStatusLabel
-                      : claimable == BigInt.zero
-                          ? 'partner.noClaimableReferral'.tr
-                          : 'partner.claimReferral'.tr,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-              );
-            }),
+                );
+              }),
+            ],
           ],
         ),
       );

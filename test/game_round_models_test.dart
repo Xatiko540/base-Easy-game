@@ -132,6 +132,45 @@ void main() {
     expect(state.canEnter, isFalse);
   });
 
+  test('committed lazy round derives phase and prices from signed schedule', () {
+    final manifest = schedule();
+    final chainState = GameRoundChainState(
+      roundId: BigInt.from(101),
+      configHash: '',
+      committedConfigHash: manifest.configHash,
+      seasonConfigRoot: '0x${List.filled(32, 'aa').join()}',
+      seasonCommitted: true,
+      initializedAt: null,
+      occupiedCells: BigInt.zero,
+      winnersRegistered: BigInt.zero,
+      initialized: false,
+      settled: false,
+      cancelled: false,
+      paused: false,
+      ethPriceWei: BigInt.zero,
+      usdcPrice: BigInt.zero,
+      phase: GameRoundPhase.uninitialized,
+    );
+
+    final scheduled = GameRoundViewState.fromSchedule(
+      manifest,
+      startsAt.subtract(const Duration(minutes: 30)),
+      chainState,
+    );
+    final open = GameRoundViewState.fromSchedule(
+      manifest,
+      startsAt,
+      chainState,
+    );
+
+    expect(scheduled.phase, GameRoundPhase.scheduled);
+    expect(scheduled.remaining, const Duration(minutes: 30));
+    expect(open.phase, GameRoundPhase.open);
+    expect(open.canEnter, isTrue);
+    expect(open.ethPriceWei, manifest.ethPriceWei);
+    expect(open.usdcPrice, manifest.usdcPrice);
+  });
+
   test('duration formatter is stable', () {
     expect(
       formatRoundDuration(const Duration(days: 2, hours: 3, minutes: 4)),

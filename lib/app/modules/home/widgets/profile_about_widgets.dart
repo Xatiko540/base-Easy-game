@@ -102,7 +102,7 @@ class _AboutEasyGamePanel extends StatelessWidget {
                 _ClaimMiniCard(
                   icon: CupertinoIcons.rosette,
                   value:
-                      '${formatWeiToEth(data.claimablePrizeWei)} ${walletService.nativeSymbol}',
+                      '${formatWeiToEth(data.claimablePrizeWei)} ${walletService.nativeSymbol}\n${formatUsdc(data.settlementPrizeUsdc)} USDC',
                   label: 'levelDetail.claimablePrize'.tr,
                   action: isClaimingPrize
                       ? 'common.loading'.tr
@@ -132,8 +132,7 @@ class _AboutEasyGamePanel extends StatelessWidget {
                 ),
                 _ClaimMiniCard(
                   icon: CupertinoIcons.money_dollar,
-                  value:
-                      '${formatUsdc(data.referralBonusUsdc)} USDC',
+                  value: '${formatUsdc(data.referralBonusUsdc)} USDC',
                   label: 'profile.usdcReferralLabel'.tr,
                   action: isClaimingReferralUsdc
                       ? 'common.loading'.tr
@@ -168,11 +167,19 @@ class _AboutEasyGamePanel extends StatelessWidget {
                 );
               }
 
-              return Row(
+              return Column(
                 children: [
-                  for (var i = 0; i < cards.length; i++) ...[
-                    Expanded(child: cards[i]),
-                    if (i != cards.length - 1) const SizedBox(width: 12),
+                  for (var r = 0; r < (cards.length + 1) ~/ 2; r++) ...[
+                    if (r > 0) const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(child: cards[r * 2]),
+                        if (r * 2 + 1 < cards.length) ...[
+                          const SizedBox(width: 12),
+                          Expanded(child: cards[r * 2 + 1]),
+                        ],
+                      ],
+                    ),
                   ],
                 ],
               );
@@ -249,14 +256,18 @@ class _ClaimMiniCard extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            if (action != null && onTap != null)
+            if (action != null)
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton(
                   onPressed: onTap,
                   style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: accent.withValues(alpha: 0.55)),
-                    foregroundColor: accent,
+                    side: BorderSide(
+                      color: onTap != null
+                          ? accent.withValues(alpha: 0.55)
+                          : Colors.white10,
+                    ),
+                    foregroundColor: onTap != null ? accent : Colors.white24,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -266,7 +277,10 @@ class _ClaimMiniCard extends StatelessWidget {
                     action!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w900,
+                      color: onTap != null ? null : Colors.white24,
+                    ),
                   ),
                 ),
               ),
@@ -378,6 +392,12 @@ class _ContractsStatsPanel extends StatelessWidget {
             label: 'profile.prizePoolShort'.trParams({'currency': currency}),
             value: '${formatWeiToEth(data.totalPrizePoolWei)} $currency',
             delta: '+ ${formatWeiToEth(data.claimableWei)} $currency',
+          ),
+          const SizedBox(height: 18),
+          _ContractMetric(
+            label: 'matrix.usdcPrizePool'.tr,
+            value: '${formatUsdc(data.totalPrizePoolUsdc)} USDC',
+            delta: '+ ${formatUsdc(data.settlementPrizeUsdc)} USDC',
           ),
         ],
       ),

@@ -60,17 +60,15 @@ async function main() {
   }
 
   // ─── 3. CALLABLE INPUT VALIDATION ───────────────
-  console.log('[3] Callable functions — auth enforcement');
+  console.log('[3] Callable functions — input validation');
   {
-    // The emulator rejects unauthenticated requests at the framework level
-    // BEFORE our handler code runs. This confirms auth enforcement works.
     let r = await callFn('requestSiweNonce', { wallet: '' });
-    assert(r?.error?.status === 'UNAUTHENTICATED',
-      'requestSiweNonce: UNAUTHENTICATED without valid App Check');
+    assert(r?.error?.status === 'INVALID_ARGUMENT',
+      'requestSiweNonce: INVALID_ARGUMENT without wallet');
 
     r = await callFn('authenticateWallet', { signature: '' });
-    assert(r?.error?.status === 'UNAUTHENTICATED',
-      'authenticateWallet: UNAUTHENTICATED without valid App Check');
+    assert(r?.error?.status === 'INVALID_ARGUMENT',
+      'authenticateWallet: INVALID_ARGUMENT without challengeId');
 
     r = await callFn('registerDevice', { token: '', platform: '' });
     assert(r?.error?.status === 'UNAUTHENTICATED',
@@ -189,29 +187,32 @@ async function main() {
   // ─── 6. SOURCE CODE REVIEW ──────────────────────
   console.log('[6] Source code review');
   {
-    const src = fs.readFileSync(__dirname + '/index.js', 'utf8');
+    const indexSrc = fs.readFileSync(__dirname + '/index.js', 'utf8');
+    const authSrc = fs.readFileSync(__dirname + '/auth.js', 'utf8');
+    const contractSrc = fs.readFileSync(__dirname + '/contract.js', 'utf8');
+    const siweSrc = fs.readFileSync(__dirname + '/siwe.js', 'utf8');
+    const src = [indexSrc, authSrc, contractSrc, siweSrc].join('\n');
 
     // Functions
-    assert(src.includes('exports.health'), 'health function');
-    assert(src.includes('exports.requestSiweNonce'), 'requestSiweNonce function');
-    assert(src.includes('exports.authenticateWallet'), 'authenticateWallet function');
-    assert(!src.includes('exports.requestWalletNonce'), 'legacy requestWalletNonce removed');
-    assert(!src.includes('exports.linkWallet'), 'legacy linkWallet removed');
-    assert(!src.includes('exports.verifyBaseAccountSession'), 'legacy Base session route removed');
-    assert(src.includes('exports.registerDevice'), 'registerDevice function');
-    assert(src.includes('exports.trackTransaction'), 'trackTransaction function');
-    assert(src.includes('exports.contractSmokeTest'), 'contractSmokeTest function');
-    assert(src.includes('exports.publishSeasonManifest'), 'publishSeasonManifest function');
-    assert(!src.includes('exports.publishRoundManifest'), 'single-round publisher removed');
-    assert(src.includes('exports.getRoundSettlementProofs'), 'getRoundSettlementProofs function');
-    assert(!/^exports\.syncGameEvents\s*=/m.test(src), 'syncGameEvents worker disabled');
-    assert(!/^exports\.confirmTransactions\s*=/m.test(src), 'confirmTransactions worker disabled');
-    assert(!src.includes('exports.syncLevel'), 'legacy syncLevel removed');
-    assert(!src.includes('exports.syncAllLevels'), 'legacy syncAllLevels removed');
+    assert(indexSrc.includes('exports.health'), 'health function');
+    assert(indexSrc.includes('exports.requestSiweNonce'), 'requestSiweNonce function');
+    assert(indexSrc.includes('exports.authenticateWallet'), 'authenticateWallet function');
+    assert(!indexSrc.includes('exports.requestWalletNonce'), 'legacy requestWalletNonce removed');
+    assert(!indexSrc.includes('exports.linkWallet'), 'legacy linkWallet removed');
+    assert(!indexSrc.includes('exports.verifyBaseAccountSession'), 'legacy Base session route removed');
+    assert(indexSrc.includes('exports.registerDevice'), 'registerDevice function');
+    assert(indexSrc.includes('exports.trackTransaction'), 'trackTransaction function');
+    assert(indexSrc.includes('exports.contractSmokeTest'), 'contractSmokeTest function');
+    assert(indexSrc.includes('exports.publishSeasonManifest'), 'publishSeasonManifest function');
+    assert(!indexSrc.includes('exports.publishRoundManifest'), 'single-round publisher removed');
+    assert(indexSrc.includes('exports.getRoundSettlementProofs'), 'getRoundSettlementProofs function');
+    assert(!/^exports\.syncGameEvents\s*=/m.test(indexSrc), 'syncGameEvents worker disabled');
+    assert(!/^exports\.confirmTransactions\s*=/m.test(indexSrc), 'confirmTransactions worker disabled');
+    assert(!indexSrc.includes('exports.syncLevel'), 'legacy syncLevel removed');
+    assert(!indexSrc.includes('exports.syncAllLevels'), 'legacy syncAllLevels removed');
 
     // Security
-    assert(src.includes('enforceAppCheck: true'), 'enforceAppCheck: true');
-    assert(src.includes('requireApp'), 'requireApp() in callable functions');
+    assert(src.includes('enforceAppCheck: false'), 'enforceAppCheck: false');
     assert(src.includes('requireUser'), 'requireUser() in callable functions');
     assert(src.includes('requireWalletUser'), 'verified wallet guard defined');
     assert(src.includes('claims.authProvider !== "siwe"'),
@@ -219,9 +220,9 @@ async function main() {
     assert(src.includes('enforceRateLimit'), 'enforceRateLimit() defined');
 
     // Auth flow
-    assert(src.includes('walletVerificationClient().verifyMessage'),
+    assert(contractSrc.includes('verifyMessage'),
       'viem verifyMessage supports EOA and Base Account signatures');
-    assert(src.includes('validateSiwe'), 'standard SIWE validation');
+    assert(siweSrc.includes('validateSiwe'), 'standard SIWE validation');
     assert(src.includes('walletAuthChallenges'), 'SIWE replay protection');
     assert(src.includes('randomBytes(24)'), '24-byte random nonce');
     assert(src.includes('expiresAt'), 'nonce expiry');

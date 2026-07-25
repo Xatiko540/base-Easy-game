@@ -8,6 +8,7 @@ class _StatisticsController extends GetxController {
   final snapshot = Rxn<_StatisticsSnapshot>();
   final isLoading = false.obs;
   final errorMessage = ''.obs;
+  final hasPartialErrors = false.obs;
 
   final List<Worker> _workers = [];
   int _requestId = 0;
@@ -16,7 +17,6 @@ class _StatisticsController extends GetxController {
   void onInit() {
     super.onInit();
     _workers.addAll([
-      ever<Map<int, int>>(_rounds.selectedRoundIds, (_) => refreshStats()),
       ever<bool>(walletService.isConnected, (_) => refreshStats()),
       ever<String>(walletService.currentAddress, (_) => refreshStats()),
       ever<int?>(walletService.chainId, (_) => refreshStats()),
@@ -57,8 +57,11 @@ class _StatisticsController extends GetxController {
   Future<_StatisticsSnapshot> _loadRoundStats() async {
     final contractAddress = await walletService.resolveEasyGameAddress();
     final rounds = _rounds.roundsByLevel.entries.toList(growable: false);
-    final samples = await Future.wait(
-      rounds.map((entry) => _loadRound(entry.key, entry.value)),
+    final results = await Future.wait(
+      rounds.map((entry) => _loadRound(entry.key, entry.value).then(
+        (sample) => _$RoundResult(level: entry.key, sample: sample),
+        onError: (error) => _$RoundResult(level: entry.key, error: '$error'),
+      )),
     );
 
     var activeLevels = 0;
@@ -67,8 +70,14 @@ class _StatisticsController extends GetxController {
     var totalLevelCostWei = BigInt.zero;
     var totalPrizePoolWei = BigInt.zero;
     var totalWeight = BigInt.zero;
+    var errorCount = 0;
     final rows = <_LevelArenaStat>[];
-    for (final sample in samples) {
+    for (final result in results) {
+      if (result.error != null) {
+        errorCount++;
+        continue;
+      }
+      final sample = result.sample!;
       if (sample.playerActive) activeLevels++;
       if (sample.playerFrozen) frozenLevels++;
       matrixNodes += sample.matrix.activeCells;
@@ -83,11 +92,14 @@ class _StatisticsController extends GetxController {
         totalWeight: sample.matrix.totalWeight,
       ));
     }
+    hasPartialErrors.value = errorCount > 0;
     rows.sort((left, right) => right.level.compareTo(left.level));
 
     final rewards = authController.isAuthenticated
         ? await walletService.getSettlementClaimable()
         : SettlementClaimable.zero;
+    final firstRound = _rounds.roundsByLevel.entries.firstOrNull?.value;
+    final paymentSplitVersion = firstRound?.schedule.paymentSplitVersion ?? 1;
     return _StatisticsSnapshot(
       contractAddress: contractAddress,
       activeLevels: activeLevels,
@@ -97,6 +109,7 @@ class _StatisticsController extends GetxController {
       totalPrizePoolWei: totalPrizePoolWei,
       totalWeight: totalWeight,
       playerRewardsWei: rewards.ethAmount,
+      paymentSplitVersion: paymentSplitVersion,
       levelRows: rows,
     );
   }
@@ -145,4 +158,12 @@ class _StatisticsController extends GetxController {
       playerFrozen: playerFrozen,
     );
   }
+}
+
+class _$RoundResult {
+  final int level;
+  final _RoundStatisticsSample? sample;
+  final String? error;
+
+  const _$RoundResult({required this.level, this.sample, this.error});
 }

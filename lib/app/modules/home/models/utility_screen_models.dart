@@ -48,6 +48,7 @@ class _MatrixArenaSnapshot {
   final BigInt activeCells;
   final BigInt totalWeight;
   final BigInt prizePoolWei;
+  final BigInt prizePoolUsdc;
   final BigInt nextCellId;
   final BigInt nextOpenParentId;
   final BigInt playerCellId;
@@ -55,7 +56,7 @@ class _MatrixArenaSnapshot {
   final bool playerFrozen;
   final BigInt recycleCount;
   final BigInt playerWeight;
-  final BigInt chanceBps;
+  final BigInt weightShareBps;
   final BigInt boxTokens;
   final int maxPlayers;
   final GameRoundPhase phase;
@@ -65,6 +66,8 @@ class _MatrixArenaSnapshot {
   final _MatrixSkillRules skillRules;
   final List<MatrixParticipant> participants;
   final ArenaSkillStatus? playerSkillStatus;
+  final int participantPage;
+  final bool hasMoreParticipants;
 
   const _MatrixArenaSnapshot({
     required this.level,
@@ -73,6 +76,7 @@ class _MatrixArenaSnapshot {
     required this.activeCells,
     required this.totalWeight,
     required this.prizePoolWei,
+    required this.prizePoolUsdc,
     required this.nextCellId,
     required this.nextOpenParentId,
     required this.playerCellId,
@@ -80,7 +84,7 @@ class _MatrixArenaSnapshot {
     required this.playerFrozen,
     required this.recycleCount,
     required this.playerWeight,
-    required this.chanceBps,
+    required this.weightShareBps,
     required this.boxTokens,
     required this.maxPlayers,
     required this.phase,
@@ -90,6 +94,8 @@ class _MatrixArenaSnapshot {
     required this.skillRules,
     required this.participants,
     required this.playerSkillStatus,
+    required this.participantPage,
+    required this.hasMoreParticipants,
   });
 
   factory _MatrixArenaSnapshot.empty(int level) {
@@ -100,6 +106,7 @@ class _MatrixArenaSnapshot {
       activeCells: BigInt.zero,
       totalWeight: BigInt.zero,
       prizePoolWei: BigInt.zero,
+      prizePoolUsdc: BigInt.zero,
       nextCellId: BigInt.zero,
       nextOpenParentId: BigInt.zero,
       playerCellId: BigInt.zero,
@@ -107,7 +114,7 @@ class _MatrixArenaSnapshot {
       playerFrozen: false,
       recycleCount: BigInt.zero,
       playerWeight: BigInt.zero,
-      chanceBps: BigInt.zero,
+      weightShareBps: BigInt.zero,
       boxTokens: BigInt.zero,
       maxPlayers: 0,
       phase: GameRoundPhase.uninitialized,
@@ -117,6 +124,43 @@ class _MatrixArenaSnapshot {
       skillRules: _MatrixSkillRules.empty(),
       participants: const [],
       playerSkillStatus: null,
+      participantPage: 0,
+      hasMoreParticipants: false,
+    );
+  }
+
+  _MatrixArenaSnapshot copyWith({
+    List<MatrixParticipant>? participants,
+    int? participantPage,
+    bool? hasMoreParticipants,
+  }) {
+    return _MatrixArenaSnapshot(
+      level: level,
+      roundId: roundId,
+      priceWei: priceWei,
+      activeCells: activeCells,
+      totalWeight: totalWeight,
+      prizePoolWei: prizePoolWei,
+      prizePoolUsdc: prizePoolUsdc,
+      nextCellId: nextCellId,
+      nextOpenParentId: nextOpenParentId,
+      playerCellId: playerCellId,
+      playerActive: playerActive,
+      playerFrozen: playerFrozen,
+      recycleCount: recycleCount,
+      playerWeight: playerWeight,
+      weightShareBps: weightShareBps,
+      boxTokens: boxTokens,
+      maxPlayers: maxPlayers,
+      phase: phase,
+      freezeClosesAt: freezeClosesAt,
+      freezeWindowOpen: freezeWindowOpen,
+      freezeTokenPriceUsdc: freezeTokenPriceUsdc,
+      skillRules: skillRules,
+      participants: participants ?? this.participants,
+      playerSkillStatus: playerSkillStatus,
+      participantPage: participantPage ?? this.participantPage,
+      hasMoreParticipants: hasMoreParticipants ?? this.hasMoreParticipants,
     );
   }
 
@@ -176,6 +220,7 @@ class _StatisticsSnapshot {
   final BigInt totalPrizePoolWei;
   final BigInt totalWeight;
   final BigInt playerRewardsWei;
+  final int paymentSplitVersion;
   final List<_LevelArenaStat> levelRows;
 
   const _StatisticsSnapshot({
@@ -187,6 +232,7 @@ class _StatisticsSnapshot {
     required this.totalPrizePoolWei,
     required this.totalWeight,
     required this.playerRewardsWei,
+    required this.paymentSplitVersion,
     required this.levelRows,
   });
 }
@@ -295,7 +341,7 @@ String _formatWei(BigInt wei) {
   return '$whole.$trimmedFraction';
 }
 
-String _formatChance(BigInt bps) {
+String _formatWeightShare(BigInt bps) {
   final whole = bps ~/ BigInt.from(100);
   final fraction = (bps % BigInt.from(100)).toString().padLeft(2, '0');
   return '$whole.$fraction%';

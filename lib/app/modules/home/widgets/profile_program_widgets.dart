@@ -45,22 +45,18 @@ class _ProgramPanel extends StatelessWidget {
                       ],
                     ),
                   ),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      const Icon(
-                        CupertinoIcons.circle,
+                      _ProgramPoolValue(
                         color: EasyGameTheme.gold,
-                        size: 15,
+                        value:
+                            '${formatWeiToEth(data.totalPrizePoolWei)} ${walletService.nativeSymbol}',
                       ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '${formatWeiToEth(data.totalPrizePoolWei)} ${walletService.nativeSymbol}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
+                      const SizedBox(height: 5),
+                      _ProgramPoolValue(
+                        color: const Color(0xFF2775CA),
+                        value: '${formatUsdc(data.totalPrizePoolUsdc)} USDC',
                       ),
                     ],
                   ),
@@ -137,6 +133,32 @@ class _ProgramPanel extends StatelessWidget {
   }
 }
 
+class _ProgramPoolValue extends StatelessWidget {
+  final Color color;
+  final String value;
+
+  const _ProgramPoolValue({required this.color, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(CupertinoIcons.circle_fill, color: color, size: 12),
+        const SizedBox(width: 7),
+        Text(
+          value,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 16,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _ProgramCta extends StatelessWidget {
   final VoidCallback onTap;
   final bool compact;
@@ -190,24 +212,37 @@ class _MatrixCell extends StatelessWidget {
   Widget build(BuildContext context) {
     final round = levelState?.round ??
         Get.find<GameRoundsController>().roundForLevel(level);
-    // The program overview is public. Keep its pre-login appearance while
-    // round data is still loading; wallet-only state is layered on top below.
     final available = levelState?.canEnter ?? false;
     final active = levelState?.isPlayerActive == true;
     final frozen = levelState?.isFrozen == true;
+    final missed = levelState?.isMissed ?? false;
+    final didWin = levelState?.didWin;
+    final notStarted = round == null ||
+        round.phase == GameRoundPhase.scheduled ||
+        round.phase == GameRoundPhase.uninitialized;
+
     final borderColor = frozen
         ? const Color(0xFFFFA62B)
-        : active
-            ? EasyGameTheme.teal
-            : available
-                ? Colors.white24
-                : Colors.white10;
+        : missed
+            ? Colors.white24
+            : didWin == true
+                ? const Color(0xFF28D07F)
+                : didWin == false
+                    ? const Color(0xFFFF4444)
+                    : active
+                        ? EasyGameTheme.teal
+                        : available
+                            ? Colors.white24
+                            : Colors.white10;
+
+    final showingSettledOutcome = didWin != null;
+    final inProgress = active && !showingSettledOutcome;
 
     return InkWell(
       borderRadius: BorderRadius.circular(10),
       onTap: round == null
           ? null
-          : active
+          : showingSettledOutcome || active
               ? () => Get.to(() => EasyGameLevelDetailScreen(
                     level: level,
                     roundId: BigInt.from(round.schedule.roundId),
@@ -217,14 +252,14 @@ class _MatrixCell extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(10),
           border: Border.all(color: borderColor),
-          gradient: active
+          gradient: inProgress
               ? const LinearGradient(
                   colors: [Color(0xFF6F40F4), Color(0xFF00B2AA)],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 )
               : null,
-          color: active
+          color: inProgress
               ? null
               : available
                   ? const Color(0xFF242338)
@@ -238,11 +273,17 @@ class _MatrixCell extends StatelessWidget {
                 '$level',
                 style: TextStyle(
                   fontSize: 14,
-                  color: active
+                  color: frozen
                       ? Colors.white
-                      : available
-                          ? Colors.white38
-                          : EasyGameTheme.gold,
+                      : missed
+                          ? Colors.white24
+                          : showingSettledOutcome
+                              ? Colors.white
+                              : active
+                                  ? Colors.white
+                                  : available
+                                      ? Colors.white38
+                                      : EasyGameTheme.gold,
                   fontWeight: FontWeight.w900,
                 ),
               ),
@@ -250,10 +291,26 @@ class _MatrixCell extends StatelessWidget {
                 const SizedBox(height: 3),
                 const Icon(CupertinoIcons.snow,
                     color: Color(0xFFFFA62B), size: 12),
-              ] else if (active) ...[
+              ] else if (missed) ...[
+                const SizedBox(height: 3),
+                const Icon(CupertinoIcons.minus_circle,
+                    color: Colors.white24, size: 12),
+              ] else if (didWin == true) ...[
+                const SizedBox(height: 3),
+                const Icon(CupertinoIcons.checkmark,
+                    color: Color(0xFF28D07F), size: 12),
+              ] else if (didWin == false) ...[
+                const SizedBox(height: 3),
+                const Icon(CupertinoIcons.xmark,
+                    color: Color(0xFFFF4444), size: 12),
+              ] else if (inProgress) ...[
                 const SizedBox(height: 3),
                 const Icon(CupertinoIcons.checkmark,
                     color: Colors.white, size: 12),
+              ] else if (notStarted) ...[
+                const SizedBox(height: 3),
+                const Icon(CupertinoIcons.clock,
+                    color: Colors.white24, size: 12),
               ],
             ],
           ),

@@ -10,6 +10,7 @@ class ProfileDashboardSnapshot {
   final int activeCount;
   final int frozenCount;
   final BigInt totalPrizePoolWei;
+  final BigInt totalPrizePoolUsdc;
   final BigInt totalActiveCells;
   final BigInt totalWeight;
   final BigInt settlementPrizeWei;
@@ -23,6 +24,7 @@ class ProfileDashboardSnapshot {
     required this.activeCount,
     required this.frozenCount,
     required this.totalPrizePoolWei,
+    required this.totalPrizePoolUsdc,
     required this.totalActiveCells,
     required this.totalWeight,
     required this.settlementPrizeWei,
@@ -38,6 +40,7 @@ class ProfileDashboardSnapshot {
       activeCount: 0,
       frozenCount: 0,
       totalPrizePoolWei: BigInt.zero,
+      totalPrizePoolUsdc: BigInt.zero,
       totalActiveCells: BigInt.zero,
       totalWeight: BigInt.zero,
       settlementPrizeWei: BigInt.zero,
@@ -53,6 +56,7 @@ class ProfileDashboardSnapshot {
     int? activeCount,
     int? frozenCount,
     BigInt? totalPrizePoolWei,
+    BigInt? totalPrizePoolUsdc,
     BigInt? totalActiveCells,
     BigInt? totalWeight,
     BigInt? settlementPrizeWei,
@@ -66,6 +70,7 @@ class ProfileDashboardSnapshot {
       activeCount: activeCount ?? this.activeCount,
       frozenCount: frozenCount ?? this.frozenCount,
       totalPrizePoolWei: totalPrizePoolWei ?? this.totalPrizePoolWei,
+      totalPrizePoolUsdc: totalPrizePoolUsdc ?? this.totalPrizePoolUsdc,
       totalActiveCells: totalActiveCells ?? this.totalActiveCells,
       totalWeight: totalWeight ?? this.totalWeight,
       settlementPrizeWei: settlementPrizeWei ?? this.settlementPrizeWei,

@@ -11,7 +11,8 @@ const { buildWinningCellTree } = require("./round_merkle");
 
 const SEASON_LEVEL_COUNT = 17;
 const MIN_LEVEL_OPEN_INTERVAL = 5n * 60n * 60n;
-const MIN_ROUND_DURATION = 60n * 60n;
+const MIN_ROUND_DURATION = 24n * 60n * 60n;
+const MAX_ROUND_DURATION = 6n * 24n * 60n * 60n;
 const MAX_WINNERS = 8n;
 const MAX_PLAYERS = 1_000_000n;
 const MAX_ETH_PRICE = 1_000n * 10n ** 18n;
@@ -90,6 +91,7 @@ function parseRoundManifest(source, expectedLevel) {
     config.entriesCloseAt >= config.endsAt ||
     config.freezeClosesAt !== config.endsAt ||
     config.endsAt - config.startsAt < MIN_ROUND_DURATION ||
+    config.endsAt - config.startsAt > MAX_ROUND_DURATION ||
     config.maxPlayers === 0n || config.maxPlayers > MAX_PLAYERS ||
     config.maxWinners === 0n || config.maxWinners > MAX_WINNERS ||
     config.ethPrice > MAX_ETH_PRICE || config.usdcPrice > MAX_USDC_PRICE ||

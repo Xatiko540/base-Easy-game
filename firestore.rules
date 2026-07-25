@@ -66,10 +66,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
-    // Transactions — only own uid
+    // Transactions — own uid only
     match /transactions/{transactionId} {
-      allow read: if verifiedWallet() && resource.data.uid == request.auth.uid;
-      allow write: if false;
+      allow read: if verifiedWallet()
+        && (resource == null || resource.data.uid == request.auth.uid);
+      allow write: if verifiedWallet()
+        && request.resource.data.uid == request.auth.uid;
     }
 
     // Wallet links — only own uid

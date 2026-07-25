@@ -51,6 +51,9 @@ abstract contract EasyGameAdvanceStorage {
     mapping(uint256 => uint256) public roundPrizePoolsUsdc;
     mapping(address => mapping(uint256 => WeightBreakdown)) internal _roundWeights;
     mapping(address => mapping(uint256 => uint256)) public roundReferralWeightRemainder;
+    mapping(address => mapping(uint256 => uint256)) public pendingRoundReferralWeight;
+
+    enum WeightType { Base, Referral, Matrix, Nft }
     mapping(uint256 => mapping(uint256 => address)) internal _roundRecycleQueue;
     mapping(uint256 => uint256) internal _roundRecycleHead;
     mapping(uint256 => uint256) internal _roundRecycleTail;

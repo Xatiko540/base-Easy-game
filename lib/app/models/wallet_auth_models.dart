@@ -20,6 +20,9 @@ class WalletAuthSession {
   });
 
   bool matches(String address, int? activeChainId) {
+    if (activeChainId == null) {
+      return wallet.toLowerCase() == address.toLowerCase();
+    }
     return wallet.toLowerCase() == address.toLowerCase() &&
         chainId == activeChainId;
   }

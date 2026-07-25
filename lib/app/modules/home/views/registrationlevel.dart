@@ -191,11 +191,12 @@ class RegistrationScreen extends StatelessWidget {
                                 value: selectedLevel,
                                 iconEnabledColor: Colors.white,
                                 items: [
-                                  for (var i = easyGameLevelCount; i >= 1; i--)
+                                  for (final i
+                                      in registrationController.selectableLevels)
                                     DropdownMenuItem(
                                       value: i,
                                       child: Text(
-                                        'Level $i (${registrationController.formatAssetAmount(registrationController.priceForLevel(i))} $currency)',
+                                        '${'common.level'.tr} $i (${registrationController.formatAssetAmount(registrationController.priceForLevel(i))} $currency)',
                                         style: const TextStyle(
                                           color: Colors.white,
                                           fontWeight: FontWeight.w800,

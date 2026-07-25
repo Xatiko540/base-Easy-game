@@ -70,37 +70,54 @@ async function main() {
   }
 
   const latest = await ethers.provider.getBlock("latest");
-  const roundId = BigInt(latest.number) * 1_000n + 1n;
+  const seasonId = BigInt(latest.number) * 1_000n + 1n;
+  const roundIdBase = seasonId * 100n;
+  const targetLevel = 5;
+  const roundId = roundIdBase + BigInt(targetLevel);
   const winningCells = [1n, 2n, 3n];
   const winnerTree = buildWinningCellTree(roundId, winningCells);
-  const config = {
-    seasonId: 1n,
-    roundId,
-    level: 5,
-    startsAt: BigInt(latest.timestamp - 5),
-    entriesCloseAt: BigInt(latest.timestamp + 600),
-    endsAt: BigInt(latest.timestamp + 1200),
-    freezeClosesAt: BigInt(latest.timestamp + 1200),
-    maxPlayers: 32,
-    maxWinners: winningCells.length,
-    winningCellsRoot: winnerTree.root,
-    ethPrice: ethers.parseEther("0.2"),
-    usdcPrice: 200_000n,
-    freezeLimit: 10,
-    paymentSplitVersion: 1,
+  const domain = {
+    name: "EasyGameAdvance",
+    version: "2",
+    chainId: network.chainId,
+    verifyingContract: await roundManager.getAddress(),
   };
-  const signature = await owner.signTypedData(
-    {
-      name: "EasyGameAdvance",
-      version: "2",
-      chainId: network.chainId,
-      verifyingContract: await roundManager.getAddress(),
-    },
-    roundTypes,
-    config,
+  const targetStartsAt = BigInt(latest.timestamp - 5);
+  const openingInterval = 5n * 60n * 60n;
+  const configs = Array.from({ length: 17 }, (_, index) => {
+    const level = index + 1;
+    const startsAt =
+      targetStartsAt + BigInt(level - targetLevel) * openingInterval;
+    const currentRoundId = roundIdBase + BigInt(level);
+    const tree = buildWinningCellTree(currentRoundId, winningCells);
+    return {
+      seasonId,
+      roundId: currentRoundId,
+      level,
+      startsAt,
+      entriesCloseAt: startsAt + 12n * 60n * 60n,
+      endsAt: startsAt + 24n * 60n * 60n,
+      freezeClosesAt: startsAt + 24n * 60n * 60n,
+      maxPlayers: 32,
+      maxWinners: winningCells.length,
+      winningCellsRoot: tree.root,
+      ethPrice: ethers.parseEther("0.2"),
+      usdcPrice: 200_000n,
+      freezeLimit: 10,
+      paymentSplitVersion: 1,
+    };
+  });
+  const signatures = await Promise.all(
+    configs.map((roundConfig) =>
+      owner.signTypedData(domain, roundTypes, roundConfig),
+    ),
   );
+  await (await roundManager.commitSeason(configs, signatures)).wait();
+  const config = configs[targetLevel - 1];
+  const signature = signatures[targetLevel - 1];
 
   console.log(`Chain ID: ${chainId}`);
+  console.log(`Season ID: ${seasonId}`);
   console.log(`Round ID: ${roundId}`);
 
   const ethActivation = await (
@@ -172,6 +189,23 @@ async function main() {
     () => easyGame.connect(referral).withdrawProjectFees(),
     "only owner can withdraw project fees",
   );
+  let recycleQueue = await easyGame.getRoundRecycleQueueState(roundId);
+  while (recycleQueue.pending > 0n) {
+    await (await easyGame.processRoundRecycles(roundId, 64)).wait();
+    recycleQueue = await easyGame.getRoundRecycleQueueState(roundId);
+  }
+  console.log("PASS bounded recycle queue drained before settlement");
+  const winnerAddresses = [];
+  for (const cellId of winningCells) {
+    const node = await easyGame.getRoundMatrixNode(roundId, cellId);
+    const normalized = node.player.toLowerCase();
+    if (
+      node.player !== ethers.ZeroAddress &&
+      !winnerAddresses.some((address) => address.toLowerCase() === normalized)
+    ) {
+      winnerAddresses.push(node.player);
+    }
+  }
   await ethers.provider.send("evm_setNextBlockTimestamp", [Number(config.endsAt)]);
   await ethers.provider.send("evm_mine", []);
   await (
@@ -184,9 +218,15 @@ async function main() {
     throw new Error("Round manager did not move to Settled phase");
   }
 
-  for (const participant of participants) {
-    const ethClaim = await settlement.claimableEth(participant.address);
-    const usdcClaim = await settlement.claimableUsdc(participant.address);
+  for (const winnerAddress of winnerAddresses) {
+    const participant = participants.find(
+      (candidate) => candidate.address.toLowerCase() === winnerAddress.toLowerCase(),
+    );
+    if (!participant) {
+      throw new Error(`Missing local signer for winner ${winnerAddress}`);
+    }
+    const ethClaim = await settlement.claimableEth(winnerAddress);
+    const usdcClaim = await settlement.claimableUsdc(winnerAddress);
     if (ethClaim === 0n || usdcClaim === 0n) {
       throw new Error("A verified winner did not receive both pool allocations");
     }

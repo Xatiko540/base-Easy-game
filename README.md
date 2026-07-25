@@ -356,7 +356,7 @@ These events can support:
 `DrawRequested` and `DrawWon` remain reserved in the ABI for a future verified
 draw implementation, but the current contract does not emit them.
 - Freeze/unfreeze tracking.
-- Weighted draw history.
+- Committed winning-cell and weighted prize-share history.
 - Claimable reward tables.
 
 ---
@@ -476,7 +476,7 @@ Current tests cover:
 - Box token grants.
 - Freeze behavior.
 - Prize-position claimable rewards.
-- Weighted draw rewards.
+- Merkle winning-cell rewards with weighted prize shares.
 - Project fee withdrawal isolation.
 - Unfreeze after activating the next level.
 

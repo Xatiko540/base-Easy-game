@@ -6,8 +6,10 @@
     "node": "22"
   },
   "scripts": {
-    "lint": "node --check index.js && node --check game_abi.js && node --check round_merkle.js && node --check round_season_manifest.js && node --check test_contract_abi.js && node --check test_auth_source.js && node --check test_round_season_manifest.js",
-    "test": "node test_round_merkle.js && node test_round_season_manifest.js && node test_contract_abi.js && node test_auth_source.js",
+    "lint": "node --check index.js && node --check auth.js && node --check config.js && node --check contract.js && node --check siwe.js && node --check game_abi.js && node --check transaction_decoder.js && node --check round_merkle.js && node --check round_season_manifest.js && node --check seed_local_round.js && node --check validate_config.js && node --check test_contract_abi.js && node --check test_auth_source.js && node --check test_emulator.js && node --check test_round_merkle.js && node --check test_round_season_manifest.js && node --check test_transaction_decoder.js",
+    "test": "node test_round_merkle.js && node test_round_season_manifest.js && node test_contract_abi.js && node test_auth_source.js && node test_transaction_decoder.js",
+    "validate:config": "node validate_config.js",
+    "verify": "npm run lint && npm test && npm run validate:config",
     "test:emulator": "node test_emulator.js",
     "serve": "npx -y firebase-tools@latest emulators:start --only functions,firestore",
     "deploy": "npx -y firebase-tools@latest deploy --only functions,firestore"

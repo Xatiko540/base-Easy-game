@@ -1,12 +1,11 @@
-import 'dart:convert';
-import 'dart:io';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'support/abi_test_utils.dart';
 
 void main() {
-  test('incompatible Base Sepolia deployment addresses are not bundled', () {
+  test('incompatible Base Sepolia deployment addresses are not bundled', () async {
+    if (kIsWeb) return;
     const contracts = <String>[
       'EasyGameAdvance',
       'EasyGameRoundManager',
@@ -15,16 +14,15 @@ void main() {
     ];
 
     for (final contract in contracts) {
-      final artifact = jsonDecode(
-        File('src/artifacts/$contract.json').readAsStringSync(),
-      ) as Map<String, dynamic>;
+      final artifact = await loadArtifact(contract);
       final networks = artifact['networks'] as Map<String, dynamic>;
       expect(networks.containsKey('84532'), isFalse);
     }
   });
 
-  test('settleRound ABI accepts wagmi nested Merkle proof arguments', () {
-    final function = loadAbiFunction(
+  test('settleRound ABI accepts wagmi nested Merkle proof arguments', () async {
+    if (kIsWeb) return;
+    final function = await loadAbiFunction(
       'EasyGameRoundSettlement',
       'settleRound',
     );

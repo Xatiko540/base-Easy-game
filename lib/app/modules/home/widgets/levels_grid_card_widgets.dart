@@ -99,7 +99,7 @@ class LevelCard extends StatelessWidget {
                     const SizedBox(height: 10),
                     _WeightStrip(
                       weight: data.playerWeight,
-                      chanceBps: data.playerChanceBps,
+                      weightShareBps: data.playerWeightShareBps,
                       totalWeight: data.totalWeight,
                     ),
                     const Spacer(),

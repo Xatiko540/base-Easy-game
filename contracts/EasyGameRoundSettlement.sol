@@ -192,8 +192,14 @@ contract EasyGameRoundSettlement {
             claimableEth[winners[i]] += ethShare;
             claimableUsdc[winners[i]] += usdcShare;
         }
-        claimableEth[winners[0]] += ethAmount - allocatedEth;
-        claimableUsdc[winners[0]] += usdcAmount - allocatedUsdc;
+        uint256 ethRemainder = ethAmount - allocatedEth;
+        uint256 usdcRemainder = usdcAmount - allocatedUsdc;
+        for (uint256 i = 0; i < ethRemainder; i++) {
+            claimableEth[winners[i]] += 1;
+        }
+        for (uint256 i = 0; i < usdcRemainder; i++) {
+            claimableUsdc[winners[i]] += 1;
+        }
     }
 
     function _alreadyIncluded(address[] memory winners, uint16 count, address player)
